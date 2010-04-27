@@ -1,0 +1,5 @@
+process main()()
+meta { instance a : b([<int>]); }
+/* not legal, should have good error message */
+process b(T : array [0..0] of type)()
+chp { print(T); }

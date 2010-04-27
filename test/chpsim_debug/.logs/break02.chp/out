@@ -1,0 +1,10 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?)   Breakpoint set at break02.chp[7:39]
+(cmnd?) (break) / at break02.chp[7:39]
+	x[i] := i[0]
+(cmnd?)   i = 4
+(cmnd?)   x = 10
+(cmnd?) --- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

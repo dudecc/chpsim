@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch int_sub4.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at int_sub4.chp[2:24]
+	Connected ports must have identical specific types
+Error occurred: cannot continue
+(cmnd) where
+/ at int_sub4.chp[2:24]
+	connect a.I, a.O
+(cmnd) quit

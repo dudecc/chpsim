@@ -1,0 +1,7 @@
+process a()(I?, O! : array[0..1] of (e-;d-))
+hse { I[0].e+, O[0].d+; [O[0].e & I[0].d];
+      I[1].e+, O[1].d+; [O[1].e & I[1].d];
+      print("done")
+}
+process main()()
+meta { instance b : a; connect b.I, b.O; }

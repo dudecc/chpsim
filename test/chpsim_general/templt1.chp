@@ -1,0 +1,5 @@
+process main()()
+meta { instance a : b(<int>, 10); }
+
+process b(T:type; N:int)()
+meta { [ N > 0 -> instance a : b(<array [0..0] of T>, N-1) [] N = 0 -> skip ] }

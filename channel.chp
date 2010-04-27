@@ -1,0 +1,100 @@
+/* e1ofN channels */
+export type e1of1 = (e-; d[0..0]-);
+export type e1of2 = (e-; d[0..1]-);
+export type e1of3 = (e-; d[0..2]-);
+export type e1of4 = (e-; d[0..3]-);
+export type e1of5 = (e-; d[0..4]-);
+export type e1of6 = (e-; d[0..5]-);
+export type e1of7 = (e-; d[0..6]-);
+export type e1of8 = (e-; d[0..7]-);
+export type e1of9 = (e-; d[0..8]-);
+/* feel free to continue these definitions in your own code,
+   or just directly use the type (e-; d[0..N-1]-)
+*/
+
+/* Conversion between channels and e1ofN's */
+
+export process toe1of(N : int; T : type; MAP : array [0..N-1] of T)
+                     (I? : T; O! : (e-; d[0..N-1]-))
+chp {
+  var x : T;
+  *[ [O.e], I#?x; [<<[]i:0..N-1:x=MAP[i]-> O.d[i]+; [~O.e]; O.d[i]- >>]; I ]
+}
+
+export process frome1of(N : int; T : type; MAP : array [0..N-1] of T)
+                       (I? : (e-; d[0..N-1]-); O! : T)
+chp { *[ I.e+; [<<[]i:0..N-1:I.d[i]-> O!MAP[i]; I.e-; [~I.d[i]] >>] ] }
+
+/* The above are useful for making your own union types to e1ofN's */
+
+export type bit = union {
+  default : bool;
+  wire {   toe1of(2, <bool>, [false, true]),
+         frome1of(2, <bool>, [false, true])
+       } : e1of2;
+};
+
+export type std1of1 = union {
+  default : {0..0};
+  wire {   toe1of(1, <{0..0}>, [0]),
+         frome1of(1, <{0..0}>, [0])
+       } : e1of1;
+};
+
+export type std1of2 = union {
+  default : {0..1};
+  wire {   toe1of(2, <{0..1}>, [0,1]),
+         frome1of(2, <{0..1}>, [0,1])
+       } : e1of2;
+};
+
+export type std1of3 = union {
+  default : {0..2};
+  wire {   toe1of(3, <{0..2}>, [0,1,2]),
+         frome1of(3, <{0..2}>, [0,1,2])
+       } : e1of3;
+};
+
+export type std1of4 = union {
+  default : {0..3};
+  wire {   toe1of(4, <{0..3}>, [0,1,2,3]),
+         frome1of(4, <{0..3}>, [0,1,2,3])
+       } : e1of4;
+};
+
+export type std1of5 = union {
+  default : {0..4};
+  wire {   toe1of(5, <{0..4}>, [0,1,2,3,4]),
+         frome1of(5, <{0..4}>, [0,1,2,3,4])
+       } : e1of5;
+};
+
+export type std1of6 = union {
+  default : {0..5};
+  wire {   toe1of(6, <{0..5}>, [0,1,2,3,4,5]),
+         frome1of(6, <{0..5}>, [0,1,2,3,4,5])
+       } : e1of6;
+};
+
+export type std1of7 = union {
+  default : {0..6};
+  wire {   toe1of(7, <{0..6}>, [0,1,2,3,4,5,6]),
+         frome1of(7, <{0..6}>, [0,1,2,3,4,5,6])
+       } : e1of7;
+};
+
+export type std1of8 = union {
+  default : {0..7};
+  wire {   toe1of(8, <{0..7}>, [0,1,2,3,4,5,6,7]),
+         frome1of(8, <{0..7}>, [0,1,2,3,4,5,6,7])
+       } : e1of8;
+};
+
+export type std1of9 = union {
+  default : {0..8};
+  wire {   toe1of(9, <{0..8}>, [0,1,2,3,4,5,6,7,8]),
+         frome1of(9, <{0..8}>, [0,1,2,3,4,5,6,7,8])
+       } : e1of9;
+};
+
+/* Just copy the above patterns to implement any ranged type as an e1ofN */

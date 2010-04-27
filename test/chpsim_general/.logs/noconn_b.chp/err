@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch noconn_b.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: /a at noconn_b.chp[5:29]
+	Port I[0] is already connected to /a
+Error occurred: cannot continue
+(cmnd) where
+/a at noconn_b.chp[5:21]
+	connect I[0], O[0]
+(cmnd) quit

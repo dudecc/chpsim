@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /b at prs_02.chp[9:0]
+	process B()(I?: (e-; d[0..1]-); ...)
+(cmnd?) (cmnd?) (cmnd?) (watch) /b:O.d[0] up at time 42541
+(watch) /b:O.d[0] down at time 69124
+(watch) /b:O.d[1] up at time 206907
+(watch) /b:O.d[1] down at time 220148
+(watch) /b:O.d[0] up at time 352323
+(watch) /b:O.d[0] down at time 390088
+(watch) /b:O.d[1] up at time 409865
+(watch) /b:O.d[1] down at time 486504
+--- done -------------------------------

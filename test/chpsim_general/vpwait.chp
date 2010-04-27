@@ -1,0 +1,3 @@
+process A()(I?, O! : int)
+chp { <<; i : 1..10 : O!0, {[#{I:I=0}]; I} >> }
+process main()() meta { instance a:A; connect a.I, a.O; }

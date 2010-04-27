@@ -1,0 +1,9 @@
+Command line: ../../chpsim -batch prs_arb_01.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+(cmnd) quit

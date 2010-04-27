@@ -1,0 +1,13 @@
+Command line: ../../chpsim -batch hse_02.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: /z at hse_02.chp[9:0]
+	In process /z, port I not connected
+(No process writes to wire e)
+Error occurred: cannot continue
+(cmnd) where
+/z at hse_02.chp[9:0]
+	process Z()(I?: e1of2; ...)
+(cmnd) quit

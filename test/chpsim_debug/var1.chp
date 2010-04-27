@@ -1,0 +1,18 @@
+//step
+//view /
+//print x
+//step
+//view /
+//print x
+//step
+//view /
+//print x
+//step
+//view /
+//print x
+//step
+//view /
+//print x
+
+process main()()
+chp { var x : int;  x := 5; x := 0 }

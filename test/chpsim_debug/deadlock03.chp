@@ -1,0 +1,7 @@
+//r
+//r
+//p /a
+//p /b
+
+process main()() meta { instance a, b : X; connect a.S, b.SS; connect a.SS, b.S }
+process X()(S; SS) chp { S; SS }

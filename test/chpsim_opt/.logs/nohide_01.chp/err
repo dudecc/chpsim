@@ -1,0 +1,24 @@
+Command line: ../../chpsim -batch -nohide -watchall nohide_01.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+(watch) /b:I.e up at time 20088
+(watch) /a/O/wire:O.d[0] up at time 42623
+(watch) /b:I.e down at time 67969
+(watch) /a/O/wire:O.d[0] down at time 73326
+(watch) /b:I.e up at time 106838
+(watch) /a/O/wire:O.d[1] up at time 173070
+(watch) /b:I.e down at time 173255
+(watch) /a/O/wire:O.d[1] down at time 238528
+(watch) /b:I.e up at time 355489
+(watch) /a/O/wire:O.d[2] up at time 355553
+(watch) /b:I.e down at time 355665
+(watch) /a/O/wire:O.d[2] down at time 370596
+(watch) /b:I.e up at time 380344
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/a/O/wire at /usr/local/share/chpsim/channel.chp[21:12]
+	I#?x
+(cmnd) quit

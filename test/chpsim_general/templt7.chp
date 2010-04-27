@@ -1,0 +1,11 @@
+process sink(T:type)(I?:T) chp { <<; i : 0..100 : I >> }
+process source(T:type;X:T)(O!:T) chp { *[O!X] }
+process sourcex()(O[2..3,2..3,2..3]! : int)
+meta { instance a : array [2..3,2..3] of source(<array [2..3] of int>, [3,5]);
+       connect all i : 2..3 : all j : 2..3 : a[i,j].O, O[i,j];
+}
+process main()()
+meta { instance a : sourcex;
+       instance b : sink(<array [2..3,2..3,2..3] of int>);
+       connect a.O, b.I;
+}

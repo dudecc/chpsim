@@ -1,0 +1,4 @@
+process main()()
+meta { process A()() prs { var x+; }
+       instance a : A;
+}

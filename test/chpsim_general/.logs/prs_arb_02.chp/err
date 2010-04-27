@@ -1,0 +1,13 @@
+Command line: ../../chpsim -batch prs_arb_02.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: Upward transition on wire X[1] of process /b
+  caused instability on wire X[0]
+Error occurred: cannot continue
+(cmnd) where
+/b at prs_arb_02.chp[6:0]
+	process B()(I[0..1]?: e1of2; ...)
+(cmnd) quit

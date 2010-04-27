@@ -1,0 +1,14 @@
+//r
+//break /a 14:44
+//r
+//r
+//r
+//r
+//r
+//p i
+//p x
+
+process main()()
+meta { instance a, b : X; a(21); b(10) }
+process X(N:int)()
+chp { var x : int = 0; <<; i : 0..5 : x[i] := N[i] >> }

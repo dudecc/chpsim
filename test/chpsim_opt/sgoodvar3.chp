@@ -1,0 +1,6 @@
+//-strict
+procedure make5(valres x : int) chp { x := 5 }
+process main()()
+chp { var x : array [0..9] of int = <<++ i : 0..9 : [0] >>;
+      <<; i : 0..99 : <<, j : 0..9 : make5(x[j]) >> >>
+}

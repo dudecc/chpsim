@@ -1,0 +1,15 @@
+type e1of2 = (e-; d0-, d1-);
+
+process X()(O! : e1of2)
+chp { [O.e]; O.d0+; [~O.e]; O.d0-; [O.e]; O.d1+; [~O.e]; O.d1- }
+
+process Y()(I? : e1of2)
+chp { <<; i : 0..1 : I.e+; [I.d0 -> print(0) [] I.d1 -> print(1)]; I.e-; [~I.d0 & ~I.d1] >> }
+
+process main()()
+meta {
+  instance x : X;
+  instance y : Y;
+  connect x.O, y.I;
+}
+

@@ -1,0 +1,13 @@
+Command line: ../../chpsim -batch rep_range_check.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: / at rep_range_check.chp[2:19]
+	Replication lower bound 1 = 1 exceeds upper bound 0 = 0
+Error occurred: cannot continue
+(cmnd) where
+/ at rep_range_check.chp[2:19]
+	<<; i : 1..0 : skip>>
+(cmnd) quit

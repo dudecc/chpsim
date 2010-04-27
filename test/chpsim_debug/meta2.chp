@@ -1,0 +1,4 @@
+//meta
+
+process main(N:int)()
+meta { var x : int = <<+ i : 0..N : 1 >>; }

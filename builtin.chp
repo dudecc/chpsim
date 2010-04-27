@@ -1,0 +1,36 @@
+/* builtin.chp: builtin procedures
+
+   Author: Marcel van der Goot
+
+   $Id: builtin.chp,v 1.3 2002/12/11 07:04:29 marcel Exp $
+*/
+
+export type string = array [0..1] of {0..127}; // hack
+
+// Print each of the argument values (preceded by instance name)
+export procedure print(...)
+BUILTIN
+
+// Show each argument plus its value, like x = 5
+export procedure show(...)
+BUILTIN
+
+// Stop the process at the next statement
+export procedure step()
+BUILTIN
+
+// Print error message with each of the argument values
+export procedure error(...)
+BUILTIN
+
+// Print warning message with each of the argument values
+export procedure warning(...)
+BUILTIN
+
+// Error if condition is false
+export procedure assert(cond: bool)
+CHP
+  { [   cond -> skip
+    [] ~cond -> error("Assertion failed");
+    ]
+  }

@@ -1,0 +1,23 @@
+## Process this file with automake to produce Makefile.in
+
+# Include clib library
+CLIBDIR = clib
+SUBDIRS = $(CLIBDIR)
+AM_CFLAGS = -I$(CLIBDIR)
+LDADD = $(CLIBDIR)/libalways.a
+
+# Include GMP and math
+LDADD += -lgmp -lm
+
+bin_PROGRAMS = chpsim
+chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
+                 modules.c parse.c parse_obj.c print.c routines.c \
+                 sem_analysis.c statement.c types.c value.c variables.c \
+                 lex.h parse_obj.h print.h value.h builtin_io.h chp.h \
+                 exec.h expr.h modules.h parse.h routines.h interact.h \
+                 sem_analysis.h statement.h types.h variables.h \
+                 path.def symbol.def
+
+# CHP library files
+dist_pkgdata_DATA = builtin.chp stdio.chp channel.chp
+AM_CFLAGS += -DPKGDATADIR='"$(pkgdatadir)"'

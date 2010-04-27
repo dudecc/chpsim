@@ -1,0 +1,5 @@
+process main()()
+meta { instance a : b; <<; i : 0..0 : a(<{0..i}>, 0) >>; connect a.I, a.O; }
+
+process b(T:type; x : T)(I?, O! : T)
+chp { O!x, I }

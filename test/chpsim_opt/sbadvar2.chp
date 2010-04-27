@@ -1,0 +1,3 @@
+//-strict
+process main()()
+chp { var x : int = 0; x:=1, print(x) }

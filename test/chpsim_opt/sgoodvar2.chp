@@ -1,0 +1,7 @@
+//-strict
+process main()()
+chp {
+   var x : array[0..1] of int;
+   var y : array [0..1,0..1] of int;
+   <<; i : 0..99 : x := [i,i]; y := [x,x]; x[0] := i; y[0,0] := i >>
+}

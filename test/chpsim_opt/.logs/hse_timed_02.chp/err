@@ -1,0 +1,11 @@
+Command line: ../../chpsim -batch -timed hse_timed_02.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/b at hse_timed_02.chp[4:33]
+	[I.d]
+(cmnd) quit

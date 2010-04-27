@@ -1,0 +1,3 @@
+Command line: ../../chpsim -batch repinst.chp
+
+repinst.chp[2:31] Error: 'instance' cannot appear in a replicated statement

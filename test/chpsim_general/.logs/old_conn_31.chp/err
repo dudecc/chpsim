@@ -1,0 +1,8 @@
+Command line: ../../chpsim -batch old_conn_31.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) quit

@@ -1,0 +1,3 @@
+//print true xor false
+
+process main()() meta { skip }

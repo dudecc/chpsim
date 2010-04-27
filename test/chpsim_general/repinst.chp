@@ -1,0 +1,5 @@
+process main()()
+meta { <<; i : 0..0 : instance a : b >>; a(0) }
+
+process b(x : int)()
+chp { }

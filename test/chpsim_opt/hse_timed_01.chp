@@ -1,0 +1,16 @@
+//-timed
+requires "builtin-2.0.chp";
+process sink()(I? : (e-;d-))
+hse { *[I.e+;[I.d];I.e-;[~I.d]] }
+delay {
+  counter C = 0;
+  after (300) I.d -> C+
+  {I.e-} requires {C}
+  ~I.e -> C-
+}
+
+process source()(O! : (e-;d-))
+hse { <<; i : 1..10 : [O.e];O.d+;[~O.e];O.d- >>; print(time()) }
+
+process main()()
+meta { instance a : source; instance b : sink; connect a.O, b.I; }

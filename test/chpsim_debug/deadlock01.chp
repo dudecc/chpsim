@@ -1,0 +1,4 @@
+//r
+//p x
+
+process main()() meta { var x : int = 5; [false] }

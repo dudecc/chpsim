@@ -1,0 +1,27 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /b is an instance of templ0.chp[10:0] sink
+  T = <type>
+  I[2][2] --> /a/a[2][2]:O
+  I[2][3] --> /a/a[2][3]:O
+  I[3][2] --> /a/a[3][2]:O
+  I[3][3] --> /a/a[3][3]:O
+(active) /b at templ0.chp[10:0]
+(active) /b at templ0.chp[10:48]
+(cmnd?) (view) /b at templ0.chp[10:0]
+	process sink(T: type)(I?: T)
+(cmnd?)   I = [[port --> /a/a[2][2]:O, # = false, port --> /a/a[2][3]:O, # = false], [port --> /a/a[3][2]:O, # = false, port --> /a/a[3][3]:O, # = false]]
+(cmnd?)   Breakpoint set at templ0.chp[10:50]
+(cmnd?) (break) /b at templ0.chp[10:50]
+	I
+(cmnd?)   I = [[port --> /a/a[2][2]:O, # = false, port --> /a/a[2][3]:O, # = true, data = [3, 5]], [port --> /a/a[3][2]:O, # = false, port --> /a/a[3][3]:O, # = true, data = [3, 5]]]
+(cmnd?) (break) /b at templ0.chp[10:50]
+	I
+(cmnd?) --- continuing in batch mode -----------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/a/a[2][3] at templ0.chp[11:41]
+	O!X
+(cmnd) quit

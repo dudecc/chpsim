@@ -1,0 +1,2 @@
+process main()()
+chp { var x[0..1] : int = 5; print(x); }

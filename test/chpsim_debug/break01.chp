@@ -1,0 +1,11 @@
+//break 11:44
+//r
+//p i
+//r
+//r
+//r
+//p i
+//p x
+
+process main()()
+meta { var x : int = 0; <<; i : 0..7 : x[i] := i[0] >> }

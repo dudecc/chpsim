@@ -1,0 +1,7 @@
+//v /
+//p x
+//s
+//p x
+
+process main()()
+meta { var x : array [0..0,0..0] of int; }

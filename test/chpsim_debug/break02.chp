@@ -1,0 +1,7 @@
+//break 7:44 if i=4
+//r
+//p i
+//p x
+
+process main()()
+meta { var x : int = 0; <<; i : 0..7 : x[i] := i[0] >> }

@@ -1,0 +1,26 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?)   Breakpoint set at break01.chp[11:39]
+(cmnd?) (break) / at break01.chp[11:39]
+	x[i] := i[0]
+(cmnd?)   i = 0
+(cmnd?) (break) / at break01.chp[11:39]
+	x[i] := i[0]
+(cmnd?) (break) / at break01.chp[11:39]
+	x[i] := i[0]
+(cmnd?) (break) / at break01.chp[11:39]
+	x[i] := i[0]
+(cmnd?)   i = 3
+(cmnd?)   x = 2
+(cmnd?) (break) / at break01.chp[11:39]
+	x[i] := i[0]
+(cmnd?) --- continuing in batch mode -----------
+(break) / at break01.chp[11:39]
+	x[i] := i[0]
+(break) / at break01.chp[11:39]
+	x[i] := i[0]
+(break) / at break01.chp[11:39]
+	x[i] := i[0]
+--- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

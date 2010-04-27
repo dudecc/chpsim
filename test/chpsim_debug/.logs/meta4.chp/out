@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?)   Root process has only 1 meta parameter
+(cmnd?) (cmnd?) (step) / at meta4.chp[7:0]
+	process main(N: int)()
+(cmnd?) (step) / at meta4.chp[8:42]
+	skip
+(cmnd?)   x = 6
+(cmnd?) (step) / at meta4.chp[8:47]
+	}
+(cmnd?) --- continuing in batch mode -----------
+--- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

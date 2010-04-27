@@ -1,0 +1,2 @@
+process main()()
+meta { var x : int = <<+ i : 1..3 : i >> - 1; }

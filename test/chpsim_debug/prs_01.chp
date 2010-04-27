@@ -1,0 +1,8 @@
+//r
+//v /a
+//watch O.b
+//r
+
+process A()(O(b-;a-)) prs { true -> O.a+ }
+process B()(I(a-;b-)) prs { I.a -> I.b+ }
+process main()() meta { instance a : A; instance b : B; connect a.O, b.I; }

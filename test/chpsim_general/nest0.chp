@@ -1,0 +1,4 @@
+process main()()
+meta { process A()() chp { print(5) }
+       instance a : A;
+}

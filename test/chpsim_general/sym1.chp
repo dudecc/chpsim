@@ -1,0 +1,4 @@
+process A()(I?, O! : symbol)
+chp { O!`blue, {[#I]; print(I); I} }
+process main()()
+meta { instance a:A; connect a.I, a.O; }

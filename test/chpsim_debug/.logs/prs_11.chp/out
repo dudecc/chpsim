@@ -1,0 +1,17 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /b2 at prs_11.chp[11:0]
+	process B()(I?: (e-; d[0..1]-); ...)
+(cmnd?)   2 fanins:
+~Ov -> I.e+
+Ov -> I.e-
+(cmnd?)   2 fanins in /b1:
+~O_[0] -> O.d[0]+
+O_[0] -> O.d[0]-
+(cmnd?)   2 fanins:
+(~O.e & ~I.d[0]) -> O_[0]+
+(O.e & I.d[0]) -> O_[0]-
+(cmnd?) --- error ------------------------------
+Error: deadlock
+No threads left.

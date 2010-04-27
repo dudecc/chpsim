@@ -1,0 +1,4 @@
+process main()()
+meta {
+	<<; i : 0..3 : <<; j : 0..i : print(i,j) >> >>
+}

@@ -1,0 +1,19 @@
+
+process X()(O(e; d[0..1]-))
+chp { [O.e]; O.d[0]+; [~O.e]; O.d[0]-; [O.e]; O.d[1]+; [~O.e]; O.d[1]- }
+
+process Y()(I(d[0..1]; e-))
+chp { <<; i : 0..1 : I.e+; [I.d[0] -> print(0) [] I.d[1] -> print(1)]; I.e-; [~I.d[0] & ~I.d[1]] >> }
+
+process Z()(I(d[0..1]; e-); O(e; d[0..1]-))
+meta { connect I, O; }
+
+process main()()
+meta {
+  instance x : X;
+  instance y : Y;
+  instance z : Z;
+  connect x.O, z.I;
+  connect z.O, y.I;
+}
+

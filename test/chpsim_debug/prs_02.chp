@@ -1,0 +1,23 @@
+//r
+//v /b
+//watch O.d[0]
+//watch O.d[1]
+//r
+
+process A()(O!:(e-;d[0..1]-))
+hse { <<; i : 0..3 : [O.e]; O.d[i[0..0]]+; [~O.e]; O.d[i[0..0]]- >> }
+process B()(I?,O!:(e-;d[0..1]-))
+prs {
+  I.d[0] -> O.d[0]+
+ ~I.d[0] -> O.d[0]-
+  I.d[1] -> O.d[1]+
+ ~I.d[1] -> O.d[1]-
+  O.e -> I.e+
+ ~O.e -> I.e-
+}
+process C()(I?:(e-;d[0..1]-))
+hse { <<; i : 0..3 : I.e+; [I.d[i[0..0]]]; I.e-; [~I.d[i[0..0]]] >> }
+process main()()
+meta { instance a : A; instance b : B; instance c : C;
+       connect a.O, b.I; connect b.O, c.I
+}

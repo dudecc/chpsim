@@ -1,0 +1,5 @@
+process main()()
+chp { var x : {0..2^256-1} = 0;
+      <<; i : 0..255 : x[i] := true >>;
+      <<; i : 0..255 : assert(x[i]) >>
+    }

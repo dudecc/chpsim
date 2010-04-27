@@ -1,0 +1,6 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?)   true xor false = true
+(cmnd?) --- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

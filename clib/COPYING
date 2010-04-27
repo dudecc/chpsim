@@ -1,0 +1,13 @@
+---------- clib ---------------------------------------------------------------
+
+These are libraries used in the development of the programs
+for this project. These libraries themselves were not developed
+under the project, and are only provided to facilitate compilation
+of the programs that are part of this project.
+
+Normally, recompilation of these libraries is not necessary: you
+can link directly with the compiled versions in i686-lx/ or win32/.
+
+Copyright 2003 Marcel van der Goot
+
+-------------------------------------------------------------------------------

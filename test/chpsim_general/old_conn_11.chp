@@ -1,0 +1,17 @@
+
+process X()(O(e; d0-, d1-))
+chp { [O.e]; O.d0+; [~O.e]; O.d0-; [O.e]; O.d1+; [~O.e]; O.d1- }
+
+process Y()(I(d0, d1; e-))
+chp { <<; i : 0..1 : I.e+; [I.d0 -> print(0) [] I.d1 -> print(1)]; I.e-; [~I.d0 & ~I.d1] >> }
+
+process YY()(I(d0, d1; e-))
+meta { instance y : Y; connect I, y.I; }
+
+process main()()
+meta {
+  instance x : X;
+  instance y : YY;
+  connect x.O, y.I;
+}
+

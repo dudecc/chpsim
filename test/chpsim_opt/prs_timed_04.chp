@@ -1,0 +1,28 @@
+//-timed
+requires "builtin-2.0.chp";
+requires "channel.chp";
+
+const N = 100;
+process A()(O!:bit)
+chp { <<; i : 0..N : O!random(2)[0] >> }
+process B()(I?,O!:(e-;d[0..1]-))
+prs {
+  var O_[0..1]+;
+  var Ov-;
+  << i : 0..1 :
+                 I.d[i] &  O.e -> O_[i]-
+    after (300) ~I.d[i] & ~O.e -> O_[i]+
+    O_[i] -> O.d[i]-
+   ~O_[i] -> O.d[i]+
+  >>
+  <<& i : 0..1 :  O_[i] >> -> Ov-
+  <<| i : 0..1 : ~O_[i] >> -> Ov+
+  Ov -> I.e-
+ ~Ov -> I.e+
+}
+process C()(I?:bit)
+chp { var t : int; I; t:=time(); <<; i : 1..N : I >>; t:=time()-t; print(t) }
+process main()()
+meta { instance a : A; instance b[0..1] : B; instance c : C;
+       connect a.O.wire, b[0].I; connect b[0].O, b[1].I; connect b[1].O, c.I.wire
+}

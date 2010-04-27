@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?)   Type of meta parameter N does not match value "beans"
+(cmnd?) (cmnd?) (step) / at meta5.chp[7:0]
+	process main(N: int)()
+(cmnd?) (step) / at meta5.chp[8:42]
+	skip
+(cmnd?)   x = 6
+(cmnd?) (step) / at meta5.chp[8:47]
+	}
+(cmnd?) --- continuing in batch mode -----------
+--- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

@@ -1,0 +1,26 @@
+/* path.def: system-dependent definition of module search path.
+
+   Author: Marcel van der Goot
+
+   $Id$
+*/
+
+#ifndef PATH
+#define PATH(D)
+#endif
+
+/* Set the default search path for modules here (these are searched
+   in order, starting with the first). It is OK if some of these
+   directories don't exist. Note that argument must be between quotes.
+*/
+
+/* PKGDATADIR is where builtin.chp and stdio.chp are installed,
+   according to the Makefile.  To change this directory, change the
+   pkgdatadir variable. */
+PATH(PKGDATADIR)
+
+/* Add other directories here if you want... */
+/* PATH("/home/user/lib/chp") */
+
+
+#undef PATH

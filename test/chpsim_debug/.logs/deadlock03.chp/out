@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?)   /a is an instance of deadlock03.chp[7:0] X
+  S --> /b:SS
+  SS --> /b:S
+(suspended) /a at deadlock03.chp[7:25]
+(cmnd?)   /b is an instance of deadlock03.chp[7:0] X
+  S --> /a:SS
+  SS --> /a:S
+(suspended) /b at deadlock03.chp[7:25]
+(cmnd?) 

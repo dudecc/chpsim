@@ -1,0 +1,13 @@
+Command line: ../../chpsim -batch -strict sbadvar1.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: / at sbadvar1.chp[3:29]
+	Reading from a variable that was written in parallel
+Error occurred: cannot continue
+(cmnd) where
+/ at sbadvar1.chp[3:23]
+	print(x)
+(cmnd) quit

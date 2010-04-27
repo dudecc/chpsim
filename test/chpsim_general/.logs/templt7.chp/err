@@ -1,0 +1,11 @@
+Command line: ../../chpsim -batch templt7.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/a/a[2][3] at templt7.chp[2:41]
+	O!X
+(cmnd) quit

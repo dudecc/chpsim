@@ -1,0 +1,82 @@
+/* symbol.def: multi-character symbols and keywords
+
+   Author: Marcel van der Goot
+
+   $Id: symbol.def,v 1.3 2002/12/18 05:39:48 marcel Exp $
+*/
+#ifndef SYM
+#define SYM(M, S)
+#endif
+#ifndef KW
+#define KW(M)
+#endif
+
+/* Important: If one symbol is a prefix of another, the longer one
+	      must be listed first.
+*/
+SYM(assign, ":=")
+SYM(arrow, "->")
+SYM(varargs, "...")
+SYM(dots, "..")
+SYM(loop, "*[")
+SYM(bar, "[]")
+SYM(arb, "[:]")
+SYM(concat, "++")
+SYM(neq, "!=")
+SYM(lte, "<=")
+SYM(gte, ">=")
+SYM(peek, "#?")
+SYM(equiv, "==")
+SYM(keep, "?#")
+SYM(andand, "&&")
+SYM(oror, "||")
+SYM(comment_close, "*/")
+SYM(rep, "<<")
+SYM(rep_end, ">>")
+
+/* keywords must be in lower-case, and satisfy the rules for identifiers.
+   Note: lex.c:scan_id_kw() assumes that keywords consist of letters only.
+	 If you add a keyword with an underscore or digit, please modify
+	 that function.
+*/
+KW(after)
+KW(all)
+KW(atomic)
+KW(array)
+KW(bool)
+KW(builtin)
+KW(chp)
+KW(connect)
+KW(const)
+KW(counter)
+KW(default)
+KW(delay)
+KW(export)
+KW(false)
+KW(field)
+KW(function)
+KW(hse)
+KW(instance)
+KW(int)
+KW(meta)
+KW(mod)
+KW(of)
+KW(port)
+KW(procedure)
+KW(process)
+KW(prs)
+KW(record)
+KW(requires)
+KW(res)
+KW(skip)
+KW(symbol)
+KW(type)
+KW(true)
+KW(union)
+KW(val)
+KW(valres)
+KW(var)
+KW(xor)
+
+#undef SYM
+#undef KW

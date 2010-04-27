@@ -1,0 +1,3 @@
+Command line: ../../chpsim -batch templt6.chp
+
+templt6.chp[2:45] Error: Upper bound of integer type is not constant.

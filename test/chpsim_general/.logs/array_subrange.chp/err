@@ -1,0 +1,3 @@
+Command line: ../../chpsim -batch array_subrange.chp
+
+array_subrange.chp[2:31] Error: Cannot use array subrange in connection - use 'connect all' instead

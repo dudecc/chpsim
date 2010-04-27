@@ -1,0 +1,62 @@
+/* stdio.chp: standard I/O
+	      Naturally, these should only be used for testing purposes.
+
+   Author: Marcel van der Goot
+
+   $Id: stdio.chp,v 1.1 2002/11/20 21:55:38 marcel Exp $
+*/
+/*****************************************************************************/
+
+// Abstract type used to represent a file.
+export type file = int;
+
+export const stdin: file = 0;
+export const stdout: file = 1;
+
+export type file_err = { ok, eof, no_int };
+
+// Open the specified file with mode. Mode is the same as for C fopen()
+export
+procedure fopen(res f: file; name: string; mode: string)
+BUILTIN
+
+// Close the file
+export
+procedure fclose(f: file)
+BUILTIN
+
+// Read a byte (character). err is assigned ok or eof. (If eof, x is 0.)
+export
+procedure read_byte(f: file; res x: {0..255}; res err: file_err)
+BUILTIN
+
+// Read an integer in standard CHP notation, skipping preceding white space.
+// The integer may be immediately preceded by a single '-' sign.
+// err is assigned ok, eof, or no_int (first char is not a digit). If not ok,
+// x is 0.
+export
+procedure read_int(f: file; res x: int; res err: file_err)
+BUILTIN
+
+// Write a byte (character).
+export
+procedure write_byte(f: file; x: {0..255})
+BUILTIN
+
+// Write a string.
+export
+procedure write_string(f: file; x: string)
+BUILTIN
+
+// Write an integer in the specified base. Decimal integers are written
+// without base, hexadecimal with 0x, all others with base#.
+export
+procedure write_int(f: file; x: int; base: {2..36})
+BUILTIN
+
+// Same as the builtin print() procedure (but without instance name).
+export
+procedure write(f: file; ...)
+BUILTIN
+
+/*****************************************************************************/

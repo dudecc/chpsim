@@ -1,0 +1,13 @@
+Command line: ../../chpsim -batch array.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: /a at array.chp[5:6]
+	Array value has 3 elements instead of 2
+Error occurred: cannot continue
+(cmnd) where
+/a at array.chp[5:6]
+	O![1, ...]
+(cmnd) quit

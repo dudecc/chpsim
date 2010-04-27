@@ -1,0 +1,12 @@
+const n = 100;
+process X()(S!:int) chp { <<; i : 1..n : S!0 >>; print("done"); }
+process Y()(S1?,S2!:int) chp { <<; i : 1..n : S2!S1? >>; print("done"); }
+process Z()(S?:int) chp { <<; i : 1..n : S >>; print("done"); }
+process main()()
+meta { instance a : X;
+       instance b, c : Y;
+       instance d : Z;
+       connect a.S, b.S1;
+       connect b.S2, c.S1;
+       connect c.S2, d.S;
+}

@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch int_sub2.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at int_sub2.chp[2:32]
+	Cannot split a port of generic int type
+Error occurred: cannot continue
+(cmnd) where
+/ at int_sub2.chp[2:24]
+	connect a.I[0], a.O[0]
+(cmnd) quit

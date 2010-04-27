@@ -1,0 +1,5 @@
+process main()()
+meta { instance a : b; }
+
+process b()(I?, O! : int)
+meta { connect I[0], O[0]; }

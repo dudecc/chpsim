@@ -1,0 +1,20 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   Breakpoint set at break03.chp[14:38]
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?)   i = 4
+(cmnd?)   x = 5
+(cmnd?) (break) /a at break03.chp[14:38]
+	x[i] := N[i]
+(cmnd?) --- continuing in batch mode -----------
+--- done -------------------------------

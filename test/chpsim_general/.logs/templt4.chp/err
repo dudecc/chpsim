@@ -1,0 +1,5 @@
+Command line: ../../chpsim -batch templt4.chp
+
+process b(T : array [0..0] of type; x : T[0])()
+                              ^^^^
+templt4.chp[4:30] Error: Expected a type

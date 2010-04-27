@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch noconn1.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at noconn1.chp[1:0]
+	In process /a, port I is not connected
+Error occurred: cannot continue
+(cmnd) where
+/ at noconn1.chp[1:0]
+	process main()()
+(cmnd) quit

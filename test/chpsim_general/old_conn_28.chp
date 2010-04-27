@@ -1,0 +1,29 @@
+type e1of2 = (e-; d0-, d1-);
+process b2e()(I?:bool;O!:e1of2)
+chp { var i : bool; *[ [O.e] ; I#?i; [i -> O.d1+ [] ~i -> O.d0+];
+	               [~O.e] ; I?i; O.d0-, O.d1- ]
+}
+process e2b()(I?:e1of2;O!:bool)
+chp { var i : bool; *[ I.e+; [I.d0 -> O!false [] I.d1 -> O!true];
+	               I.e-; [~I.d0 & ~I.d1] ]
+}
+type bit = union { default : bool;
+	            d{b2e, e2b} : e1of2;
+};
+
+process X()(O! : bit)
+chp { O!false; O!true }
+
+process Y()(I? : e1of2)
+chp { <<; i : 0..1 : I.e+; [I.d0 -> print(0) [] I.d1 -> print(1)]; I.e-; [~I.d0 & ~I.d1] >> }
+
+process YY()(I? : e1of2)
+meta { instance y : Y; connect y.I, I; }
+
+process main()()
+meta {
+  instance x : X;
+  instance y : YY;
+  connect x.O.d, y.I;
+}
+

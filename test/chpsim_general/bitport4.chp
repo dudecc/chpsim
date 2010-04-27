@@ -1,0 +1,5 @@
+process main()()
+meta { instance a : b; connect all j : 0..2 : a.I[j], a.O[j] }
+
+process b()(I?, O! : {22..28})
+chp { var x : int; <<; i : 22..28 : O!i, I?x; print(x) >> }

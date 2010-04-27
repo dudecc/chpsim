@@ -1,0 +1,11 @@
+Command line: ../../chpsim -batch -timed prs_timed_04.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/b[1] at prs_timed_04.chp[8:0]
+	process B()(I?: (e-; d[0..1]-); ...)
+(cmnd) quit

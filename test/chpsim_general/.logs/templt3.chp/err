@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch templt3.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: /a/a/a/a/a/a/a/a/a/a/a at templt3.chp[6:38]
+	Type mismatch
+Error occurred: cannot continue
+(cmnd) where
+/a/a/a/a/a/a/a/a/a/a/a at templt3.chp[6:27]
+	instance c: d(<T>, ...);
+(cmnd) quit

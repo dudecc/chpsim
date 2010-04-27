@@ -1,0 +1,34 @@
+requires "channel.chp";
+
+const N = 100;
+process A()(O!:bit)
+chp { <<; i : 1..N : O!i[0] >> }
+process B()(I[0..1]?, O! : e1of2)
+prs {
+  var Id_[0..1]+, Ie_[0..1]+, O_[0..1]+;
+  var Id[0..1]-, X[0..1]-;
+  << i : 0..1 :
+    I[i].d[0] |  I[i].d[1] -> Id_[i]-
+   ~I[i].d[0] & ~I[i].d[1] -> Id_[i]+
+    Id_[i] -> Id[i]-
+   ~Id_[i] -> Id[i]+
+
+    atomic  Id[i] & ~X[1-i] -> X[i]+
+    atomic ~Id[i] -> X[i]-
+
+    X[i] &  I[1-i].e -> O_[i]-
+   ~X[i] | ~I[1-i].e -> O_[i]+
+    O_[i] -> O.d[i]-
+   ~O_[i] -> O.d[i]+
+    O_[i] &  O.e -> Ie_[i]-
+   ~O_[i] & ~O.e -> Ie_[i]+
+    Ie_[i] -> I[i].e-
+   ~Ie_[i] -> I[i].e+
+  >>
+}
+process C()(I?:bit)
+chp { <<; i : 1..N : I >>; print("done"); }
+process main()()
+meta { instance a[0..1] : A; instance b : B; instance c : C;
+       connect all i : 0..1 : a[i].O.wire, b.I[i]; connect b.O, c.I.wire
+}

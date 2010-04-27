@@ -1,0 +1,32 @@
+//-timed
+requires "builtin-2.0.chp";
+requires "channel.chp";
+process mem(ROM[0..7]:{0..15})(A? : e1of8; D[0..3]! : e1of2)
+hse { var a : {0..7}; A.e+;
+      *[[<<[] i : 0..7 : A.d[i] -> a := i >>]; A.e-;
+        [~A.d[a]]; A.e+;
+        [<<& i : 0..3 :  D[i].e>>]; <<, i : 0..3 : D[i].d[ROM[a][i..i]]+ >>;
+        [<<& i : 0..3 : ~D[i].e>>]; <<, i : 0..3 : D[i].d[ROM[a][i..i]]- >>;
+       ]
+}
+delay { counter C;
+        after (500) <<| i : 0..7 : A.d[i] >> -> C+
+        << i : 0..3 : {D[i].d[0]+, D[i].d[1]+} requires {C} >>
+        <<& i : 0..3 : D[i].d[0] | D[i].d[1] >> -> C-
+}
+
+process A()(O! : std1of8)
+chp { *[O!random(8)] }
+
+process D()(I[0..3]? : bit)
+chp { <<; i : 1..10 : I >>; print(time()) }
+
+process main()()
+meta{ instance a:A;
+      instance d:D;
+      instance m:mem;
+      m(<<++ i : 0..7 : [random(16)]>>);
+
+      connect a.O.wire, m.A;
+      connect all i : 0..3 : m.D[i], d.I[i].wire;
+}

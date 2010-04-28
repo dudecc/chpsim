@@ -18,8 +18,7 @@ volatile static const char cvsid[] =
 /********** printing *********************************************************/
 
 static void print_skip_stmt(skip_stmt *x, print_info *f)
- { print_string("skip", f);
- }
+ { print_string("skip", f); }
 
 static void print_end_stmt(end_stmt *x, print_info *f)
  { if (x->end_body)
@@ -29,8 +28,7 @@ static void print_end_stmt(end_stmt *x, print_info *f)
  }
 
 static void print_parallel_stmt(parallel_stmt *x, print_info *f)
- { print_obj_list(&x->l, f, ", ");
- }
+ { print_obj_list(&x->l, f, ", "); }
 
 static void print_compound_stmt(compound_stmt *x, print_info *f)
  { print_string("{ ", f);
@@ -39,8 +37,25 @@ static void print_compound_stmt(compound_stmt *x, print_info *f)
  }
 
 static void print_rep_stmt(rep_stmt *x, print_info *f)
- { print_string("<<", f);
-   print_string(token_str(0, x->rep_sym), f);
+ { value_tp ival;
+   long i, n;
+   if (IS_SET(f->flags, PR_simple_var))
+     { assert(f->exec);
+       assert(!x->rep_sym);
+       n = eval_rep_common(&x->r, &ival, f->exec);
+       push_repval(&ival, f->exec->curr, f->exec);
+       for (i = 0; i < n; i++)
+         { if (i > 0) print_string("\n", f);
+           print_obj_list(&x->sl, f, "\n");
+           int_inc(&f->exec->curr->rep_vals->v, f->exec);
+         }
+       pop_repval(&ival, f->exec->curr, f->exec);
+       clear_value_tp(&ival, f->exec);
+       return;
+     }
+   if (IS_SET(f->flags, PR_cast)) print_char('<', f);
+   else print_string("<<", f);
+   if (x->rep_sym) print_string(token_str(0, x->rep_sym), f);
    print_char(' ', f);
    print_string(x->r.id, f);
    print_string(" : ", f);
@@ -48,15 +63,22 @@ static void print_rep_stmt(rep_stmt *x, print_info *f)
    print_string("..", f);
    print_obj(x->r.h, f);
    print_string(" : ", f);
+   if (IS_SET(f->flags, PR_prs)) print_char('\n', f);
    if (x->rep_sym == SYM_bar)
      { print_obj_list(&x->sl, f, IS_SET(f->flags, PR_short)? " [] " : "\n [] "); }
    else if (x->rep_sym == SYM_arb)
      { print_obj_list(&x->sl, f, IS_SET(f->flags, PR_short)? " [:] " : "\n [:] "); }
    else if (x->rep_sym == ',')
      { print_obj_list(&x->sl, f, ", "); }
-   else
+   else if (x->rep_sym == ';')
      { print_obj_list(&x->sl, f, "; "); }
-   print_string(">>", f);
+   else if (IS_SET(f->flags, PR_prs))
+     { print_obj_list(&x->sl, f, "\n"); }
+   else
+     { print_obj_list(&x->sl, f, " "); }
+   if (IS_SET(f->flags, PR_prs)) print_char('\n', f);
+   if (IS_SET(f->flags, PR_cast)) print_char('>', f);
+   else print_string(">>", f);
  }
 
 

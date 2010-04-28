@@ -14,6 +14,7 @@
 FLAGS(print_flags)
    { FIRST_FLAG(PR_short), /* abbreviate complex statements; no newlines */
      NEXT_FLAG(PR_flush), /* flush string to file when it gets too long */
+     NEXT_FLAG(PR_prs), /* Print only the prs body of a process */
      NEXT_FLAG(PR_simple_var), /* Reduce arrays/records to individual vars */
      NEXT_FLAG(PR_cast), /* Print declarations using cast syntax */
      NEXT_FLAG(PR_reset), /* Have gates.c print with reset trnsistors */
@@ -28,6 +29,7 @@ typedef struct print_info
      int nl; /* indicates whether last flush ended with nl */
      int rpos; /* general usage marker of a position in s */
      char *rsep; /* general usage extra string (usually a seperator) */
+     struct exec_info *exec; /* Not usually valid... */
    } print_info;
 
 extern int flush_limit; /* = 100; limit for PR_flush */

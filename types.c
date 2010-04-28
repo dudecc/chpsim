@@ -24,7 +24,11 @@ static void print_name(name *x, print_info *f)
  { print_string(x->id, f); }
 
 static void print_named_type(named_type *x, print_info *f)
- { print_string(x->id, f); }
+ { if (IS_SET(f->flags, PR_simple_var))
+     { print_obj(x->tps, f); }
+   else
+     { print_string(x->id, f); }
+ }
 
 static void print_generic_type(generic_type *x, print_info *f)
  { if (!IS_SET(f->flags, PR_simple_var))
@@ -54,23 +58,28 @@ static void print_symbol_type(symbol_type *x, print_info *f)
  }
 
 static void print_array_type(array_type *x, print_info *f)
- { int l, h, i, len;
+ { int i, len;
    char *s;
+   value_tp vl, vh;
    if (IS_SET(f->flags, PR_simple_var))
-     { assert(x->l->class == CLASS_token_expr);
-       assert(x->h->class == CLASS_token_expr);
-       l = ((token_expr*)x->l)->t.val.i;
-       h = ((token_expr*)x->h)->t.val.i;
+     { assert(f->exec);
+       eval_expr(x->l, f->exec);
+       eval_expr(x->h, f->exec);
+       pop_value(&vh, f->exec);
+       pop_value(&vl, f->exec);
        len = f->pos - f->rpos;
        s = &f->s->s[f->rpos];
        while (1)
-         { f->pos += var_str_printf(f->s, f->pos, "_%d", l++);
+         { f->pos += var_str_printf(f->s, f->pos, "_%v", vstr_val, &vl);
            print_obj(x->tps, f);
-           if (l > h) break;
+           if (int_cmp(&vl, &vh, f->exec) == 0) break;
+           int_inc(&vl, f->exec);
            print_string(f->rsep, f);
            f->rpos = f->pos;
            f->pos += var_str_slice_copy(f->s, f->pos, s, len);
          }
+       clear_value_tp(&vl, f->exec);
+       clear_value_tp(&vh, f->exec);
      }
    else
      { print_string("array [", f);
@@ -175,9 +184,13 @@ static void print_union_field(union_field *x, print_info *f)
  }
 
 static void print_type_def(type_def *x, print_info *f)
- { f->pos += var_str_printf(f->s, f->pos, "type %s = ", x->id);
-   print_obj(x->tps, f);
-   print_char(';', f);
+ { if (IS_SET(f->flags, PR_simple_var))
+     { print_obj(x->tps, f); }
+   else
+     { f->pos += var_str_printf(f->s, f->pos, "type %s = ", x->id);
+       print_obj(x->tps, f);
+       print_char(';', f);
+     }
  }
 
 

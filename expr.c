@@ -45,33 +45,68 @@ extern int precedence(token_tp op)
 /********** printing *********************************************************/
 
 static void print_binary_expr(binary_expr *x, print_info *f)
- { binary_expr *l = (binary_expr*)x->l, *r = (binary_expr*)x->r;
-   if (l->class == CLASS_binary_expr
-        && precedence(l->op_sym) < precedence(x->op_sym))
+ { token_tp l_op, r_op;
+   if (x->l->class == CLASS_binary_expr)
+     { l_op = ((binary_expr*)x->l)->op_sym; }
+   else if (x->l->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var))
+     { l_op = ((rep_expr*)x->l)->rep_sym; }
+   else l_op = 0;
+   if (l_op && precedence(l_op) < precedence(x->op_sym))
      { print_char('(', f);
-       print_obj(l, f);
+       print_obj(x->l, f);
        print_char(')', f);
      }
    else
-     { print_obj(l, f); }
+     { print_obj(x->l, f); }
    f->pos += var_str_printf(f->s, f->pos, " %s ", token_str(0, x->op_sym));
-   if (r->class == CLASS_binary_expr
-        && precedence(r->op_sym) <= precedence(x->op_sym))
+   if (x->r->class == CLASS_binary_expr)
+     { r_op = ((binary_expr*)x->r)->op_sym; }
+   else if (x->r->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var))
+     { r_op = ((rep_expr*)x->r)->rep_sym; }
+   else r_op = 0;
+   if (r_op && precedence(r_op) <= precedence(x->op_sym))
      { print_char('(', f);
-       print_obj(r, f);
+       print_obj(x->r, f);
        print_char(')', f);
      }
    else
-     { print_obj(r, f); }
+     { print_obj(x->r, f); }
  }
 
 static void print_prefix_expr(prefix_expr *x, print_info *f)
  { print_string(token_str(0, x->op_sym), f);
-   print_obj(x->r, f);
+   if (x->r->class == CLASS_binary_expr ||
+       (x->r->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var)))
+     { print_char('(', f);
+       print_obj(x->r, f);
+       print_char(')', f);
+     }
+   else
+     { print_obj(x->r, f); }
  }
 
 static void print_rep_expr(rep_expr *x, print_info *f)
- { print_string("<<", f);
+ { value_tp ival;
+   long i, n;
+   if (IS_SET(f->flags, PR_simple_var))
+     { assert(f->exec);
+       n = eval_rep_common(&x->r, &ival, f->exec);
+       push_repval(&ival, f->exec->curr, f->exec);
+       for (i = 0; i < n; i++)
+         { if (i > 0)
+             { print_char(' ', f);
+               print_string(token_str(0, x->rep_sym), f);
+               print_char(' ', f);
+             }
+           print_obj(x->v, f);
+           int_inc(&f->exec->curr->rep_vals->v, f->exec);
+         }
+       pop_repval(&ival, f->exec->curr, f->exec);
+       clear_value_tp(&ival, f->exec);
+       return;
+     }
+   if (IS_SET(f->flags, PR_cast)) print_char('<', f);
+   else print_string("<<", f);
    print_string(token_str(0, x->rep_sym), f);
    print_char(' ', f);
    print_string(x->r.id, f);
@@ -81,7 +116,8 @@ static void print_rep_expr(rep_expr *x, print_info *f)
    print_obj(x->r.h, f);
    print_string(" : ", f);
    print_obj(x->v, f);
-   print_string(">>", f);
+   if (IS_SET(f->flags, PR_cast)) print_char('>', f);
+   else print_string(">>", f);
  }
 
 static void print_value_probe(value_probe *x, print_info *f)
@@ -94,7 +130,8 @@ static void print_value_probe(value_probe *x, print_info *f)
  }
 
 static void print_array_subscript(array_subscript *x, print_info *f)
- { if (x->x->class == CLASS_binary_expr || x->x->class == CLASS_prefix_expr)
+ { value_tp val;
+   if (x->x->class == CLASS_binary_expr || x->x->class == CLASS_prefix_expr)
      { /* can happen if x->x is an integer */
        print_char('(', f);
        print_obj(x->x, f);
@@ -104,7 +141,11 @@ static void print_array_subscript(array_subscript *x, print_info *f)
      { print_obj(x->x, f); }
    if (IS_SET(f->flags, PR_simple_var))
      { print_char('_', f);
-       print_obj(x->idx, f);
+       assert(f->exec);
+       eval_expr(x->idx, f->exec);
+       pop_value(&val, f->exec);
+       print_value_tp(&val, f);
+       clear_value_tp(&val, f->exec);
      }
    else
      { print_char('[', f);

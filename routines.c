@@ -30,6 +30,17 @@ static void print_chp_body(chp_body *x, print_info *f)
          { print_string("CHP { ... }", f); }
        return;
      }
+   else if (IS_SET(f->flags, PR_prs))
+     { if (x->class != CLASS_prs_body) return;
+         { print_string("prs {\n", f); }
+       if (!llist_is_empty(&x->dl))
+         { print_obj_list(&x->dl, f, "\n");
+           print_char('\n', f);
+         }
+       print_obj_list(&x->sl, f, "\n");
+       print_string("\n}\n", f);
+       return;
+     }
    if (x->class == CLASS_meta_body)
      { print_string("META\n { ", f); }
    else if (x->class == CLASS_hse_body)
@@ -67,7 +78,10 @@ static void print_function_def(function_def *x, print_info *f)
  }
 
 static void print_process_def(process_def *x, print_info *f)
- { f->pos += var_str_printf(f->s, f->pos, "process %s(", x->id);
+ { if (IS_SET(f->flags, PR_cast))
+     { f->pos += var_str_printf(f->s, f->pos, "define %s(", x->id); }
+   else
+     { f->pos += var_str_printf(f->s, f->pos, "process %s(", x->id); }
    print_obj_list(&x->ml, f, "; ");
    if (IS_SET(f->flags, PR_short))
      { print_string(")(", f);

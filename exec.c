@@ -32,7 +32,7 @@ extern void exec_info_init(exec_info *f, exec_info *orig)
    pqueue_init(&f->sched, (pqueue_func*)action_cmp);
    hash_table_init(&f->delays, 1, HASH_ptr_is_key, 0);
    llist_init(&f->check);
-   llist_init(&f->chpx);
+   llist_init(&f->chp);
    llist_init(&f->susp_perm);
    f->nr_susp = 0;
    f->curr = 0;
@@ -247,6 +247,7 @@ extern void exec_warning(exec_info *f, void *obj, const char *fmt, ...)
    int pos;
    va_list a;
    if (IS_SET(f->user->flags, USER_debug)) return;
+   if (IS_SET(f->flags, EXEC_print)) return;
    va_start(a, fmt);
    pos = var_str_printf(&f->err, 0, "Warning: %s at %s[%d:%d]\n\t%v\n\t",
                         f->curr->ps->nm, x->src, x->lnr, x->lpos,
@@ -403,7 +404,7 @@ extern void sched_instance(ctrl_state *cs, exec_info *f)
        if (b == p->mb)
          { insert_sched(cs, f); }
        else
-         { llist_prepend(&f->chpx, cs); }
+         { llist_prepend(&f->chp, cs); }
      }
  }
 
@@ -531,7 +532,7 @@ extern void exec_run(exec_info *f)
              { report(f->user, "(trace) %s at %s[%d:%d]\n\t%v\n",
                       f->curr->ps->nm, x->src, x->lnr, x->lpos, vstr_stmt, x);
              }
-           RESET_FLAG(f->flags, EXEC_warning);
+           RESET_FLAG(f->flags, EXEC_warning | EXEC_immediate);
            r = exec_obj(x, f);
            assert(!f->stack);
            if (IS_SET(f->flags, EXEC_warning))
@@ -581,8 +582,8 @@ extern void prepare_chp(exec_info *f)
    RESET_FLAG(f->flags, EXEC_instantiation);
    if (IS_SET(f->user->flags, USER_strict))
      { SET_FLAG(f->flags, EXEC_strict); }
-   while (!llist_is_empty(&f->chpx))
-     { s = llist_idx_extract(&f->chpx, 0);
+   while (!llist_is_empty(&f->chp))
+     { s = llist_idx_extract(&f->chp, 0);
        f->curr = s;
        f->meta_ps = s->ps;
        assert(s->obj->class == CLASS_process_def);
@@ -599,6 +600,7 @@ extern void exec_immediate(llist *l, exec_info *f)
    parse_obj *x, *curr;
    m = *l;
    curr = f->curr->obj;
+   SET_FLAG(f->flags, EXEC_immediate);
    while (!llist_is_empty(&m))
      { x = llist_head(&m);
        if (x->class != CLASS_process_def && x->class != CLASS_function_def)

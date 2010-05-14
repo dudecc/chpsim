@@ -1,0 +1,12 @@
+requires "channel.chp";
+
+process A()(O!:bit)
+chp { <<; i : 1..10 : O!false >> }
+process B()(I?:bit)
+chp { <<; i : 1..10 : [#{I:I}]; I >>; print("done") }
+process main()()
+meta { instance a : A; instance b : B;
+       connect a.O.wire.e, b.I.wire.e;
+       connect a.O.wire.d[0], b.I.wire.d[1];
+       connect a.O.wire.d[1], b.I.wire.d[0];
+}

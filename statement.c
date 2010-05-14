@@ -1,4 +1,5 @@
 /* statement.c: statements
+     }
 
    Author: Marcel van der Goot
 */
@@ -37,23 +38,7 @@ static void print_compound_stmt(compound_stmt *x, print_info *f)
  }
 
 static void print_rep_stmt(rep_stmt *x, print_info *f)
- { value_tp ival;
-   long i, n;
-   if (IS_SET(f->flags, PR_simple_var))
-     { assert(f->exec);
-       assert(!x->rep_sym);
-       n = eval_rep_common(&x->r, &ival, f->exec);
-       push_repval(&ival, f->exec->curr, f->exec);
-       for (i = 0; i < n; i++)
-         { if (i > 0) print_string("\n", f);
-           print_obj_list(&x->sl, f, "\n");
-           int_inc(&f->exec->curr->rep_vals->v, f->exec);
-         }
-       pop_repval(&ival, f->exec->curr, f->exec);
-       clear_value_tp(&ival, f->exec);
-       return;
-     }
-   if (IS_SET(f->flags, PR_cast)) print_char('<', f);
+ { if (IS_SET(f->flags, PR_cast)) print_char('<', f);
    else print_string("<<", f);
    if (x->rep_sym) print_string(token_str(0, x->rep_sym), f);
    print_char(' ', f);
@@ -154,21 +139,66 @@ static void print_meta_binding(meta_binding *x, print_info *f)
  }
 
 static void print_connection(connection *x, print_info *f)
- { print_string("connect ", f);
-   print_obj(x->a, f);
-   print_string(", ", f);
-   print_obj(x->b, f);
+ { char rsep[4] = {0, ',', ' ', 0 };
+   if (IS_SET(f->flags, PR_simple_var))
+     { print_string("connect ", f);
+       print_char('{', f);
+       f->rpos = f->pos;
+       f->rsep = &rsep[1];
+       print_obj(x->a, f);
+       print_obj(x->a->tp.tps, f);
+       print_string("}, {", f);
+       f->rpos = f->pos;
+       print_obj(x->b, f);
+       print_obj(x->b->tp.tps, f);
+       print_char('}', f);
+     }
+   else if (IS_SET(f->flags, PR_cast))
+     { print_obj(x->a, f);
+       print_string(" = ", f);
+       print_obj(x->b, f);
+     }
+   else
+     { print_string("connect ", f);
+       print_obj(x->a, f);
+       print_string(", ", f);
+       print_obj(x->b, f);
+     }
+ }
+
+static void print_process_name(type *tp, print_info *f)
+ { while (tp->kind == TP_array)
+     { tp = tp->elem.tp; }
+   assert(tp->kind == TP_process);
+   print_string(tp->elem.p->id, f);
  }
 
 static void print_instance_stmt(instance_stmt *x, print_info *f)
- { f->pos += var_str_printf(f->s, f->pos, "instance %s: ", x->d->id);
-   print_obj(x->d->tps, f);
-   if (x->mb)
-     { print_char('(', f);
-       print_obj_list(&x->mb->a, f, ", ");
-       print_char(')', f);
+ { if (IS_SET(f->flags, PR_simple_var))
+     { print_string("instance ", f);
+       f->rpos = f->pos;
+       f->rsep = ", ";
+       print_string(x->d->id, f);
+       print_obj(x->d->tps, f);
+       print_string(" : ", f);
+       print_process_name(&x->d->tps->tp, f);
      }
-   print_char(';', f);
+   else if (IS_SET(f->flags, PR_cast))
+     { print_process_name(&x->d->tps->tp, f);
+       /* TODO: handle array for cast */
+       print_char(' ', f);
+       print_string(x->d->id, f);
+     }
+   else
+     { f->pos += var_str_printf(f->s, f->pos, "instance %s: ", x->d->id);
+       print_obj(x->d->tps, f);
+       if (x->mb)
+         { print_char('(', f);
+           print_obj_list(&x->mb->a, f, ", ");
+           print_char(')', f);
+         }
+     }
+   if (!IS_SET(f->flags, PR_meta)) print_char(';', f);
  }
 
 static void print_production_rule(production_rule *x, print_info *f)
@@ -583,6 +613,10 @@ static void *sem_delay_hold(delay_hold *x, sem_info *f)
 static int exec_parallel_stmt(parallel_stmt *x, exec_info *f)
  { llist m;
    ctrl_state *s;
+   if (IS_SET(f->flags, EXEC_immediate))
+     { exec_immediate(&x->l, f);
+       return EXEC_next;
+     }
    m = x->l;
    f->curr->i = 0;
    f->curr->ps->nr_thread--; /* one child counts as current thread */
@@ -613,6 +647,10 @@ static int pop_parallel_stmt(parallel_stmt *x, exec_info *f)
 
 static int exec_compound_stmt(compound_stmt *x, exec_info *f)
  { ctrl_state *s;
+   if (IS_SET(f->flags, EXEC_immediate))
+     { exec_immediate(&x->l, f);
+       return EXEC_next;
+     }
    s = nested_seq(&x->l, f);
    insert_sched(s, f);
    return EXEC_none;
@@ -624,7 +662,17 @@ static int exec_rep_stmt(rep_stmt *x, exec_info *f)
    eval_stack *rv;
    long i, n;
    n = eval_rep_common(&x->r, &ival, f);
-   if (x->rep_sym == ',')
+   if (IS_SET(f->flags, EXEC_immediate))
+     { push_repval(&ival, f->curr, f);
+       for (i = 0; i < n; i++)
+         { exec_immediate(&x->sl, f);
+           int_inc(&f->curr->rep_vals->v, f);
+         }
+       pop_repval(&ival, f->curr, f);
+       clear_value_tp(&ival, f);
+       return EXEC_next;
+     }
+   else if (x->rep_sym == ',')
      { f->curr->i = n;
        f->curr->ps->nr_thread += n - 1; /* one child counts as current thread */
        NEW_ARRAY(rv, n);
@@ -651,17 +699,6 @@ static int exec_rep_stmt(rep_stmt *x, exec_info *f)
        s->cxt = x->cxt;
        push_repval(&ival, s, f);
        insert_sched(s, f);
-     }
-   else
-     { assert(!x->rep_sym);
-       push_repval(&ival, f->curr, f);
-       for (i = 0; i < n; i++)
-         { exec_immediate(&x->sl, f);
-           int_inc(&f->curr->rep_vals->v, f);
-         }
-       pop_repval(&ival, f->curr, f);
-       clear_value_tp(&ival, f);
-       return EXEC_next;
      }
    return EXEC_none;
  }
@@ -746,10 +783,14 @@ static int find_true_guard(void *stmt, exec_info *f)
          { if (f->gc)
              { exec_error(f, gc, "Guards %v and %#v are both true",
                              vstr_obj, gc->g, f->gc->g);
+               /* TODO: include rep_vals in error message */
              }
            f->gc = gc;
-           s = nested_seq(&gc->l, f);
-           insert_sched(s, f);
+           f->gcrv = f->curr->rep_vals;
+           if (!IS_SET(f->flags, EXEC_immediate))
+             { s = nested_seq(&gc->l, f);
+               insert_sched(s, f);
+             }
          }
      }
    else if (rs->class == CLASS_rep_stmt)
@@ -776,17 +817,35 @@ static int find_true_guard(void *stmt, exec_info *f)
 static int find_true_guard_llist(llist *l, exec_info *f)
  { return llist_apply(l, (llist_func*)find_true_guard, f); }
 
+static void exec_imm_true_guard(exec_info *f)
+ /* Pre: EXEC_immediate is set, find_true_guard has found one true guard
+  * Execute the guard left in f->gc, then free the values in f->gcrv
+  */
+ { eval_stack *rv = f->curr->rep_vals;
+   value_tp v;
+   f->curr->rep_vals = f->gcrv;
+   exec_immediate(&f->gc->l, f);
+   while (f->curr->rep_vals != rv)
+     { pop_repval(&v, f->curr, f);
+       clear_value_tp(&v, f);
+     }
+ }
+
 static int exec_loop_stmt(loop_stmt *x, exec_info *f)
  { ctrl_state *s;
    if (!llist_is_empty(&x->glr))
-     { f->gc = 0;
-       f->curr->i = x->mutex;
-       find_true_guard_llist(&x->glr, f);
-       f->curr->i = 0;
+     { while (1)
+         { f->gc = 0;
+           f->curr->i = x->mutex;
+           find_true_guard_llist(&x->glr, f);
+           f->curr->i = 0;
+           if (!IS_SET(f->flags, EXEC_immediate) || !f->gc) break;
+           exec_imm_true_guard(f);
+         }
        if (!f->gc)
          { return EXEC_next; }
      }
-   else
+   else /* TODO: error for EXEC_immediate */
      { s = nested_seq(&x->sl, f);
        insert_sched(s, f);
      }
@@ -800,6 +859,14 @@ static int exec_select_stmt(select_stmt *x, exec_info *f)
        f->curr->i = x->mutex;
        find_true_guard_llist(&x->glr, f);
        f->curr->i = 0;
+       if (IS_SET(f->flags, EXEC_immediate))
+         { if (!f->gc)
+             { exec_error(f, x, "Select has no true guards during"
+                                " non-parallel execution.");
+             }
+           exec_imm_true_guard(f);
+           return EXEC_next;
+         }
        if (f->gc)
          { return EXEC_none; }
        SET_FLAG(f->flags, EVAL_probe_wait);
@@ -1215,6 +1282,19 @@ static int exec_communication(communication *x, exec_info *f)
    return EXEC_next;
  }
 
+extern void meta_init(process_state *ps, exec_info *f)
+/* Everything that should be executed as soon as all meta parameters are set */
+ { ctrl_state *curr;
+   process_state *meta_ps;
+   curr = f->curr;
+   meta_ps = f->meta_ps;
+   f->meta_ps = ps;
+   f->curr = ps->cs;
+   exec_immediate(&ps->p->pl, f);
+   f->curr = curr;
+   f->meta_ps = meta_ps;
+ }
+
 extern void exec_meta_binding_aux(meta_binding *x, value_tp *v, exec_info *f)
  { llist ma, mp;
    expr *a;
@@ -1249,11 +1329,11 @@ extern void exec_meta_binding_aux(meta_binding *x, value_tp *v, exec_info *f)
        mp = llist_alias_tail(&mp);
        ma = llist_alias_tail(&ma);
      }
+   meta_init(ps, f);
  }
 
 static int exec_meta_binding(meta_binding *x, exec_info *f)
  { value_tp xval;
-   assert(x->x);
    eval_expr(x->x, f);
    pop_value(&xval, f);
    exec_meta_binding_aux(x, &xval, f);
@@ -1360,6 +1440,10 @@ static int exec_connection(connection *x, exec_info *f)
  { expr *a, *b;
    process_state *psa, *psb;
    value_tp vala, valb, olda, oldb;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_connection(x, f->pf);
+       print_string(";\n", f->pf);
+     }
    psa = get_port_connect(x->a, &vala, f);
    if (psa == f->curr->ps)
      { psb = get_port_connect(x->b, &valb, f);
@@ -1404,26 +1488,36 @@ static int exec_connection(connection *x, exec_info *f)
    return EXEC_next;
  }
 
-static int get_wtype(type *tp, exec_info *f)
- /* 2 should mean that the writeable flag should be checked directly */
- { if (tp->kind == TP_array)
-     { return get_wtype(tp->elem.tp, f); }
-   else if (tp->kind == TP_wire)
-     { return ((wired_type*)tp->tps)->type; }
-   else return 2;
+static int get_write(expr *x, exec_info *f)
+ /* Pre: x is a subelement of a wired type expression, a wired type expression,
+  *      or an array of wired type expression.
+  * For subelements, return whether the subelement is writable.  For full wired
+  * types or arrays thereof, return whether the "li" list in the wired type
+  * is writable.
+  */
+ { type *tp = &x->tp;
+   parse_obj_flags fl;
+   while (tp->kind == TP_array) tp = tp->elem.tp;
+   if (tp->kind != TP_wire)
+     { return IS_SET(x->flags, EXPR_writable); }
+   else if (x->class == CLASS_field_of_union)
+     /* Here we must deduce the decomposed wired port's "direction" */
+     { fl = ((field_of_union*)x)->x->flags;
+       if (!IS_SET(fl, EXPR_port_ext))
+         { fl = fl ^ EXPR_port; }
+       return LI_IS_WRITE(fl, ((wired_type*)tp->tps)->type);
+     }
+   else
+     { return LI_IS_WRITE(x->flags, ((wired_type*)tp->tps)->type); }
  }
 
-static process_state *get_wire_connect
-(expr *x, value_tp *v, int *li_write, exec_info *f)
+static process_state *get_wire_connect(expr *x, value_tp *v, exec_info *f)
  /* Set v to the value of x, which is initialized with a wire value
-  * Set li_write according to whether li contains output wires
   * Return the process state which contains the port.
  */
  { var_decl *d;
-   int dir, wtype;
+   int dir;
    process_state *ps;
-   wtype = get_wtype(&x->tp, f);
-   if (wtype == 2) wtype = IS_SET(x->flags, EXPR_writable)? 1 : 0;
    SET_FLAG(f->flags, EVAL_connect);
    eval_expr(x, f);
    pop_value(v, f);
@@ -1435,17 +1529,6 @@ static process_state *get_wire_connect
        eval_expr(x, f); /* need alias, not copy */
        pop_value(v, f);
      }
-   if (v->rep == REP_process) /* Clearly some ungodly wired union port hack */
-     { dir = !IS_SET(x->flags, EXPR_inport) ^ (f->meta_ps == f->curr->ps);
-       d = llist_idx(&v->v.ps->p->pl, dir? 1 : 0);
-       force_value(&v->v.ps->var[d->var_idx], x, f);
-       f->meta_ps = v->v.ps; /* Always treat this as a new port */
-       alias_value_tp(v, &v->v.ps->var[d->var_idx], f);
-       /* I think this screws up the process's reference count */
-       *li_write = LI_IS_WRITE(d->flags, wtype);
-     }
-   else
-     { *li_write = LI_IS_WRITE(x->flags, wtype); }
    RESET_FLAG(f->flags, EVAL_connect);
    ps = f->meta_ps;
    f->meta_ps = f->curr->ps;
@@ -1509,9 +1592,9 @@ static void wire_connect
        if (vb->rep) { wire_fix(&vb->v.w, f); wb = vb->v.w; }
        if (va->rep && vb->rep && wa == wb) return; /* already connected, ignore */
        if (va->rep) wra = IS_SET(wa->flags, WIRE_has_writer)? wa->wframe : 0;
-       else wra = g->a_write? &g->psa->cs->act : 0;
+       if (!va->rep || !wra) wra = g->a_write? &g->psa->cs->act : 0;
        if (vb->rep) wrb = IS_SET(wb->flags, WIRE_has_writer)? wb->wframe : 0;
-       else wrb = g->b_write? &g->psb->cs->act : 0;
+       if (!vb->rep || !wrb) wrb = g->b_write? &g->psb->cs->act : 0;
        if (wra && wrb && wra->cs->ps!=f->curr->ps && wrb->cs->ps!=f->curr->ps)
          /* Two writers on the same wire   TODO: better error message */
          { if (g->b_write)
@@ -1550,9 +1633,15 @@ static void wire_connect
 
 static int exec_wired_connection(wired_connection *x, exec_info *f)
  { struct wc_info g;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_connection((wired_connection*)x, f->pf);
+       print_string(";\n", f->pf);
+     }
    value_tp vala, valb;
-   g.psa = get_wire_connect(x->a, &vala, &g.a_write, f);
-   g.psb = get_wire_connect(x->b, &valb, &g.b_write, f);
+   g.psa = get_wire_connect(x->a, &vala, f);
+   g.psb = get_wire_connect(x->b, &valb, f);
+   g.a_write = get_write(x->a, f);
+   g.b_write = get_write(x->b, f);
    if (!type_compatible_exec(&x->a->tp, g.psa, &x->b->tp, g.psb, f))
      { exec_error(f, x, "Connected ports must have identical specific types"); }
    /* g.psa == f->curr->ps implies that a is a new port (same for b) */
@@ -1609,12 +1698,17 @@ static void mk_instance(value_tp *xval, type *tp, exec_info *f)
        ps->nr_thread = -1; /* instantiated, not started */
        xval->rep = REP_process;
        xval->v.ps = ps;
+       if (llist_is_empty(&ps->p->ml)) meta_init(ps, f);
      }
    f->scratch.s[pos] = 0;
  }
 
 static int exec_instance_stmt(instance_stmt *x, exec_info *f)
  { value_tp *v;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_instance_stmt(x, f->pf);
+       print_string(";\n", f->pf);
+     }
    v = &f->curr->var[x->d->var_idx];
    if (f->curr->ps->nm == make_str("/"))
      { var_str_printf(&f->scratch, 0, "/%s", x->d->id); }
@@ -1690,6 +1784,11 @@ static int exec_production_rule(production_rule *x, exec_info *f)
    value_tp val, dval;
    long i, n;
    int ispu = (x->op_sym == '+');
+   if (IS_SET(f->flags, EXEC_print))
+     { print_production_rule(x, f->pf);
+       print_char('\n', f->pf);
+       return EXEC_next;
+     }
    eval_expr(x->v, f);
    pop_value(&val, f);
    e = make_wire_expr(x->g, f);

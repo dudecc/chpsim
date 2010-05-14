@@ -171,7 +171,6 @@ struct port_value
    };
 
 /********** printing *********************************************************/
-typedef struct exec_info exec_info; /* defined in exec.h */
 typedef struct ctrl_state ctrl_state; /* defined in exec.h */
 
 extern void print_value_tp(value_tp *v, print_info *f);
@@ -192,7 +191,7 @@ extern int print_string_value(var_string *s, int pos, value_tp *val);
     Return is nr chars printed.
  */
 
-extern void print_wire_exec(wire_value *w, exec_info *f);
+extern void print_wire_exec(wire_value *w, struct exec_info *f);
  /* Print a name for w in the reference frame of f->meta_ps to f->scratch */
 
 extern void print_wire_value(wire_value *w, process_state *ps, print_info *f);
@@ -211,59 +210,59 @@ extern int vstr_port(var_string *s, int pos, void *p);
 
 /********** expression evaluation ********************************************/
 
-extern void eval_expr(void *obj, exec_info *f);
+extern void eval_expr(void *obj, struct exec_info *f);
  /* Evaluate expr *obj */
 
-extern void push_value(value_tp *v, exec_info *f);
+extern void push_value(value_tp *v, struct exec_info *f);
  /* push *v on stack (direct copy: top = *v) */
 
-extern void pop_value(value_tp *v, exec_info *f);
+extern void pop_value(value_tp *v, struct exec_info *f);
  /* store to of stack in *v (direct copy: *v = top) and pop stack */
 
-extern void push_repval(value_tp *v, ctrl_state *cs, exec_info *f);
+extern void push_repval(value_tp *v, ctrl_state *cs, struct exec_info *f);
  /* push *v on repval stack of cs (direct copy: top = *v) */
 
-extern void pop_repval(value_tp *v, ctrl_state *cs, exec_info *f);
+extern void pop_repval(value_tp *v, ctrl_state *cs, struct exec_info *f);
  /* store to of repval stack of cs in *v (direct copy: *v = top), pop stack */
 
-extern value_list *new_value_list(int size, exec_info *f);
+extern value_list *new_value_list(int size, struct exec_info *f);
  /* allocate new list with given size */
 
-extern value_union *new_value_union(exec_info *f);
+extern value_union *new_value_union(struct exec_info *f);
  /* allocate new list with given size */
 
-extern port_value *new_port_value(process_state *ps, exec_info *f);
+extern port_value *new_port_value(process_state *ps, struct exec_info *f);
  /* allocate new port_value */
 
-extern wire_value *new_wire_value(token_tp x, exec_info *f);
+extern wire_value *new_wire_value(token_tp x, struct exec_info *f);
  /* allocate new wire_value */
 
-extern counter_value *new_counter_value(long x, exec_info *f);
+extern counter_value *new_counter_value(long x, struct exec_info *f);
  /* allocate new counter_value */
 
-extern void wire_fix(wire_value **w, exec_info *f);
+extern void wire_fix(wire_value **w, struct exec_info *f);
  /* remove wire forwarding from w */
 
-extern z_value *new_z_value(exec_info *f);
+extern z_value *new_z_value(struct exec_info *f);
  /* allocate a new z_value, with initial value 0 */
 
-extern type_value *new_type_value(exec_info *f);
+extern type_value *new_type_value(struct exec_info *f);
  /* allocate new type_value */
 
-extern void clear_value_tp(value_tp *v, exec_info *f);
+extern void clear_value_tp(value_tp *v, struct exec_info *f);
  /* Reset v to have no value. If v has allocated memory (e.g., for array),
     free that if there are no longer any references to it.
  */
 
-extern void copy_value_tp(value_tp *w, value_tp *v, exec_info *f);
+extern void copy_value_tp(value_tp *w, value_tp *v, struct exec_info *f);
  /* Copy v to w, allocating new memory */
 
-extern void copy_and_clear(value_tp *w, value_tp *v, exec_info *f);
+extern void copy_and_clear(value_tp *w, value_tp *v, struct exec_info *f);
  /* Same as: copy_value_tp(w, v, f); clear_value_tp(v, f);
     but more efficient.
  */
 
-extern void alias_value_tp(value_tp *w, value_tp *v, exec_info *f);
+extern void alias_value_tp(value_tp *w, value_tp *v, struct exec_info *f);
  /* Copy v to w, sharing the memory */
 
 extern int app_eval;
@@ -276,7 +275,7 @@ extern int app_eval;
 /********** range checks *****************************************************/
 
 extern void range_check
- (type_spec *tps, value_tp *val, exec_info *f, void *obj);
+ (type_spec *tps, value_tp *val, struct exec_info *f, void *obj);
  /* Verify that val is a valid value for tps. obj is used for error msgs */
 
 extern int app_range;
@@ -291,21 +290,21 @@ extern int app_range;
 
 /********** assignment ******************************************************/
 
-extern void write_wire(int val, wire_value *w, exec_info *f);
+extern void write_wire(int val, wire_value *w, struct exec_info *f);
  /* Update the value stored in w according to val */
 
-extern void update_counter(int dir, counter_value *c, exec_info *f);
+extern void update_counter(int dir, counter_value *c, struct exec_info *f);
  /* Increment/decrement the counter c according to dir */
 
-extern void force_value(value_tp *xval, expr *x, exec_info *f);
+extern void force_value(value_tp *xval, expr *x, struct exec_info *f);
  /* Assign an empty value to xval according to the type of x,
     i.e., an array/record value with a value_list without values.
  */
 
-extern void force_value_array(value_tp *xval, type *tp, exec_info *f);
+extern void force_value_array(value_tp *xval, type *tp, struct exec_info *f);
  /* Like the above, but assumes tp is an array type */
 
-extern void assign(expr *x, value_tp *val, exec_info *f);
+extern void assign(expr *x, value_tp *val, struct exec_info *f);
  /* Assign x := val where x is an lvalue.
     Note: you should do a range_check() first.
  */
@@ -318,21 +317,21 @@ extern int app_assign;
 
 /********** creating wire expressions ***************************************/
 
-extern wire_expr *new_wire_expr(exec_info *f);
+extern wire_expr *new_wire_expr(struct exec_info *f);
  /* Note that refcnt is initially zero */
 
-extern void we_add_dep(wire_expr *p, wire_expr *e, exec_info *f);
+extern void we_add_dep(wire_expr *p, wire_expr *e, struct exec_info *f);
  /* add e as a child of p, update the value of p */
 
-extern wire_expr *make_wire_expr(expr *e, exec_info *f);
+extern wire_expr *make_wire_expr(expr *e, struct exec_info *f);
 /* create a wire_expr from an expression */
 
 extern wire_expr temp_wire_expr;
 /* TODO: remove need to export this */
 
-extern void clear_wire_expr(wire_expr *e, exec_info *f);
+extern void clear_wire_expr(wire_expr *e, struct exec_info *f);
 
-extern void add_wire_dep(wire_value *w, exec_info *f);
+extern void add_wire_dep(wire_value *w, struct exec_info *f);
  /* set up w to reschedule f->curr upon the changing of w's value */
 
 /********** strict checks ***************************************************/
@@ -341,31 +340,31 @@ extern void add_wire_dep(wire_value *w, exec_info *f);
     ((S)->class == CLASS_parallel_stmt \
     || ((S)->class == CLASS_rep_stmt && ((rep_stmt*)(S))->rep_sym == ','))
 
-extern void strict_check_init(process_state *ps, exec_info *f);
+extern void strict_check_init(process_state *ps, struct exec_info *f);
 
-extern void strict_check_term(process_state *ps, exec_info *f);
+extern void strict_check_term(process_state *ps, struct exec_info *f);
 
-extern void strict_check_read(value_tp *v, exec_info *f);
+extern void strict_check_read(value_tp *v, struct exec_info *f);
 
-extern void strict_check_read_elem(value_tp *v, exec_info *f);
+extern void strict_check_read_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be read */
 
-extern void strict_check_write(value_tp *v, exec_info *f);
+extern void strict_check_write(value_tp *v, struct exec_info *f);
 
-extern void strict_check_write_elem(value_tp *v, exec_info *f);
+extern void strict_check_write_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be written */
 
-extern void strict_check_delete(value_tp *v, exec_info *f);
+extern void strict_check_delete(value_tp *v, struct exec_info *f);
 /* Upon ending a function/routine call, use this to remove
  * all f->prev->var[i] for all i
  */
 
-extern void strict_check_frame_end(exec_info *f);
+extern void strict_check_frame_end(struct exec_info *f);
 /* Pre: f->prev has ended sequential operations and popped the
  * parallel statement f->curr
  */
 
-extern void strict_check_update(ctrl_state *cs, exec_info *f);
+extern void strict_check_update(ctrl_state *cs, struct exec_info *f);
 /* This should be called after cs has completed a parallel statement
  * (i.e. all children of cs have terminated)
  */
@@ -379,7 +378,7 @@ struct crit_node
      crit_node *parent;
    };
 
-extern void crit_node_step(action *a, wire_value *w, exec_info *f);
+extern void crit_node_step(action *a, wire_value *w, struct exec_info *f);
  /* Call this when a change on w has scheduled the production rule a. */
 
 /*****************************************************************************/

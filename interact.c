@@ -1471,7 +1471,7 @@ static int _cmnd_inst(ctrl_state *cs, user_info *f)
 /* cmnd_func_tp */
 static int cmnd_inst(user_info *f)
  { ctrl_state **cs;
-   if (set_focus(f)) return 3;
+   if (set_focus(f)) return 1;
    llist_find_extract(&f->wait, (llist_func*)_cmnd_inst, f);
    SET_FLAG(f->global->flags, EXEC_single);
    return 0;

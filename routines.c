@@ -37,8 +37,36 @@ static void print_chp_body(chp_body *x, print_info *f)
          { print_obj_list(&x->dl, f, "\n");
            print_char('\n', f);
          }
-       print_obj_list(&x->sl, f, "\n");
-       print_string("\n}\n", f);
+       if (IS_SET(f->flags, PR_simple_var))
+         { SET_FLAG(f->exec->flags, EXEC_print);
+           exec_immediate(&x->sl, f->exec);
+           RESET_FLAG(f->exec->flags, EXEC_print);
+         }
+       else
+         { print_obj_list(&x->sl, f, "\n");
+           print_char('\n', f);
+         }
+       print_string("}\n", f);
+       return;
+     }
+   else if (IS_SET(f->flags, PR_meta))
+     { if (x->class != CLASS_meta_body) return;
+         { print_string("meta {\n", f); }
+       if (IS_SET(f->flags, PR_simple_var))
+         { SET_FLAG(f->exec->flags, EXEC_print);
+           exec_immediate(&x->dl, f->exec);
+           exec_immediate(&x->sl, f->exec);
+           RESET_FLAG(f->exec->flags, EXEC_print);
+         }
+       else
+         { if (!llist_is_empty(&x->dl))
+             { print_obj_list(&x->dl, f, "\n");
+               print_char('\n', f);
+             }
+           print_obj_list(&x->sl, f, ";\n");
+           print_string(";\n", f);
+         }
+       print_string("}\n", f);
        return;
      }
    if (x->class == CLASS_meta_body)

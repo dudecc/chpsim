@@ -381,13 +381,53 @@ static void wire_sym_init(value_tp *v, type *tp, token_tp sym, exec_info *f)
      }
  }
 
+static void wire_init(value_tp *v, type *tp, exec_info *f)
+ /* Pre: tp is wired type or an array thereof */
+ { int i;
+   wired_type *wtps;
+   llist l;
+   wire_decl *w;
+   value_tp zval;
+   switch (tp->kind)
+     { case TP_array:
+         force_value_array(v, tp, f);
+         for (i = 0; i < v->v.l->size; i++)
+           { wire_init(&v->v.l->vl[i], tp->elem.tp, f); }
+       return;
+       case TP_wire:
+         wtps = (wired_type*)tp->tps;
+         v->v.l = new_value_list(wtps->nr_var, f);
+         v->rep = REP_record;
+         l = wtps->li;
+         for (i = 0; i < v->v.l->size; i++)
+           { w = llist_head(&l);
+             if (w->z)
+               { eval_expr(w->z, f);
+                 pop_value(&zval, f);
+                 range_check(w->tps, &zval, f, w->z);
+                 copy_and_clear(&v->v.l->vl[i], &zval, f);
+                 f->err_obj = w;
+                 wire_var_fix(&v->v.l->vl[i], f);
+               }
+             else
+               { wire_sym_init(&v->v.l->vl[i], &w->tps->tp, w->init_sym, f); }
+             l = llist_alias_tail(&l);
+             if (llist_is_empty(&l)) l = wtps->lo;
+           }
+       return;
+       default:
+         assert(!"Illegal wired type");
+       return;
+     }
+ }
+
 static int exec_var_decl(var_decl *x, exec_info *f)
  { value_tp *val, zval;
+   val = &f->curr->var[x->var_idx];
    if (x->z)
      { eval_expr(x->z, f);
        pop_value(&zval, f);
        range_check(x->tp.tps, &zval, f, x->z);
-       val = &f->curr->var[x->var_idx];
        copy_and_clear(val, &zval, f);
        f->err_obj = x;
        if (IS_SET(x->flags, EXPR_wire))
@@ -395,9 +435,11 @@ static int exec_var_decl(var_decl *x, exec_info *f)
        else if (IS_SET(x->flags, EXPR_counter))
          { counter_var_fix(val, f); }
      }
-   else if (x->z_sym)
-     { val = &f->curr->var[x->var_idx];
-       wire_sym_init(val, &x->tp, x->z_sym, f);
+   else if (IS_SET(x->flags, EXPR_wire))
+     { if (IS_SET(x->flags, EXPR_writable))
+         { wire_sym_init(val, &x->tp, x->z_sym, f); }
+       else
+         { wire_init(val, &x->tp, f); }
      }
    return EXEC_next;
  }

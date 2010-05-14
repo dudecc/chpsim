@@ -131,21 +131,23 @@ FLAGS(exec_flags)
      NEXT_FLAG(EVAL_connect), /* inside a connect stmt */
      NEXT_FLAG(EVAL_bit), /* assigning bits of an integer */
      NEXT_FLAG(EXEC_instantiation), /* instantiation phase */
+     NEXT_FLAG(EXEC_immediate), /* do non-parallel execution */
      NEXT_FLAG(EXEC_sequential), /* choose chp over meta */
      NEXT_FLAG(EXEC_single), /* just run one process */
      NEXT_FLAG(EXEC_error), /* error occurred */
      NEXT_FLAG(EXEC_warning), /* warning occurred */
      NEXT_FLAG(EXEC_deadlock), /* f->curr is deadlocked */
-     NEXT_FLAG(EXEC_strict) /* do strict checks */
+     NEXT_FLAG(EXEC_strict), /* do strict checks */
+     NEXT_FLAG(EXEC_print) /* print while executing */
    };
 
-/* typedef struct exec_info exec_info; in value.h */
+typedef struct exec_info exec_info;
 struct exec_info
    { exec_flags flags;
      pqueue sched; /* queued actions */
      llist check; /* actions to be checked */
      llist susp_perm; /* permanently suspended statements */
-     llist chpx; /* non meta body actions stored here during instantiation */
+     llist chp; /* non meta body actions stored here during instantiation */
      ctrl_state *curr; /* current state */
      ctrl_state *prev; /* previous state */
      process_state *meta_ps;
@@ -154,8 +156,10 @@ struct exec_info
      eval_stack *fl; /* free-list for stack */
      value_tp *val; /* target of range check */
      void *err_obj; /* obj for errors, in range check or strict checks */
+     print_info *pf; /* used for printing when EXEC_print is set */
      wire_expr *e;
      guarded_cmnd *gc; /* for find_true_guard */
+     eval_stack *gcrv; /* also for find_true_guard */
      var_string scratch, err; /* err is for error/warning msgs */
      exec_info *parent; /* parent of a function call */
      struct user_info *user; /* for user interaction */
@@ -173,27 +177,14 @@ typedef enum exec_return
    EXEC_next. This will schedule the next stmt (or cause a pop if this
    was the last stmt).
 
-   FIX THIS COMMENT
-
    If exec_stmt or pop_stmt has scheduled other (nested) stmts, return should
    be EXEC_none; once the nested stmts are finished, the matching pop_stmt
    will be called.
 
-   If exec_stmt (or pop_stmt) must suspend without having changed the state,
-   it should return EXEC_suspend. However, if it made some state change but
-   has to suspend anyway, it should return EXEC_suspend_change. If a stmt
-   is suspended, the execution engine will occasionally call exec_stmt
-   again to see if progress can be made. The difference between EXEC_suspend
-   and EXEC_suspend_change is only relevant if the stmt was already suspended;
-   for the initial suspend either value can be returned. (If exec_stmt
-   of an already suspended stmt returns EXEC_suspend, the execution engine
-   concludes that nothing happened, which might cause it to declare deadlock.
-   However, if a state change occurred, then possibly another suspended
-   stmt is now enabled.)
-
-   Note: If pop_stmt suspends, the retry call is a call of exec_stmt, not
-   of pop_stmt. If pop_stmt schedules nested stmts (must return EXEC_none),
-   pop_stmt is called again after the nested stmts have finished.
+   If exec_stmt cannot complete until one or more wires have changed value, it
+   should return EXEC_suspend after setting itself up as a dependency of the
+   wires.  write_wire() will then schedule the statements to be re-executed
+   upon the changing of the wire value(s).
 
    If there is no exec_stmt or pop_stmt for a stmt, EXEC_next is assumed.
 */

@@ -15,6 +15,7 @@ FLAGS(print_flags)
    { FIRST_FLAG(PR_short), /* abbreviate complex statements; no newlines */
      NEXT_FLAG(PR_flush), /* flush string to file when it gets too long */
      NEXT_FLAG(PR_prs), /* Print only the prs body of a process */
+     NEXT_FLAG(PR_meta), /* Print only the meta body of a process */
      NEXT_FLAG(PR_simple_var), /* Reduce arrays/records to individual vars */
      NEXT_FLAG(PR_cast), /* Print declarations using cast syntax */
      NEXT_FLAG(PR_reset), /* Have gates.c print with reset trnsistors */

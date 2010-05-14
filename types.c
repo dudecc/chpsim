@@ -25,7 +25,9 @@ static void print_name(name *x, print_info *f)
 
 static void print_named_type(named_type *x, print_info *f)
  { if (IS_SET(f->flags, PR_simple_var))
-     { print_obj(x->tps, f); }
+     { if (x->tps && x->tps->class != CLASS_process_def)
+         { print_obj(x->tps, f); }
+     }
    else
      { print_string(x->id, f); }
  }

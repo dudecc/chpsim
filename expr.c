@@ -179,7 +179,7 @@ static void print_field_of_record(field_of_record *x, print_info *f)
      }
    else
      { print_obj(x->x, f); }
-   if (IS_SET(f->flags, PR_simple_var))
+   if (IS_SET(f->flags, PR_simple_var) && x->x->tp.kind != TP_process)
      { f->pos += var_str_printf(f->s, f->pos, "_%s", x->id); }
    else
      { f->pos += var_str_printf(f->s, f->pos, ".%s", x->id); }
@@ -627,6 +627,7 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
    type *tp;
    void *z;
    int i, j;
+   parse_obj_flags fl;
    x->x = sem(x->x, f);
    tp = &x->x->tp;
    if (tp->kind == TP_process && IS_SET(f->flags, SEM_connect))
@@ -667,10 +668,18 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
    else if (tp->kind == TP_wire)
      { wtps = (wired_type*)tp->tps;
        assert(wtps && wtps->class == CLASS_wired_type);
+       if (x->x->class == CLASS_field_of_union)
+         /* Decomposed wired port, must determine "direction" */
+         { fl = ((field_of_union*)x)->x->flags;
+           if (!IS_SET(fl, EXPR_port_ext))
+             { fl = fl ^ EXPR_port; }
+           if (LI_IS_WRITE(fl, wtps->type))
+             { SET_FLAG(x->flags, EXPR_writable); }
+         }
+       else if (LI_IS_WRITE(x->flags, wtps->type))
+         { SET_FLAG(x->flags, EXPR_writable); }
        i = 0;
        m = wtps->li;
-       if (LI_IS_WRITE(x->flags, wtps->type))
-         { SET_FLAG(x->flags, EXPR_writable); } /* Only set this for outputs */
        for (j = 0; j < 2; j++)
          { while (!llist_is_empty(&m))
              { w = llist_head(&m);
@@ -2643,7 +2652,8 @@ static process_state *new_wu_process
    ps->nr_var = cs->nr_var;
    ps->nr_thread = 1;
    if (mb) exec_meta_binding_aux(mb, &vps, f);
-   llist_prepend(&f->chpx, cs);
+   else meta_init(ps, f);
+   llist_prepend(&f->chp, cs);
    return ps;
  }
 
@@ -2656,9 +2666,21 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
    char *c;
    eval_expr(x->x, f);
    pop_value(&v, f);
-   if (v.rep != REP_record)
-     { dir = !IS_SET(x->flags, EXPR_inport) ^ (f->meta_ps == f->curr->ps);
-       if (IS_SET(f->user->flags, USER_nohide));
+   dir = !IS_SET(x->flags, EXPR_inport) ^ (f->meta_ps == f->curr->ps);
+   if (v.rep == REP_record)
+     { assert(!"Does this even happen?"); }
+   else if (v.rep && (IS_SET(x->x->flags, EXPR_port_ext) || !v.v.p->p))
+     { ps = v.v.p->p? v.v.p->p->ps : v.v.p->ps;
+       assert(ps != f->curr->ps);
+       if (ps->p != (dir? x->d->dn.p : x->d->up.p))
+         /* TODO: Better compat test, better error message */
+         { exec_error(f, x, "Port is already connected"); }
+       d = llist_idx(&ps->p->pl, dir? 1 : 0);
+       alias_value_tp(&v, &ps->var[d->var_idx], f);
+       f->meta_ps = ps; /* Used by get_wire_connect */
+     }
+   else
+     { if (IS_SET(f->user->flags, USER_nohide));
        if (dir)
          { ps = new_wu_process(x->d->dn.p, x->d->dnmb, f); }
        else
@@ -2668,7 +2690,7 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
        if (v.rep) /* Regular channel already exists */
          { ps->var[d->var_idx] = v;
            v.rep = REP_port;
-           v.v.p = p = new_port_value(f->curr->ps, f);
+           v.v.p = p = new_port_value(ps, f);
            assign(x->x, &v, f);
          }
        else /* Create a new channel for the default value */
@@ -2687,8 +2709,9 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
              { if (*c == '.') *c = '/'; }
            ps->nm = make_str(f->scratch.s);
          }
-       v.rep = REP_process;
-       v.v.ps = ps;
+       d = llist_idx(&ps->p->pl, dir? 1 : 0);
+       alias_value_tp(&v, &ps->var[d->var_idx], f);
+       f->meta_ps = ps; /* Used by get_wire_connect */
      }
    push_value(&v, f);
  }

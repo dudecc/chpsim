@@ -1,0 +1,7 @@
+//s
+//p p(1)
+
+procedure p(x:int)
+chp { print(x) }
+process main()()
+meta { p(0) }

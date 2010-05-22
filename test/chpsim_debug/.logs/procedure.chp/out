@@ -1,0 +1,13 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) (step) / at procedure.chp[6:0]
+	process main()()
+(cmnd?) /> 1
+  p(1) = ?
+(cmnd?) (step) / at procedure.chp[7:7]
+	p(0)
+(cmnd?) --- continuing in batch mode -----------
+/> 0
+--- CHP execution ----------------------
+  (nothing to execute)
+--- done -------------------------------

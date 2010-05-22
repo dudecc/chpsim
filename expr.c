@@ -2833,9 +2833,10 @@ static void eval_call(call *x, exec_info *f)
      { for (i = 0; i < s->nr_var; i++)
          { strict_check_delete(&var[i], f); }
      }
-   copy_and_clear(&xval, &var[x->d->ret->var_idx], f);
+   if (x->d->ret) copy_and_clear(&xval, &var[x->d->ret->var_idx], f);
+   else xval.rep = REP_none;
    SET_FLAG(f->curr->ps->flags, IS_SET(ps_flags, DBG_next));
-   if (!xval.rep)
+   if (!xval.rep && x->d->ret)
      { exec_warning(f, x, "Function %s did not return a value", x->id); }
    for (i = 0; i < x->d->nr_var; i++)
      { clear_value_tp(&var[i], f); }

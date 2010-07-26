@@ -409,7 +409,7 @@ static void *sem_union_type(union_type *x, sem_info *f)
    m = x->l;
    while (!llist_is_empty(&m))
      { r = llist_head(&m);
-       if (r->tp.kind == TP_wire)
+       if (r->up.p->class == CLASS_process_def)
          { d = r->dn.p->pl->head;
            if (IS_SET(d->flags, EXPR_port) != EXPR_inport)
              { sem_error(f, x, "First port of first conversion process "
@@ -452,7 +452,7 @@ static void *sem_union_field(union_field *x, sem_info *f)
    var_decl *d;
    x->tps = sem(x->tps, f);
    if (IS_SET(x->flags, DEF_forward))
-     { if (x->tp.kind != TP_wire) return x;
+     { if (x->up.p->class != CLASS_process_def) return x;
        /* Only meta_bindings need to be checked on the second pass */
        if (!llist_is_empty(&x->up.p->ml))
          { if (!x->upmb)
@@ -481,7 +481,23 @@ static void *sem_union_field(union_field *x, sem_info *f)
          { sem_error(f, x, "'%s' is not the name of a process.", x->upid); }
        if (x->dn.p->class != CLASS_process_def)
          { sem_error(f, x, "'%s' is not the name of a process.", x->dnid); }
-       if (!x->up.p->cb)
+     }
+   else
+     { if (x->up.p->class != CLASS_process_def &&
+           (x->up.f->class != CLASS_function_def || !x->up.f->ret))
+         { sem_error(f, x, "'%s' is not the name of a function or process.",
+                     x->upid);
+         }
+       if (x->dn.p->class != CLASS_process_def &&
+           (x->dn.f->class != CLASS_function_def || !x->dn.f->ret))
+         { sem_error(f, x, "'%s' is not the name of a function or process.",
+                     x->dnid);
+         }
+       if (x->up.p->class != x->dn.p->class)
+         { sem_error(f, x, "Cannot mix conversion functions and processes"); }
+     }
+   if (x->up.p->class == CLASS_process_def)
+     { if (!x->up.p->cb)
          { sem_error(f, x, "Conversion processes must have a chp body."); }
        if (!x->dn.p->cb)
          { sem_error(f, x, "Conversion processes must have a chp body."); }
@@ -509,12 +525,8 @@ static void *sem_union_field(union_field *x, sem_info *f)
          { sem_error(f, x, "First conversion process has too many ports"); }
      }
    else
-     { if (x->up.f->class != CLASS_function_def || !x->up.f->ret)
-         { sem_error(f, x, "Expected name of a function."); }
-       if (x->dn.f->class != CLASS_function_def || !x->dn.f->ret)
-         { sem_error(f, x, "Expected name of a function."); }
-       if (x->upmb || x->dnmb)
-         { sem_error(f, x, "Meta binding is only for wired fields"); }
+     { if (x->upmb || x->dnmb)
+         { sem_error(f, x, "Meta bindings are only for processes"); }
        if (!type_compatible(&x->dn.f->ret->tp, &x->tp))
          { sem_error(f, x, "Return type of first conversion function "
                            "%s is incorrect.", x->dnid);

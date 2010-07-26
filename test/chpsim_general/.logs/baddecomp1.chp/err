@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch baddecomp1.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: /c at baddecomp1.chp[5:31]
+	Port I has already been implicitly decomposed
+Error occurred: cannot continue
+(cmnd) where
+/c at baddecomp1.chp[5:23]
+	connect I.wire, b.I
+(cmnd) quit

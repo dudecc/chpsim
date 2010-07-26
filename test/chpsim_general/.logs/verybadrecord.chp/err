@@ -1,0 +1,3 @@
+Command line: ../../chpsim -batch verybadrecord.chp
+
+verybadrecord.chp[8:6] Error: Assignment between incompatible types

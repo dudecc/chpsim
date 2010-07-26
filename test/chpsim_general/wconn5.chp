@@ -1,0 +1,15 @@
+type e1of2 = (e-; d[0..1]-);
+process bad_to_e1of2()(I? : bool; O! : e1of2) chp { }
+process bad_from_e1of2()(I? : e1of2; O! : bool) chp { }
+type std1of2 = union { default : bool; wire { bad_to_e1of2, bad_from_e1of2 } : e1of2; };
+/* Bad decomposition processes, hopefully will not be used */
+process A()(O! : e1of2)
+hse { <<; i : 1..10 : [O.e]; O.d[i[0..0]]+; [~O.e]; O.d[i[0..0]]- >> }
+process B()(I? : e1of2)
+hse { <<; i : 1..10 : I.e+; [I.d[i[0..0]]]; I.e-; [~I.d[i[0..0]]] >>; print("done") }
+process C()(I?, O! : std1of2)
+meta { connect I, O; }
+process main()()
+meta { instance a : A; instance b : B; instance c : C;
+       connect a.O, c.I.wire; connect c.O.wire, b.I;
+}

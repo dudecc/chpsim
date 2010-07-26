@@ -85,6 +85,13 @@ extern void port_to_array(value_tp *v, expr *x, exec_info *f);
 extern void default_value(value_tp *v, exec_info *f);
  /* Pre: v is union value */
 
+extern void wu_proc_remove(value_tp *v, int dir, exec_info *f);
+/* Pre: v contains a port which is connected to the default port of a
+ * decomposition process.
+ * Relocate the decomposed port from the decomposition process to
+ * v.v.p->v, then destroy the decomposition process.
+ */
+
 extern void init_expr(void);
  /* call at startup */
 

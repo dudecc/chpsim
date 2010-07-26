@@ -1395,17 +1395,35 @@ static void set_ps(value_tp *v, process_state *ps, exec_info *f)
 
 static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
 /* Pre: we are connecting two ports of the current process */
- { int i;
+ { int i, dir;
    value_tp *swap = 0;
    value_list *al, *bl;
    connection *x = (connection*)f->curr->obj;
-   if (vala->rep != REP_port)
+   if (vala->rep != REP_port && valb->rep == REP_port)
      { swap = vala; vala = valb; valb = swap; }
    /* now vala!=port => valb!=port */
    switch (vala->rep)
      { case REP_port:
          if (!vala->v.p->p)
            { connect_error(swap? x->b : x->a, vala->v.p->ps, f); }
+         /* TODO: what if valb was already connected? */
+         if (vala->v.p->p->dec)
+           { if (valb->rep != REP_port)
+               { exec_error(f, x, "Connecting incompatible decompositions"); }
+             if (!valb->v.p->p)
+               { connect_error(x->b, valb->v.p->ps, f); }
+             if (valb->v.p->p->dec)
+               { if (valb->v.p->p->dec != vala->v.p->p->dec)
+                   { exec_error(f, x, "Connecting incompatible "
+                                      "decompositions");
+                   }
+                 dir = IS_SET(x->a->flags, EXPR_inport);
+                 wu_proc_remove(vala, dir, f);
+                 wu_proc_remove(valb, !dir, f);
+                 connect_aux(&vala->v.p->v, &valb->v.p->v, f);
+                 return;
+               }
+           }
          set_ps(valb, vala->v.p->p->ps, f);
          vala->v.p->ps = (valb->rep == REP_port)? valb->v.p->p->ps : 0;
          *find_reference(vala->v.p->p, f) = *valb;
@@ -1413,7 +1431,7 @@ static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
          valb->v.p = vala->v.p->p;
          vala->v.p->p = 0; vala->v.p->wprobe.refcnt--;
          valb->v.p->p = 0; valb->v.p->wprobe.refcnt--;
-       break;
+       return;
        case REP_array: case REP_record:
          if (vala->rep != valb->rep)
            { exec_error(f, x, "Connecting incompatible decompositions"); }
@@ -1422,17 +1440,25 @@ static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
            { exec_error(f, x, "Connecting incompatible decompositions"); }
          for (i = 0; i < al->size; i++)
            { connect_aux(&al->vl[i], &bl->vl[i], f); }
-       break;
+       return;
        case REP_union:
          if (valb->rep != REP_union ||
              vala->v.u->f != valb->v.u->f)
-           { exec_error(f, f->curr->obj,
-                        "Connecting incompatible decompositions");
-           }
+           { exec_error(f, x, "Connecting incompatible decompositions"); }
          connect_aux(&vala->v.u->v, &valb->v.u->v, f);
-       break;
+       return;
+       case REP_wire: // Can happen when bridging decomposition processes
+         assert(valb->rep == REP_wire);
+         wire_fix(&vala->v.w, f);
+         wire_fix(&valb->v.w, f);
+         SET_FLAG(valb->v.w->flags, WIRE_forward);
+         valb->v.w->u.w = vala->v.w;
+         if (vala->v.w->wframe->cs->ps == f->meta_ps)
+           { vala->v.w->wframe = valb->v.w->wframe; }
+         wire_fix(&valb->v.w, f); // For good measure
+       return;
        default:
-       break;
+       return;
      }
  }
 

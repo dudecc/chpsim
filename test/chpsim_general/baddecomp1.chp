@@ -1,0 +1,9 @@
+requires "channel.chp";
+process A()(O! : bool) chp { }
+process B()(I? : e1of4) hse { }
+process C()(I? : std1of4)
+meta { instance b : B; connect I.wire, b.I; }
+process main()()
+meta { instance a[0..1] : A; instance c : C;
+       connect all i : 0..1 : a[i].O, c.I[i];
+}

@@ -2621,10 +2621,9 @@ static void assign_field_of_record(field_of_record *x, exec_info *f)
 
 static process_state *new_wu_process
 (process_def *d, meta_binding *mb, exec_info *f)
- /* Pre: d has no meta parameters and two port parameters
-    Create and schedule a new process for use by a wired union
-    The process name "//bad" should render the process invisible to
-    the debugger.
+ /* Pre: d has two port parameters
+  * Create and schedule a new decomposition process.  The process name
+  * "//bad" should render the process invisible to the debugger.
   */
  { value_tp vps, *ve;
    process_state *ps;
@@ -2657,6 +2656,77 @@ static process_state *new_wu_process
    return ps;
  }
 
+static void wu_reload(field_of_union *x, port_value *p, int dir, exec_info *f)
+/* Pre: p is an already connected channel.
+ * If this channel is a decomposition matching x, then push the value of
+ * the decomposed port. Otherwise, throw an appropriate error.
+ */
+ { var_decl *d;
+   value_tp v;
+   if (!p->dec)
+     { exec_error(f, x, "Port %v is already connected to %s",
+                  vstr_obj, x->x, p->ps->nm);
+     }
+   else if (p->dec != x->d)
+     { exec_error(f, x, "Port %v is already decomposed using field %s",
+                  vstr_obj, x->x, p->dec->id);
+     }
+   else if (p->v.rep)
+     { alias_value_tp(&v, &p->v, f); }
+   else
+     { d = llist_idx(&p->ps->p->pl, dir? 1 : 0);
+       alias_value_tp(&v, &p->ps->var[d->var_idx], f);
+       f->meta_ps = p->ps; /* Used by get_wire_connect */
+     }
+   push_value(&v, f);
+ }
+
+static void wu_wire_fix(value_tp *v, process_state *ps, exec_info *f)
+/* Switch ownership of ports and wires from ps to f->meta_ps */
+ { int i;
+   switch(v->rep)
+     { case REP_record: case REP_array:
+         for (i = 0; i < v->v.l->size; i++)
+           { wu_wire_fix(&v->v.l->vl[i], ps, f); }
+       return;
+       case REP_union:
+         wu_wire_fix(&v->v.u->v, ps, f);
+       return;
+       case REP_wire:
+         wire_fix(&v->v.w, f);
+         if (v->v.w->wframe->cs->ps == ps)
+           { v->v.w->wframe = &f->meta_ps->cs->act; }
+       return;
+       case REP_port:
+         assert(v->v.p->ps == ps);
+         v->v.p->ps = f->meta_ps;
+       return;
+       default:
+       return;
+     }
+ }
+
+extern void wu_proc_remove(value_tp *v, int dir, exec_info *f)
+/* Pre: v contains a port which is connected to the default port of a
+ * decomposition process.
+ * Relocate the decomposed port from the decomposition process to
+ * v.v.p->v, then destroy the decomposition process.
+ */
+ { process_state *ps;
+   var_decl *d;
+   ps = v->v.p->p->ps;
+   d = llist_idx(&ps->p->pl, dir? 0 : 1);
+   /* d is now the decomposed port from the other side */
+   v->v.p->v = ps->var[d->var_idx];
+   ps->var[d->var_idx].rep = REP_none;
+   v->v.p->dec = v->v.p->p->dec;
+   v->v.p->p->p = 0; v->v.p->p->wprobe.refcnt--;
+   v->v.p->p = 0; v->v.p->wprobe.refcnt--;
+   wu_wire_fix(&v->v.p->v, ps, f);
+   llist_find_extract(&f->chp, 0, ps->cs);
+   // Finish deleting the process ps here...
+ }
+
 static void eval_wired_union_field(field_of_union *x, exec_info *f)
  { value_tp v;
    process_state *ps;
@@ -2667,52 +2737,73 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
    eval_expr(x->x, f);
    pop_value(&v, f);
    dir = !IS_SET(x->flags, EXPR_inport) ^ (f->meta_ps == f->curr->ps);
-   if (v.rep == REP_record)
-     { assert(!"Does this even happen?"); }
-   else if (v.rep && (IS_SET(x->x->flags, EXPR_port_ext) || !v.v.p->p))
-     { ps = v.v.p->p? v.v.p->p->ps : v.v.p->ps;
-       assert(ps != f->curr->ps);
-       if (ps->p != (dir? x->d->dn.p : x->d->up.p))
-         /* TODO: Better compat test, better error message */
-         { exec_error(f, x, "Port is already connected"); }
-       d = llist_idx(&ps->p->pl, dir? 1 : 0);
-       alias_value_tp(&v, &ps->var[d->var_idx], f);
-       f->meta_ps = ps; /* Used by get_wire_connect */
-     }
-   else
-     { if (IS_SET(f->user->flags, USER_nohide));
-       if (dir)
-         { ps = new_wu_process(x->d->dn.p, x->d->dnmb, f); }
-       else
-         { ps = new_wu_process(x->d->up.p, x->d->upmb, f); }
-       d = llist_idx(&ps->p->pl, dir? 0 : 1);
-       /* d is now the port of ps of default type */
-       if (v.rep) /* Regular channel already exists */
-         { ps->var[d->var_idx] = v;
-           v.rep = REP_port;
-           v.v.p = p = new_port_value(ps, f);
-           assign(x->x, &v, f);
+   if (IS_SET(x->x->flags, EXPR_port_ext))
+     { if (v.rep == REP_port)
+         { wu_reload(x, v.v.p->p, dir, f);
+           return;
          }
-       else /* Create a new channel for the default value */
-         { v.rep = ps->var[d->var_idx].rep = REP_port;
+       else if (v.rep)
+         { exec_error(f, x, "Port %v has already been implicitly decomposed",
+                      vstr_obj, x->x);
+         }
+       else
+         { if (dir)
+             { ps = new_wu_process(x->d->dn.p, x->d->dnmb, f); }
+           else
+             { ps = new_wu_process(x->d->up.p, x->d->upmb, f); }
+           d = llist_idx(&ps->p->pl, dir? 0 : 1);
+           /* d is now the port of ps of default type */
+           v.rep = ps->var[d->var_idx].rep = REP_port;
            ps->var[d->var_idx].v.p = new_port_value(ps, f);
            v.v.p = p = new_port_value(f->curr->ps, f);
            p->p = ps->var[d->var_idx].v.p;
-           ps->var[d->var_idx].v.p->p = p;
+           p->p->p = p;
            p->wprobe.refcnt++; p->p->wprobe.refcnt++;
+           p->p->dec = x->d;
            assign(x->x, &v, f);
          }
-       if (IS_SET(f->user->flags, USER_nohide))
-         { var_str_printf(&f->scratch, 0, "%s/%V/wire", f->meta_ps->nm,
-                          vstr_wire, &p->wprobe, f->meta_ps);
-           for (c = f->scratch.s; *c != 0; c++)
-             { if (*c == '.') *c = '/'; }
-           ps->nm = make_str(f->scratch.s);
-         }
-       d = llist_idx(&ps->p->pl, dir? 1 : 0);
-       alias_value_tp(&v, &ps->var[d->var_idx], f);
-       f->meta_ps = ps; /* Used by get_wire_connect */
      }
+   else
+     { if (v.rep != REP_port)
+         { exec_error(f, x, "Port %v has already been implicitly decomposed",
+                      vstr_obj, x->x);
+         }
+       else if (!v.v.p->p)
+         { wu_reload(x, v.v.p, dir, f);
+           return;
+         }
+       else if (v.v.p->p->dec == x->d)  // Is there a matching decomposition
+         { wu_proc_remove(&v, dir, f);  // on the other side of the channel?
+           alias_value_tp(&v, &v.v.p->v, f);
+           push_value(&v, f);
+           return;
+         }
+       else
+         { if (dir)
+             { ps = new_wu_process(x->d->dn.p, x->d->dnmb, f); }
+           else
+             { ps = new_wu_process(x->d->up.p, x->d->upmb, f); }
+           d = llist_idx(&ps->p->pl, dir? 0 : 1);
+           /* d is now the port of ps of default type */
+           v.v.p->dec = x->d;
+           v.v.p->ps = ps;
+           ps->var[d->var_idx] = v;
+           v.rep = REP_port;
+           v.v.p = p = new_port_value(ps, f);
+           p->dec = x->d;
+           assign(x->x, &v, f);
+         }
+     }
+   if (IS_SET(f->user->flags, USER_nohide))
+     { var_str_printf(&f->scratch, 0, "%s/%V/wire", f->meta_ps->nm,
+                      vstr_wire, &p->wprobe, f->meta_ps);
+       for (c = f->scratch.s; *c != 0; c++)
+         { if (*c == '.') *c = '/'; }
+       ps->nm = make_str(f->scratch.s);
+     }
+   d = llist_idx(&ps->p->pl, dir? 1 : 0);
+   alias_value_tp(&v, &ps->var[d->var_idx], f);
+   f->meta_ps = ps; /* Used by get_wire_connect */
    push_value(&v, f);
  }
 
@@ -2720,7 +2811,7 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
 /* Only used in connect statements */
  { value_tp v, *ve;
    value_union *vu;
-   if (x->tp.kind == TP_wire)
+   if (x->d->up.p->class == CLASS_process_def)
      { eval_wired_union_field(x, f); return; }
    eval_expr(x->x, f);
    pop_value(&v, f);
@@ -2771,12 +2862,35 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
 static void assign_field_of_union(field_of_union *x, exec_info *f)
 /* Only used in connect statements */
  { value_tp v;
-   v.rep = REP_union;
-   v.v.u = new_value_union(f);
-   copy_and_clear(&v.v.u->v, f->val, f);
-   v.v.u->f = x->d;
-   v.v.u->d = IS_SET(x->flags, EXPR_inport)? x->d->up.f : x->d->dn.f;
-   assign(x->x, &v, f);
+   int dir;
+   process_state *ps;
+   var_decl *d;
+   if (x->d->up.p->class == CLASS_process_def)
+     { eval_expr(x->x, f);
+       pop_value(&v, f);
+       assert(v.rep == REP_port);
+       if (v.v.p->p)
+         { dir = !IS_SET(x->flags, EXPR_inport);
+           assert(v.v.p->p->dec = x->d);
+           f->meta_ps = ps = v.v.p->p->ps;
+         }
+       else
+         { dir = IS_SET(x->flags, EXPR_inport);
+           assert(v.v.p->dec = x->d);
+           if (v.v.p->v.rep) return;
+           f->meta_ps = ps = v.v.p->ps;
+         }
+       d = llist_idx(&ps->p->pl, dir? 1 : 0);
+       copy_and_clear(&ps->var[d->var_idx], f->val, f);
+     }
+   else
+     { v.rep = REP_union;
+       v.v.u = new_value_union(f);
+       copy_and_clear(&v.v.u->v, f->val, f);
+       v.v.u->f = x->d;
+       v.v.u->d = IS_SET(x->flags, EXPR_inport)? x->d->up.f : x->d->dn.f;
+       assign(x->x, &v, f);
+     }
  }
 
 static void eval_call(call *x, exec_info *f)

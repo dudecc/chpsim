@@ -1,8 +1,6 @@
-Command line: ../../chpsim -batch wconn2.chp
+Command line: ../../chpsim -batch wconn4.chp
 
 --- global constants -------------------
 --- instantiation ----------------------
 --- CHP execution ----------------------
---- error ------------------------------
-Error: deadlock
-(cmnd) quit
+--- done -------------------------------

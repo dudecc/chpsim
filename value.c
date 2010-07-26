@@ -397,6 +397,7 @@ extern port_value *new_port_value(process_state *ps, exec_info *f)
    p->p = 0;
    p->v.rep = REP_none;
    p->ps = ps;
+   p->dec = 0;
    return p;
  }
 

@@ -1,0 +1,27 @@
+process lshift()(I?, O! : {0..2})
+chp {  }
+
+process rshift()(I?, O! : {0..2})
+chp {  }
+
+type barrel = union { default : {0..2};
+                      shift {lshift, rshift} : {0..2};
+                    };
+
+process A()(O! : barrel)
+chp { <<; i : 1..10 : O!i MOD 3 >> }
+
+process B()(I? : barrel)
+chp { <<; i : 1..10 : [#{I:I=i MOD 3}]; I >>; print("done") }
+
+process AA()(O! : barrel)
+meta { instance a : A; instance c : C;
+       connect a.O, c.I;
+       connect c.O, O;
+}
+
+process C()(I?, O! : barrel)
+meta { connect I, O.shift; }
+
+process main()()
+meta { instance a : AA; instance b : B; connect a.O.shift, b.I; }

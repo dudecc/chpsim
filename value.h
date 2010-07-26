@@ -73,6 +73,7 @@ struct value_union
    { int refcnt; /* reference count */
      function_def *d;
      union_field *f;
+     process_state *ps;
      value_tp v;
    };
 
@@ -168,6 +169,7 @@ struct port_value
      port_value *p; /* other port */
      value_tp v; /* value, only used for REP_inport */
      process_state *ps; /* process that communicates on this port */
+     union_field *dec; /* is this part of a decomposition process? */
    };
 
 /********** printing *********************************************************/

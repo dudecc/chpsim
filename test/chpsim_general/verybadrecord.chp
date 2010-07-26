@@ -1,0 +1,9 @@
+type llist = record { head : int;
+                      tail : llist;
+                    };
+
+process main()()
+chp { var x : llist;
+      x.head := 5;
+      x.tail := x; // This looks legit...
+}

@@ -374,6 +374,7 @@ static void _get_susp_threads(value_tp *v, hash_table *h, user_info *f)
        return;
        case REP_union:
          _get_susp_threads(&v->v.u->v, h, f);
+       return;
        case REP_wire:
          __get_susp_threads(v->v.w, h, f);
        return;

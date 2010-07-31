@@ -1,0 +1,15 @@
+//r
+//r
+//v /b
+//v /a
+
+function ident(x : bool) : bool
+chp { ident := x; }
+
+type T = union { default : bool; d {ident, ident} : bool };
+
+process B()(I?, O! : T)
+chp { var x : T; I?x; O!x }
+
+process main()()
+meta { instance a, b : B; connect a.I.d, b.O; connect a.O, b.I; }

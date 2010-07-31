@@ -1,0 +1,10 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) (view) /b at view01.chp[12:17]
+	I?x
+(cmnd?) (view) /a at view01.chp[12:17]
+	I?x
+(cmnd?) 

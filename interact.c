@@ -372,6 +372,8 @@ static void _get_susp_threads(value_tp *v, hash_table *h, user_info *f)
          for (i = 0; i < v->v.l->size; i++)
            { _get_susp_threads(&v->v.l->vl[i], h, f); }
        return;
+       case REP_union:
+         _get_susp_threads(&v->v.u->v, h, f);
        case REP_wire:
          __get_susp_threads(v->v.w, h, f);
        return;
@@ -722,6 +724,8 @@ static process_state *__deadlock_find
              if (r) return r;
            }
        return 0;
+       case REP_union:
+       return __deadlock_find(&v->v.u->v, ps, f);
        case REP_port:
          if (!v->v.p->p) return 0; /* TODO: maybe return ps? */
          if (!IS_SET(v->v.p->wprobe.flags, WIRE_has_dep)) return 0;
@@ -735,7 +739,6 @@ static process_state *__deadlock_find
              if (e->u.act->cs->ps == ps)
                { return _deadlock_find(v->v.p->p->ps, f); }
            }
-         assert(!"Oops, try the other wprobe");
        return 0;
        default:
        return 0;
@@ -766,7 +769,10 @@ static void _deadlock_mark(value_tp *v, exec_info *f)
      { case REP_array: case REP_record:
          for (i = 0; i < v->v.l->size; i++)
            { _deadlock_mark(&v->v.l->vl[i], f); }
-       return ;
+       return;
+       case REP_union:
+         _deadlock_mark(&v->v.u->v, f);
+       return;
        case REP_port:
          if (!v->v.p->p) return;
          if (!IS_SET(v->v.p->wprobe.flags, WIRE_has_dep)) return;

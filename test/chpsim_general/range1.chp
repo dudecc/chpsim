@@ -1,0 +1,4 @@
+process A()(I?, O! : {X, Y})
+chp { O!`Z, I }
+process main()()
+meta { instance a : A; connect a.I, a.O; }

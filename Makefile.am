@@ -19,5 +19,5 @@ chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
                  path.def symbol.def
 
 # CHP library files
-dist_pkgdata_DATA = builtin.chp stdio.chp channel.chp
+dist_pkgdata_DATA = builtin.chp stdio.chp channel.chp builtin-2.0.chp
 AM_CFLAGS += -DPKGDATADIR='"$(pkgdatadir)"'

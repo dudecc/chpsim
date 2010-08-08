@@ -13,6 +13,7 @@ extern void pqueue_init(pqueue *q, pqueue_func *cmp)
    q->root = 0;
    q->free = 0;
    q->cmp = cmp;
+   q->flags = PQUEUE_use_freelist;
  }
 
 static pqueue_node *new_pqueue_node(pqueue *q)
@@ -177,8 +178,14 @@ static void pqueue_free_nodes(pqueue_node *p)
  }
 
 extern void pqueue_term(pqueue *q)
- { pqueue_free_nodes(q->root);
-   pqueue_free_nodes(q->free);
+ { pqueue_node *p, *pnext;
+   pqueue_free_nodes(q->root);
+   p = q->free;
+   while (p)
+     { pnext = p->left;
+       free(p);
+       p = pnext;
+     }
  }
 
 static int _pqueue_apply(pqueue_node *p, pqueue_func *f, void *info)

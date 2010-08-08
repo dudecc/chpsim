@@ -1027,13 +1027,9 @@ static void send_value(value_tp *dval, value_tp *pval, exec_info *f)
            clear_value_tp(dval, f);
          }
        else
-         { assert(pval->rep==dval->rep);
+         { assert(pval->rep == dval->rep);
            dl = dval->v.l;
-           if (dl->size != pl->size)
-             { exec_error(f, f->curr->obj,
-		          "Array value has %d elements instead of %d",
-                          dl->size, pl->size);
-             }
+           assert(dl->size == pl->size);
            for (i = 0 ; i < dl->size ; i++)
              { alias_value_tp(&v, &dl->vl[i], f);
                send_value(&v, &pl->vl[i], f);
@@ -1251,6 +1247,7 @@ static int exec_communication(communication *x, exec_info *f)
        pop_value(&dval, f);
        if (!dval.rep)
          { exec_error(f, x, "Sending an unknown value %v", vstr_obj, x->e); }
+       range_check(x->p->tp.tps, &dval, f, x);
        send_value(&dval, &pval, f);
      }
    set_probe(&pval, f);

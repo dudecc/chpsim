@@ -2,10 +2,7 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-	"$Id: chpsim.c,v 1.12 2004/04/13 20:58:48 marcel Exp $";
-
-static const char version[] = "1.4 (2007/1/17)";
+static const char version[] = "2.0";
 
 #include <standard.h>
 #include "chp.h"

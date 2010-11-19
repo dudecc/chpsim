@@ -1,8 +1,6 @@
 /* routines.h: routines; builtin procedures
 
    Author: Marcel van der Goot
-
-   $Id: routines.h,v 1.2 2002/12/10 20:45:37 marcel Exp $
 */
 #ifndef ROUTINES_H
 #define ROUTINES_H

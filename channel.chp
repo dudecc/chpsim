@@ -1,3 +1,5 @@
+/* channel.chp - Definitions of some generic wired port types */
+
 /* e1ofN channels */
 export type e1of1 = (e-; d[0..0]-);
 export type e1of2 = (e-; d[0..1]-);

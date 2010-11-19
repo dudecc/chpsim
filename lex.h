@@ -1,8 +1,6 @@
 /* lex.h: Lexical scanning.
 
    Author: Marcel van der Goot
-
-   $Id: lex.h,v 1.4 2004/04/13 20:52:37 marcel Exp $
 */
 #ifndef LEX_H
 #define LEX_H

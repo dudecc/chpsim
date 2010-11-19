@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: sem_analysis.c,v 1.1 2002/11/20 21:55:38 marcel Exp $";
 
 #include <standard.h>
 #include "sem_analysis.h"

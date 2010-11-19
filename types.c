@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: types.c,v 1.3 2002/12/05 09:09:15 marcel Exp $";
 
 #include <standard.h>
 #include "print.h"

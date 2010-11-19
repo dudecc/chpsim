@@ -1,8 +1,6 @@
 /* path.def: system-dependent definition of module search path.
 
    Author: Marcel van der Goot
-
-   $Id$
 */
 
 #ifndef PATH

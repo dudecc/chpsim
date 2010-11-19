@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-	"$Id: lex.c,v 1.4 2004/04/13 20:52:37 marcel Exp $";
 
 #include <standard.h>
 #include <var_string.h>

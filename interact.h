@@ -1,8 +1,6 @@
 /* interact.h: user interaction
 
    Author: Marcel van der Goot
-
-   $Id: interact.h,v 1.8 2004/04/13 20:51:40 marcel Exp $
 */
 #ifndef INTERACT_H
 #define INTERACT_H

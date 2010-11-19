@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: routines.c,v 1.5 2004/04/13 20:56:25 marcel Exp $";
 
 #include <standard.h>
 #include <gmp.h> /* mpz */

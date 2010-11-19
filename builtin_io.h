@@ -1,8 +1,6 @@
 /* builtin_io.h: support for stdio.chp
 
    Author: Marcel van der Goot
-
-   $Id: builtin_io.h,v 1.2 2004/04/13 20:46:13 marcel Exp $
 */
 #ifndef BUILTIN_IO_H
 #define BUILTIN_IO_H

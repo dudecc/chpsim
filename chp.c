@@ -1,8 +1,6 @@
 /* chp.c: wrapper code for chp frontend
 
    Author: Marcel van der Goot
-
-   $Id$
 */
 
 #include "lex.h"

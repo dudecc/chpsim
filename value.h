@@ -1,8 +1,6 @@
 /* value.h: value representation and expression evaluation
 
    Author: Marcel van der Goot
-
-   $Id: exec.h,v 1.3 2002/12/04 22:55:31 marcel Exp $
 */
 #ifndef VALUE_H
 #define VALUE_H

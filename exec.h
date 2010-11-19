@@ -1,8 +1,6 @@
 /* exec.h: statement execution and expression evaluation
 
    Author: Marcel van der Goot
-
-   $Id: exec.h,v 1.3 2002/12/04 22:55:31 marcel Exp $
 */
 #ifndef EXEC_H
 #define EXEC_H
@@ -298,20 +296,17 @@ extern int app_pop;
 
 /******************************************************************************
 
-   There are two queues, one with scheduled statements and one with
-   suspended statements. The sched queue is ordered by time. When
-   a statement reaches the top of the sched queue, if it is not ready,
-   it is put in the susp queue. The statements in the susp queue have
-   all been reached and can execute whenever their guard conditions are
-   satisfied.
-
-   The suspended statements will be tried every time the simulation time
-   is advanced, or when there are no ready statements left.
+   Scheduled statements are stored in the priority queue f->sched,
+   which sorts the statements according to the time they are scheduled
+   to occur.  If the statement at the top of the queue cannot complete
+   until one or more wires change value, then the statement is added
+   as a dependency of those wires.  If the statement cannot ever
+   complete, then the statement is stored in f->susp_perm.
 
    Each thread has a ctrl_state to describe its current state. This ctrl_state
-   is either in one of the two queues or the current state. The ctrl_state
-   for a thread is actually a stack, which is used to implement nested
-   statements.
+   is either in f->sched, a dependant of one or more wires, in f->susp_perm,
+   or it is the current state. The ctrl_state for a thread is actually a
+   stack, which is used to implement nested statements.
 
    When ctrl_state->obj is one of a sequence of statements, the seq list
    is (an alias of) the list of following statements. If the seq
@@ -323,6 +318,12 @@ extern int app_pop;
    used if nested statements were scheduled. The pop function for a statement
    is called when the statement is reached through a pop of the thread's
    stack. It should return an exec_return value as well.
+
+   Production rules are also stored in f->sched.  Production rules do not
+   have a ctrl_state, but simply for an action.  When a production rule
+   reaches the top of the queue, the exec function is not called, but
+   rather the target wire is directly written to.  Unlike most ctrl_states,
+   production rules are permanent.
 */
 
 #endif /* EXEC_H */

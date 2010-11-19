@@ -1,8 +1,6 @@
 /* parse_obj.h: the parse data structure
 
    Author: Marcel van der Goot
-
-   $Id: parse_obj.h,v 1.6 2004/04/13 20:56:25 marcel Exp $
 */
 #ifndef PARSE_OBJ_H
 #define PARSE_OBJ_H

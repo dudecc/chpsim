@@ -1,8 +1,6 @@
 /* builtin.chp: builtin procedures
 
    Author: Marcel van der Goot
-
-   $Id: builtin.chp,v 1.3 2002/12/11 07:04:29 marcel Exp $
 */
 
 export type string = array [0..1] of {0..127}; // hack

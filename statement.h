@@ -1,8 +1,6 @@
 /* statement.h: statements
 
    Author: Marcel van der Goot
-
-   $Id: statement.h,v 1.1 2002/11/20 21:55:38 marcel Exp $
 */
 #ifndef STATEMENT_H
 #define STATEMENT_H

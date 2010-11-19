@@ -2,9 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: interact.c,v 1.11 2004/04/13 20:51:40 marcel Exp $";
-
 
 #ifndef NEED_UINT
 #define NOUINT

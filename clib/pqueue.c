@@ -5,6 +5,10 @@
  *All rights reserved                                              *
  ***********************************************************************/
 
+/* This is not part of Marcel's original library, and the code quality
+ * is a bit lacking.
+ */
+
 #include "pqueue.h"
 #include "standard.h"
 

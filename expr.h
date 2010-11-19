@@ -1,8 +1,6 @@
 /* expr.h: expressions
 
    Author: Marcel van der Goot
-
-   $Id: expr.h,v 1.2 2002/12/03 19:56:21 marcel Exp $
 */
 #ifndef EXPR_H
 #define EXPR_H

@@ -1,8 +1,6 @@
 /* chp.h: wrapper code for chp frontend
 
    Author: Marcel van der Goot
-
-   $Id$
 */
 #ifndef CHP_H
 #define CHP_H

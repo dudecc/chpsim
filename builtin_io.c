@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-	"$Id: builtin_io.c,v 1.5 2004/04/13 20:45:57 marcel Exp $";
 
 #include <standard.h>
 #include <errno.h>

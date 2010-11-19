@@ -47,7 +47,7 @@ libalways_a_LIBADD =
 am_libalways_a_OBJECTS = c_exception.$(OBJEXT) errormsg.$(OBJEXT) \
 	hash.$(OBJEXT) llist.$(OBJEXT) mallocdbg.$(OBJEXT) \
 	obj.$(OBJEXT) pqueue.$(OBJEXT) string_table.$(OBJEXT) \
-	var_string.$(OBJEXT) fifo.$(OBJEXT)
+	var_string.$(OBJEXT)
 libalways_a_OBJECTS = $(am_libalways_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -152,8 +152,7 @@ noinst_LIBRARIES = libalways.a
 libalways_a_SOURCES = c_exception.c errormsg.c hash.c llist.c mallocdbg.c \
                       obj.c pqueue.c string_table.c var_string.c ascii.h \
                       c_exception.h errormsg.h hash.h llist.h mallocdbg.h \
-                      obj.h pqueue.h standard.h string_table.h var_string.h \
-                      fifo.c fifo.h
+                      obj.h pqueue.h standard.h string_table.h var_string.h
 
 all: all-am
 
@@ -204,7 +203,6 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c_exception.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/errormsg.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fifo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/llist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mallocdbg.Po@am__quote@

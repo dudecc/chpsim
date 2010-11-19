@@ -1,8 +1,6 @@
 /* sem_analysis.h: semantic analysis
 
    Author: Marcel van der Goot
-
-   $Id: sem_analysis.h,v 1.1 2002/11/20 21:55:38 marcel Exp $
 */
 #ifndef SEM_ANALYSIS_H
 #define SEM_ANALYSIS_H

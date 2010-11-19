@@ -5,11 +5,12 @@
  *    All rights reserved                                              *
  ***********************************************************************/
 
-/* simple priority queue, nothing fancy */
+/* This is not part of Marcel's original library, and the code quality
+ * is a bit lacking.
+ */
 
 #ifndef PQUEUE
 #define PQUEUE
-#include "llist.h"
 
 /********** types ************************************************************/
 
@@ -76,23 +77,5 @@ extern void *pqueue_find(pqueue *q, pqueue_func *f, void *info);
  /* f(x->data, info) should return non-zero if x->data is what we want to
   * find.  Return value is x->data, or zero if f never returned non-zero
   */
-/* Depreciated:
-extern void reset_ptr_Pqueue(pqueue * s);
-extern char * next_Pqueue(pqueue * s);
-*/
-	/* returns pointed-to data and THEN point to next */
-
-/* Make references to original functions syntax errors */
-#define create_Pqueue (}
-#define put_Pqueue (}
-#define put_PqueueHead (}
-#define get_Pqueue (}
-#define remove_node_Pqueue (}
-#define root_Pqueue (}
-#define fprint_Pqueue (}
-#define free_Pqueue (}
-#define reset_ptr_Pqueue (}
-#define next_Pqueue (}
-#define fprint_list_Pqueue (}
 
 #endif /* PQUEUE_H */

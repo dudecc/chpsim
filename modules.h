@@ -1,8 +1,6 @@
 /* modules.h: modules; resolving module dependencies
 
    Author: Marcel van der Goot
-
-   $Id: modules.h,v 1.1 2002/11/20 21:55:38 marcel Exp $
 */
 #ifndef MODULES_H
 #define MODULES_H

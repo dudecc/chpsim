@@ -1,8 +1,6 @@
 /* types.h: types
 
    Author: Marcel van der Goot
-
-   $Id: types.h,v 1.1 2002/11/20 21:55:38 marcel Exp $
 */
 #ifndef TYPES_H
 #define TYPES_H

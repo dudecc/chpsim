@@ -1,10 +1,7 @@
 /* statement.c: statements
-     }
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: statement.c,v 1.6 2004/04/13 20:56:25 marcel Exp $";
 
 #include <standard.h>
 #include "print.h"

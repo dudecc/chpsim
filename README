@@ -1,39 +1,16 @@
-This directory contains the actual code. Run
-  % gmake
-to recompile. Then copy "chpsim" to a standard directory, such
-as /usr/local/bin/.
+To install, run:
 
-The program uses two libraries, clib and gmp. You should make
-the clib library first (run 'make' in .. or in ../clib/Src).
-The clib library will be installed in clib/$ARCH, where $ARCH
-identifies your computer's architecture. You can set this
-environment variable before running make. (Default: $ARCH = `uname -m`)
+./configure
+make
+make install
 
-The gmp library is the GNU Multiple Precision library. A version
-of this library is included (in ../gmp). If a newer version of the
-gmp library is already installed on your system, you should change
-the references to gmp in the Makefile (this directory) to that
-installed version. If you get lots of error messages involving mpz_
-functions, you may need to recompile the ../gmp library:
+The only external dependency of chpsim is gmp, the GNU Multiple
+Precision library.  Running ./configure will search for this library
+and inform you if the library or its headers could not be found.
 
-   cd ../gmp/gmp-3.1.1
-   ./configure
-   gmake
+'make install' will install the binary to /usr/local/bin, and the
+default chp library files to /usr/local/share/chpsim.  Chpsim has this
+directory built in as a search path.  Other directories can also be
+added to the search path by adding them to path.def before compiling.
 
-(The gmp library does some weird things where a prefix is added to
-all exported identifiers; sometimes this causes stuff to get out
-of sync.)
-
-The chpsim program has a search path for modules. You can change
-the default path by editing file path.def (before compiling).
-The path is shown when running chpsim -v.
-
-You must copy the following files to one of the directories
-(preferably the first) in the module search path:
-
-    builtin.chp
-    stdio.chp
-    demo1.chp
-    demo2.chp
-
-===============================================================================
+Report any bugs found to <cc@async.caltech.edu>

@@ -1,8 +1,6 @@
 /* print.h: printing the parse structure
 
    Author: Marcel van der Goot
-
-   $Id: print.h,v 1.2 2004/04/13 20:50:42 marcel Exp $
 */
 #ifndef PRINT_H
 #define PRINT_H

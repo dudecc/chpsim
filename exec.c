@@ -2,8 +2,6 @@
 
    Author: Marcel van der Goot
 */
-volatile static const char cvsid[] =
-        "$Id: exec.c,v 1.6 2004/04/13 20:50:42 marcel Exp $";
 
 #include <standard.h>
 #include <hash.h>

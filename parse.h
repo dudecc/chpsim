@@ -1,8 +1,6 @@
 /* parse.h: parsing
 
    Author: Marcel van der Goot
-
-   $Id: parse.h,v 1.1 2002/11/20 21:55:38 marcel Exp $
 */
 #ifndef PARSE_H
 #define PARSE_H

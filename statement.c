@@ -1294,7 +1294,7 @@ extern void exec_meta_binding_aux(meta_binding *x, value_tp *v, exec_info *f)
    expr *a;
    value_tp *eval, *meta;
    meta_parameter *p;
-   process_state *ps;
+   process_state *ps, *meta_ps;
    long i;
    if (v->rep == REP_array)
      { for (i = 0; i < v->v.l->size; i++)
@@ -1317,9 +1317,10 @@ extern void exec_meta_binding_aux(meta_binding *x, value_tp *v, exec_info *f)
                         p->id);
          }
        /* To perform the range check, we need to use meta parameters from ps */
+       meta_ps = f->meta_ps;
        f->meta_ps = ps;
        range_check(p->tp.tps, eval, f, a);
-       f->meta_ps = f->curr->ps;
+       f->meta_ps = meta_ps;
        mp = llist_alias_tail(&mp);
        ma = llist_alias_tail(&ma);
      }

@@ -3,7 +3,8 @@
 CHPSIM=../../chpsim
 CHPSIM_CMD_PRE=
 CHPSIM_CMD_POST=
-CHPFILE_FILTER='s|^//||;tb;q;:b'
+CHPFILE_FILTER='/^\/\/-/d;s|^//||;tb;q;:b'
+CHPFILE_PRE_FILTER='s|^//-|-|;tb;d;q;:b'
 
 test -d .logs || mkdir .logs
 
@@ -12,6 +13,7 @@ for i in *.chp
   test -d .logs/$i || mkdir .logs/$i
   test -f .logs/$i/out || touch .logs/$i/out
   test -f .logs/$i/err || touch .logs/$i/err
+  CHPSIM_CMD_PRE="$CHPSIM_CMD_PRE `sed $CHPFILE_PRE_FILTER $i`"
   sed $CHPFILE_FILTER $i | $CHPSIM $CHPSIM_CMD_PRE $i $CHPSIM_CMD_POST >out 2>err
   if diff out .logs/$i/out
     then rm out

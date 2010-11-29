@@ -1,0 +1,21 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /a/O/wire: 1 active threads
+  /b: 1 active threads
+  /a: 1 active threads
+(cmnd?)   /a/O/wire is an instance of /usr/local/share/chpsim/channel.chp[17:7] toe1of
+  N = 3
+  T = <type>
+  MAP = [0, 1, 2]
+  I --> /a:O
+  O (wired)
+(active) /a/O/wire at /usr/local/share/chpsim/channel.chp[17:7]
+(active) /a/O/wire at /usr/local/share/chpsim/channel.chp[21:2]
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/a/O/wire at /usr/local/share/chpsim/channel.chp[21:12]
+	I#?x
+(cmnd) quit

@@ -2753,7 +2753,7 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
            /* d is now the port of ps of default type */
            v.rep = ps->var[d->var_idx].rep = REP_port;
            ps->var[d->var_idx].v.p = new_port_value(ps, f);
-           v.v.p = p = new_port_value(f->curr->ps, f);
+           v.v.p = p = new_port_value(f->meta_ps, f);
            p->p = ps->var[d->var_idx].v.p;
            p->p->p = p;
            p->wprobe.refcnt++; p->p->wprobe.refcnt++;

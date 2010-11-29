@@ -230,6 +230,15 @@ static int cmnd_continue(user_info *f)
    return 0;
  }
 
+/* cmnd_func_tp */
+static int cmnd_trace(user_info *f)
+ { int e;
+   e = cmnd_flag(f, DBG_trace, 1);
+   if (e == 2)
+     { report(f, "  Usage: trace [instance]\n"); }
+   return 1;
+ }
+
 
 /********** process information **********************************************/
 
@@ -1125,65 +1134,6 @@ static int check_brk_cond(exec_info *f)
  }
 
 
-/********** tracing **********************************************************/
-
-/* cmnd_func_tp */
-static int cmnd_trace(user_info *f)
- { int e;
-   e = cmnd_flag(f, DBG_trace, 1);
-   if (e == 2)
-     { report(f, "  Usage: trace [instance]\n"); }
-   return 1;
- }
-
-/* cmnd_func_tp */
-static int cmnd_clear(user_info *f)
- { int e;
-   parse_obj *obj;
-   if (lex_have(f->L, TOK_id))
-     { if (f->L->curr->t.val.s == make_str("trace"))
-         { lex_next(f->L);
-           e = cmnd_flag(f, DBG_trace, 0);
-           if (e == 2)
-             { report(f, "  Usage: clear trace [instance]\n"); }
-           return 1;
-         }
-       else if (f->L->curr->t.val.s == make_str("step"))
-         { lex_next(f->L);
-           e = cmnd_flag(f, DBG_step|DBG_next, 0);
-           if (e == 2)
-             { report(f, "  Usage: clear step [instance]\n"); }
-           return 1;
-         }
-     }
-   SET_FLAG(f->flags, USER_clear);
-   switch(_cmnd_break(f))
-     { case BRK_no_stmt:
-         report(f, "  No statement at %s[%d]\n", f->brk_src, f->brk_lnr);
-       break;
-       case BRK_stmt:
-         report(f, "  Breakpoint cleared at %s[%d:%d]\n",
-                f->brk_src, f->brk_lnr, f->brk_lpos);
-       break;
-       case BRK_stmt_err:
-         report(f, "  There is no breakpoint to clear at %s[%d:%d]\n",
-                f->brk_src, f->brk_lnr, f->brk_lpos);
-       break;
-       case BRK_usage:
-         report(f, "  Usage: clear -or-\n"
-                   "clear instance [linenr [: position]] -or-\n"
-                   "clear [\"file\"] linenr [: position] -or-\n"
-                   "clear [\"file\"] routine [. routine ...] -or-\n"
-                   "clear trace [instance] -or-\n"
-                   "clear step [instance]\n");
-       break;
-       default: /* BRK_error: message already printed */
-       break;
-     }
-   f->cxt = 0;
-   return 1;
- }
-
 /********** wire commands ****************************************************/
 
 typedef void wire_func_tp(wire_value *w, user_info *f);
@@ -1295,6 +1245,7 @@ static void wire_fanout(wire_value *w, user_info *f)
  { hash_table emap; /* maps wire_exprs to llist of fanins */
    hash_entry *q;
    wire_expr *e, *pr;
+   ctrl_state *cs;
    void *prev;
    llist m, prs; /* Unique list of pr expressions */
    print_info g;
@@ -1315,7 +1266,7 @@ static void wire_fanout(wire_value *w, user_info *f)
              }
            llist_init((llist*)&q->data.p);
            llist_prepend((llist*)&q->data.p, prev);
-           if (IS_SET(e->flags, WIRE_action))
+           if (IS_SET(e->flags, WIRE_action) && ~IS_SET(e->flags, WIRE_hold))
              { llist_prepend(&prs, e);
                break;
              }
@@ -1328,18 +1279,30 @@ static void wire_fanout(wire_value *w, user_info *f)
    g.s = &f->scratch; g.flags = 0; g.f = stdout;
    while (!llist_is_empty(&prs))
      { pr = llist_idx_extract(&prs, 0);
-       g.pos = 0;
-       print_pr(pr, &emap, f->curr->ps, &g);
-       VAR_STR_X(g.s, g.pos) = 0;
-       if (pr->u.act->cs->ps == f->curr->ps)
-         { report(f, "%s -> %V%c", f->scratch.s,
-                  vstr_wire, pr->u.act->target, pr->u.act->cs->ps,
-                  IS_SET(pr->flags, WIRE_pu)? '+' : '-');
+       if (IS_SET(pr->flags, WIRE_susp)) /* fanout to HSE */
+         { cs = pr->u.act->cs;
+           if (is_visible(cs->ps))
+             { report(f, "fanout to %s at %s[%d:%d]:\n\t%v\n", cs->ps->nm,
+                      cs->obj->src, cs->obj->lnr, cs->obj->lpos,
+                      vstr_stmt, cs->obj);
+             }
+           else
+             { report(f, "fanout to wired decomposition"); }
          }
-       else
-         { report(f, "%s -> %s:%V%c", f->scratch.s, pr->u.act->cs->ps->nm,
-                  vstr_wire, pr->u.act->target, pr->u.act->cs->ps,
-                  IS_SET(pr->flags, WIRE_pu)? '+' : '-');
+       else /* fanout to PR */
+         { g.pos = 0;
+           print_pr(pr, &emap, f->curr->ps, &g);
+           VAR_STR_X(g.s, g.pos) = 0;
+           if (pr->u.act->cs->ps == f->curr->ps)
+             { report(f, "%s -> %V%c", f->scratch.s,
+                      vstr_wire, pr->u.act->target, pr->u.act->cs->ps,
+                      IS_SET(pr->flags, WIRE_pu)? '+' : '-');
+             }
+           else
+             { report(f, "%s -> %s:%V%c", f->scratch.s, pr->u.act->cs->ps->nm,
+                      vstr_wire, pr->u.act->target, pr->u.act->cs->ps,
+                      IS_SET(pr->flags, WIRE_pu)? '+' : '-');
+             }
          }
      }
    hash_table_free(&emap);
@@ -1462,6 +1425,65 @@ static void wire_critical(wire_value *w, user_info *f)
  }
 
 SET_WIRE_CMD(critical)
+
+/********** clear ************************************************************/
+
+/* wire_func_tp */
+static void clear_watch(wire_value *w, user_info *f)
+ { RESET_FLAG(w->flags, WIRE_watch); }
+
+/* cmnd_func_tp */
+static int cmnd_clear(user_info *f)
+ { int e;
+   parse_obj *obj;
+   if (lex_have(f->L, TOK_id))
+     { if (f->L->curr->t.val.s == make_str("trace"))
+         { lex_next(f->L);
+           e = cmnd_flag(f, DBG_trace, 0);
+           if (e == 2)
+             { report(f, "  Usage: clear trace [instance]\n"); }
+           return 1;
+         }
+       else if (f->L->curr->t.val.s == make_str("step"))
+         { lex_next(f->L);
+           e = cmnd_flag(f, DBG_step|DBG_next, 0);
+           if (e == 2)
+             { report(f, "  Usage: clear step [instance]\n"); }
+           return 1;
+         }
+       else if (f->L->curr->t.val.s == make_str("watch"))
+         { lex_next(f->L);
+           return wire_cmnd(clear_watch, "clear watch", f);
+         }
+     }
+   SET_FLAG(f->flags, USER_clear);
+   switch(_cmnd_break(f))
+     { case BRK_no_stmt:
+         report(f, "  No statement at %s[%d]\n", f->brk_src, f->brk_lnr);
+       break;
+       case BRK_stmt:
+         report(f, "  Breakpoint cleared at %s[%d:%d]\n",
+                f->brk_src, f->brk_lnr, f->brk_lpos);
+       break;
+       case BRK_stmt_err:
+         report(f, "  There is no breakpoint to clear at %s[%d:%d]\n",
+                f->brk_src, f->brk_lnr, f->brk_lpos);
+       break;
+       case BRK_usage:
+         report(f, "  Usage: clear -or-\n"
+                   "clear instance [linenr [: position]] -or-\n"
+                   "clear [\"file\"] linenr [: position] -or-\n"
+                   "clear [\"file\"] routine [. routine ...] -or-\n"
+                   "clear trace [instance] -or-\n"
+                   "clear watch expression -or-\n"
+                   "clear step [instance]\n");
+       break;
+       default: /* BRK_error: message already printed */
+       break;
+     }
+   f->cxt = 0;
+   return 1;
+ }
 
 /********** other commands ***************************************************/
 
@@ -1617,6 +1639,7 @@ static cmnd_entry cmnd_list[] =
              "clear [\"file\"] routine [. routine ...]:\n\t\t\t"
                 " clear breakpoint at the beginning of a routine\n\t\t"
              "clear trace [instance] - stop tracing\n\t\t"
+             "clear watch expression - stop watching\n\t\t"
              "clear step [instance] - clear step/next status" },
      { "print", "p", cmnd_show,
                 "print - show current threads (a.k.a. 'show')\n\t\t"

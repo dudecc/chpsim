@@ -1,0 +1,11 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) (view) /a at hse_fanout_01.chp[6:33]
+	[I.d]
+(cmnd?) 1 fanouts:
+fanout to /b at hse_fanout_01.chp[7:33]:
+	[O.e]
+(cmnd?) 

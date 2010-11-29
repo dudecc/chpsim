@@ -57,20 +57,26 @@ static void usage(const char *fmt, ...)
 	"Usage: chpsim [options] [sourcefile]\n"
 	"\n"
 	"\t-main id       - specify initial process [main]\n"
-	"\t-o file        - use this file for print() and stdout\n"
-	"\t-log file      - keep log of interaction\n"
+	"\t-I dir         - add directory to module search path\n"
+	"\t-I-            - clear module search path\n"
+	"\t-C command ... - execute a command before interaction\n"
 	"\t-batch         - non-interactive execution\n"
-	"\t-C command ... - execute a command before interaction\n",
+	"\t-q             - quit after executing all -C commands\n"
+	"\t-log file      - keep log of interaction\n"
+	"\t-o file        - use this file for print() and stdout\n",
         version
    );
    fprintf(stderr,
-	"\t-I dir         - add directory to module search path\n"
-	"\t-I-            - clear module search path\n"
 	"\t-v             - report which files are read etc.\n"
 	"\t-trace /id     - trace this instance\n"
 	"\t-traceall      - trace all processes\n"
-	"\t-strict        - run with strict checking for variable sharing\n"
+	"\t-watchall      - watch all wires\n"
 	"\t-timed         - use estimated delays instead of random timing\n"
+	"\t-seed N        - use N as seed for PRNG (defult 0)\n"
+	"\t-timeseed      - use system clock as seed for PRNG\n"
+	"\t-critical      - track critical timing paths\n"
+	"\t-nohide        - name and track value-union processes\n"
+	"\t-strict        - run with strict checking for variable sharing\n"
 	"\n"
    );
    if (fmt)

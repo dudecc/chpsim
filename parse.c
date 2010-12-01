@@ -184,9 +184,9 @@ INLINE_STATIC int starts_type_expr(lex_tp *L)
  { return lex_have(L, '<'); }
 
 INLINE_STATIC int starts_literal(lex_tp *L)
- { return lex_have(L, TOK_int) || lex_have(L, TOK_z) || lex_have(L, TOK_char)
-        || lex_have(L, TOK_string) || lex_have(L, TOK_id) || lex_have(L, '`')
-        || lex_have(L, KW_true) || lex_have(L, KW_false);
+ { return lex_have(L, TOK_int) || lex_have(L, TOK_z) || lex_have(L, TOK_string)
+     || lex_have(L, TOK_char) || lex_have(L, TOK_id) || lex_have(L, TOK_symbol)
+     || lex_have(L, KW_true) || lex_have(L, KW_false);
  }
 
 INLINE_STATIC int starts_procedure_call(lex_tp *L)
@@ -431,7 +431,6 @@ static void *parse_type_expr(lex_tp *L)
 
 static void *parse_atom(lex_tp *L)
  { token_expr *x;
-   symbol *s;
    call *xc;
    if (lex_have_next(L, TOK_id))
      { if (lex_have(L, '('))
@@ -463,12 +462,6 @@ static void *parse_atom(lex_tp *L)
      { x = parse_record_constructor(L); }
    else if (starts_type_expr(L) && !L->err_jmp)
      { x = parse_type_expr(L); }
-   else if (lex_have_next(L, '`'))
-     { s = new_parse(L, L->prev, 0, symbol);
-       lex_must_be(L, TOK_id);
-       s->s = L->prev->t.val.s;
-       x = (void*)s;
-     }
    else if (starts_literal(L))
      { x = new_parse(L, L->curr, 0, token_expr);
        x->t = L->curr->t;
@@ -662,7 +655,7 @@ static void *parse_selection_statement(lex_tp *L)
        if (lex_have(L, SYM_bar) || lex_have(L, SYM_arb))
          { lex_error(L, "You cannot combine [] and [:]"); }
      }
-   else if (rs->class == CLASS_rep_stmt && rs->rep_sym > TOK_symbol)
+   else if (rs->class == CLASS_rep_stmt && rs->rep_sym > TOK_sym)
      { llist_append(gl, g);
        if (rs->rep_sym == SYM_bar)
          { while (lex_have_next(L, SYM_bar))
@@ -1636,15 +1629,18 @@ static void *parse_type(lex_tp *L)
            free_parse(L, x);
            x = xi;
          }
-       else if (t->class == CLASS_token_expr && t->t.tp == TOK_id &&
-                       !IS_SET(t->flags, EXPR_parenthesized))
+       else if (t->class == CLASS_token_expr
+                 && (t->t.tp == TOK_id || t->t.tp == TOK_symbol)
+                 && !IS_SET(t->flags, EXPR_parenthesized))
          { xs = new_parse(L, 0, x, symbol_type);
            nm = new_parse(L, 0, t, name);
            nm->id = t->t.val.s;
            free_parse(L, t);
            llist_prepend(&xs->l, nm);
-           do { SEPARATOR(L, ',', lex_have(L, TOK_id));
-                lex_must_be(L, TOK_id);
+           do { SEPARATOR(L, ',', lex_have(L, TOK_id) ||
+                                  lex_have(L, TOK_symbol));
+                if (!lex_have_next(L, TOK_id)) /* Encourage symbol over id */
+                  { lex_must_be(L, TOK_symbol); }
                 nm = new_parse(L, L->prev, 0, name);
                 nm->id = L->prev->t.val.s;
                 llist_prepend(&xs->l, nm);

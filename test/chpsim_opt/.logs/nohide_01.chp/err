@@ -19,6 +19,6 @@ Command line: ../../chpsim -batch -nohide -watchall nohide_01.chp
 --- error ------------------------------
 Error: deadlock
 (cmnd) where
-/a/O/wire at /usr/local/share/chpsim/channel.chp[21:12]
+/a/O/wire at /usr/local/share/chpsim/channel.chp[23:12]
 	I#?x
 (cmnd) quit

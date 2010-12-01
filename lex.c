@@ -65,7 +65,7 @@ static const char *symbol_nm[] =
    { "",
 #define SYM(M, S) S ,
 #include "symbol.def"
-	/* symbol_nm[x - TOK_symbol] = string for symbol x */
+	/* symbol_nm[x - TOK_sym] = string for symbol x */
    };
 
 static int scan_symbol(lex_tp *L)
@@ -91,7 +91,7 @@ static int scan_symbol(lex_tp *L)
        while (*d == *s) /* given: d ends with '\n', which is not in s */
          { d++; s++; }
        if (!*s)
-         { L->curr->t.tp = i + TOK_symbol;
+         { L->curr->t.tp = i + TOK_sym;
 	   L->c = d;
 	   if (L->curr->t.tp == SYM_comment_close)
 	     { lex_error(L, "'*/' outside a comment");
@@ -244,6 +244,7 @@ static const char *token_nm[] =
      "integer",
      "character_constant",
      "string",
+     "symbol",
      "float",
      "end-of-file"
 	/* token_nm[t - TOK_kw_max] = descriptive string for t */
@@ -281,14 +282,14 @@ extern char *token_str(lex_tp *L, token_tp t)
    else s = &scratch;
    if (!t)
      { var_str_printf(s, 0, "(nothing)"); }
-   else if (t < TOK_symbol)
+   else if (t < TOK_sym)
      { if (isprint(t))
          { var_str_printf(s, 0, "%c", t); }
        else
          { var_str_printf(s, 0, "character %02X", t); }
      }
-   else if (TOK_symbol < t && t < TOK_symbol_max)
-     { var_str_printf(s, 0, "%s", symbol_nm[t - TOK_symbol]); }
+   else if (TOK_sym < t && t < TOK_sym_max)
+     { var_str_printf(s, 0, "%s", symbol_nm[t - TOK_sym]); }
    else if (TOK_kw < t && t < TOK_kw_max)
      { var_str_printf(s, 0, "%s", keyword_nm[t - TOK_kw]); }
    else if (TOK_kw_max < t && t < TOK_max)
@@ -325,6 +326,21 @@ static void scan_id_kw(lex_tp *L)
      { L->curr->t.tp = TOK_id; }
    if (L->curr->t.tp == TOK_id)
      { L->curr->t.val.s = make_str(L->c); }
+   *c = tmp;
+   L->c = c;
+ }
+
+static void scan_tok_symbol(lex_tp *L)
+ /* Pre: L is at the initial ` of a symbol literal
+    Scan the symbol literal
+ */
+ { char *c = &L->c[1], tmp;
+   if (!isalpha(*c) && *c != '_')
+     { lex_error(L, "Symbol marker '`' must be followed by identifier"); }
+   while (isalnum(*c) || *c == '_') c++;
+   tmp = *c; *c = 0;
+   L->curr->t.tp = TOK_symbol;
+   L->curr->t.val.s = make_str(&L->c[1]);
    *c = tmp;
    L->c = c;
  }
@@ -667,6 +683,8 @@ extern void lex_next(lex_tp *L)
    L->curr->end_pos = 0;
    if (isalpha(*c) || *c == '_')
      { scan_id_kw(L); }
+   else if (*c == '`')
+     { scan_tok_symbol(L); }
    else if (IS_SET(L->flags, LEX_cmnd) && *c == '/')
      { scan_instance(L); }
    else if (isdigit(*c))

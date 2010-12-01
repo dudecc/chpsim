@@ -220,11 +220,6 @@ CLASS(token_expr) /* id or literal */
 	KW_true/KW_false/TP_bool */
    };
 
-CLASS(symbol) /* ` used, so only a literal is possible */
-   { EXPR_OBJ;
-     str *s;
-   };
-
 CLASS_1(var_decl);
 CLASS(var_ref) /* variable reference */
    { EXPR_OBJ;

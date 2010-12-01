@@ -43,7 +43,6 @@ DEF_CLASS_B(array_constructor, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(record_constructor, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(call, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(token_expr, expr, 0, 0, OBJ_zero);
-DEF_CLASS_B(symbol, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(var_ref, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(rep_var_ref, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(const_ref, expr, 0, 0, OBJ_zero);

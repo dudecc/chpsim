@@ -19,11 +19,11 @@ typedef enum token_tp
 		   currently, only printable chars are actually returned.
      */
 
-     TOK_symbol = 255,	/* offset for symbols */
+     TOK_sym = 255,	/* offset for symbols */
 #define SYM(M, S) SYM_ ## M ,
 #include "symbol.def"
 	/* SYM_assign etc. */
-     TOK_symbol_max,	/* upper limit for symbols */
+     TOK_sym_max,	/* upper limit for symbols */
 
      TOK_kw,		/* offset for keywords */
 #define KW(M) KW_ ## M ,
@@ -36,6 +36,7 @@ typedef enum token_tp
      TOK_z,		/* integer_constant */
      TOK_char,		/* char_constant */
      TOK_string,	/* string_constant */
+     TOK_symbol,	/* symbol_constant */
      TOK_float,		/* float_constant */
      TOK_eof,		/* end-of-file */
      TOK_nl,		/* end-of-line, when reading commands */
@@ -50,7 +51,7 @@ typedef struct token_value
      union {
        long i;   /* TOK_int, TOK_char */
        mpz_t z; /* TOK_z */
-       char *s;  /* malloc for TOK_string; str for TOK_id, TOK_instance */
+       char *s;  /* TOK_string(malloc); TOK_id, TOK_instance, TOK_symbol(str) */
        double d; /* TOK_float */
      } val;
    } token_value;

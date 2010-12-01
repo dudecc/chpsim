@@ -319,17 +319,20 @@ static int cmp_symbol_name(name *x, name *y)
 static void *sem_symbol_type(symbol_type *x, sem_info *f)
  { name *nm;
    llist m;
-   m = x->l;
-   while (!llist_is_empty(&m))
-     { nm = llist_head(&m);
-       declare_id(f, nm->id, x);
-       m = llist_alias_tail(&m);
-     }
+   const str *lastnm = 0;
    if (IS_SET(x->flags, DEF_forward)) return x;
    SET_FLAG(x->flags, DEF_forward);
    x->tp.kind = TP_symbol;
    x->tp.tps = (type_spec*)x;
    llist_sort(&x->l, (llist_func*)cmp_symbol_name);
+   m = x->l;
+   while (!llist_is_empty(&m))
+     { nm = llist_head(&m);
+       if (nm->id == lastnm)
+         { sem_error(f, "Symbol type has duplicate symbol `%s", lastnm); }
+       lastnm = nm->id;
+       m = llist_alias_tail(&m);
+     }
    return x;
  }
 

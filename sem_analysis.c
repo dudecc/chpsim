@@ -20,7 +20,6 @@
      of that name defined at a surrounding nesting level.
    - Except for imported names, there may be no conflict between names
      defined at the same nesting level.
-     However, two symbols with the same name do not conflict with each other.
    - Routines (processes, functions, procedures) can be defined in any order
      (at the same level). All other names must be defined before their use.
    - Variables (and parameters) must always be local to the routine that
@@ -240,11 +239,6 @@ extern void declare_id(sem_info *f, const str *id, void *x)
      }
    d = q->data.p;
    if (IS_SET(d->flags, SEM_conflict)) return; /* conflict already noted */
-   if (obj->class == CLASS_symbol_type && d->u.d->class == CLASS_symbol_type)
-     { if (d->u.d == x && !IS_SET(obj->flags, DEF_forward))
-         { sem_error(f, x, "symbol %s defined twice in the same type", id); }
-       return; /* not a conflict, symbol is already defined as a symbol */
-     }
    if (d->u.d == x) return;
    if (!f->cxt->parent) /* Conflict here is not an immediate error */
      { SET_FLAG(d->flags, SEM_conflict);

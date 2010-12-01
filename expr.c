@@ -230,7 +230,9 @@ static void print_token_expr(token_expr *x, print_info *f)
          f->pos += var_str_printf(f->s, f->pos,
                              "\"%s\"", x->t.val.s); /* TODO: escapes */
        break;
-       case TOK_id:
+       case TOK_symbol:
+         print_char('`', f);
+       case TOK_id: /* fallthrough */
          print_string(x->t.val.s, f);
        break;
        case TOK_float:
@@ -243,11 +245,6 @@ static void print_token_expr(token_expr *x, print_info *f)
          assert(!"Non-existing token type");
        break;
      }
- }
-
-static void print_symbol(symbol *x, print_info *f)
- { print_char('`', f);
-   print_string(x->s, f);
  }
 
 static void print_var_ref(var_ref *x, print_info *f)
@@ -847,6 +844,8 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
          { x->tp = generic_int.tp; }
        else if (x->t.tp == KW_true || x->t.tp == KW_false)
          { x->tp.kind = TP_bool; }
+       else if (x->t.tp == TOK_symbol)
+         { x->tp.kind = TP_symbol; }
        else if (x->t.tp == TOK_string)
          { x->tp.kind = TP_array;
            x->tp.elem.tp = &generic_int.tp;
@@ -856,13 +855,8 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
        return x;
      }
    df = find_id(f, x->t.val.s, x);
-   if (df->class == CLASS_symbol_type)
-     { x->tp.kind = TP_symbol;
-       return x;
-     }
-   else if (df->class == CLASS_function_def &&
-           !(IS_SET(f->flags, SEM_need_lvalue) && df == f->curr_routine
-              && df->ret))
+   if (df->class == CLASS_function_def &&
+       !(IS_SET(f->flags, SEM_need_lvalue) && df == f->curr_routine && df->ret))
      { g = new_parse(f->L, 0, x, call);
        g->id = df->id;
        g->d = df;
@@ -948,11 +942,6 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
    y->tp = dv->tp;
    sem_free_obj(f, x);
    return sem_wire_fix(y, f);
- }
-
-static void *sem_symbol(symbol *x, sem_info *f)
- { x->tp.kind = TP_symbol;
-   return x;
  }
 
 static void *sem_type_expr(type_expr *x, sem_info *f)
@@ -3113,13 +3102,6 @@ static void eval_token_expr(token_expr *x, exec_info *f)
    push_value(&xval, f);
  }
 
-static void eval_symbol(symbol *x, exec_info *f)
- { value_tp xval;
-   xval.rep = REP_symbol;
-   xval.v.s = x->s;
-   push_value(&xval, f);
- }
-
 static void eval_var_ref(var_ref *x, exec_info *f)
  { value_tp xval, *val;
    assert(x->var_idx < f->curr->nr_var);
@@ -3270,7 +3252,6 @@ extern void init_expr(void)
    set_print(record_constructor);
    set_print(call);
    set_print(token_expr);
-   set_print(symbol);
    set_print(rep_var_ref);
    set_print(var_ref);
    set_print(const_ref);
@@ -3292,7 +3273,6 @@ extern void init_expr(void)
    set_sem(record_constructor);
    set_sem(call);
    set_sem(token_expr);
-   set_sem(symbol);
    set_sem(type_expr);
    set_eval(binary_expr);
    set_eval(rep_expr);
@@ -3316,7 +3296,6 @@ extern void init_expr(void)
    set_exec(call);
    set_pop(call);
    set_eval(token_expr);
-   set_eval(symbol);
    set_eval(var_ref);
    set_assign(var_ref);
    set_eval(rep_var_ref);

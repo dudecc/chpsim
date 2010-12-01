@@ -1,2 +1,0 @@
-process A()(I?, O! : symbol)
-chp { var x : { I, O, x }; O!`I, I?x; O!`O; I; O!`x, I?x }

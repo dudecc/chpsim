@@ -1,0 +1,6 @@
+//-strict
+process main()()
+chp { var x[0..1,0..1] : int = 0;
+      var a, b : int = 0;
+      <<; i : 1..99 : b := 1-b; x[b[0..0]][b] := i, a:=x[b,1-b] >>
+}

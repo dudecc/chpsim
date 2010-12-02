@@ -1974,6 +1974,7 @@ static void eval_array_subscript(array_subscript *x, exec_info *f)
    array_type *atps;
    value_list *l;
    exec_flags flags = f->flags;
+   RESET_FLAG(f->flags, EVAL_sub_elem);
    eval_expr(x->idx, f); /* For connections, this has to come first */
    SET_FLAG(f->flags, EVAL_sub_elem);
    eval_expr(x->x, f);

@@ -1,0 +1,6 @@
+Command line: ../../chpsim -batch -strict smdarray.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- done -------------------------------

@@ -1,0 +1,1537 @@
+% language.tex: Description of CHP
+%
+% Author: Marcel van der Goot
+%
+% $Id: language.tex,v 1.8 2004/01/23 00:12:51 marcel Exp $
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\input docdefs
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Language}\label{chap:syntax}
+
+\def\grammarstart
+   {\medskip
+    \hrule width\hsize
+    \nobreak\medskip\nobreak
+    \begingroup\nobreak
+    \it\nobreak
+    \begin{tabbing}\nobreak
+    wwwww\= \kill\nobreak
+   }
+\def\grammarend
+   {\end{tabbing}\nobreak
+    \endgroup\nobreak
+    \smallskip\nobreak
+    \hrule width\hsize
+    \medskip
+    \noindent\ignorespaces
+   }
+
+\def\grammarsubfont{\it\scriptsize}
+% opt: optional, list: comma-separated items; series: juxtaposed items
+% (no separators); sequence: semi-colon-separated items;
+% tsequence: sequence with optional terminating semi-colon
+\def\OPT        % _opt
+   {$_{\hbox{\grammarsubfont opt}}$ }
+\def\LIST       % _list
+   {$_{\,\hbox{\grammarsubfont list}}$ }
+\def\SERIES     % _series
+   {$_{\hbox{\grammarsubfont series}}$ }
+\def\SEQUENCE   % _sequence
+   {$_{\hbox{\grammarsubfont sequence}}$ }
+\def\SEQ        % _seq
+   {$_{\hbox{\grammarsubfont seq}}$ }
+\def\TSEQUENCE  % _tsequence
+   {$_{\hbox{\grammarsubfont tsequence}}$ }
+\def\TSEQ       % _tseq
+   {$_{\hbox{\grammarsubfont tseq}}$ }
+% list-opt: optional list
+\def\LISTOPT    % _list-opt
+   {$_{\,\hbox{\grammarsubfont list-opt}}$ }
+\def\SERIESOPT  % _series-opt
+   {$_{\hbox{\grammarsubfont series-opt}}$ }
+\def\SEQUENCEOPT% _sequence-opt
+   {$_{\hbox{\grammarsubfont sequence-opt}}$ }
+\def\SEQOPT     % _seq-opt
+   {$_{\hbox{\grammarsubfont seq-opt}}$ }
+\def\TSEQUENCEOPT% _tsequence-opt
+   {$_{\hbox{\grammarsubfont tsequence-opt}}$ }
+\def\TSEQOPT    % _tseq-opt
+   {$_{\hbox{\grammarsubfont tseq-opt}}$ }
+% opt-list: list of optional items
+\def\OPTLIST
+   {$_{\hbox{\grammarsubfont opt-list}}$ }
+\def\OPTSEQUENCE
+   {$_{\hbox{\grammarsubfont opt-sequence}}$ }
+\def\OPTSEQ
+   {$_{\hbox{\grammarsubfont opt-seq}}$ }
+\def\OPTTSEQUENCE
+   {$_{\hbox{\grammarsubfont opt-tsequence}}$ }
+\def\OPTTSEQ
+   {$_{\hbox{\grammarsubfont opt-tseq}}$ }
+
+\def\orbox
+   {$[\;\!\!]$}
+
+\noindent
+Words in {\it italics} denote non-terminals or non-literal
+terminals; words and symbols in {\tt typewriter font} denote keywords
+and literal symbols. Choices are separated by bar symbols, `\orbox';
+braces are used for grouping (`$\lbrace$' is for grouping,
+`\verb|{|' is a literal brace). The following subscripts are used:
+
+%\halign{\indent\grammarfont##\hfil&\rm\quad---\quad##\hfil\cr
+\begin{center}
+\begin{tabular}{lcl}
+{\it{}item\OPT}&---& an optional item \\
+{\it{}item\SERIES}&---& one or more items \\
+{\it{}item\LIST}&---& one or more items separated by commas \\
+{\it{}item\SEQ}&---& one or more items separated by semi-colons \\
+{\it{}item\TSEQ}&---& sequence with optional terminating semi-colon
+\end{tabular}
+\end{center}
+\noindent
+There are also {\it item\SERIESOPT} etc., denoting zero or more items.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\let\G=\grammar
+%\let\Gkw=\grammarkw
+%\let\Gsym=\grammarsym
+\def\lvalue{$\ell$-value}
+% copied from \bmod:
+%\def\mod
+%   {\mskip-\medmuskip\mkern5mu
+%    \mathbin{\hbox{{\tt{}mod}}}%
+%    \penalty900\mkern5mu\mskip-\medmuskip
+%   }
+     
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Source file}\label{sec:source}
+
+\grammarstart
+source\_file: \\
+      \>required\_module\SERIESOPT global\_definition\SERIESOPT \\
+ \\
+global\_definition: \\
+      \>{\tt{}export}\OPT definition \\
+ \\
+definition: \\
+       \>type\_definition \\
+\orbox \>const\_definition \\
+\orbox \>function\_definition \\
+\orbox \>procedure\_definition \\
+\orbox \>process\_definition \\
+\orbox \>field\_definition
+\grammarend
+The source can be distributed over multiple source files, called modules.
+
+A definition defines the meaning of a name. If the definition is marked
+with {\tt{}export}, the name is visible outside its own module,
+if that module is imported.
+Exporting a name is necessary if you want to refer to that name in a
+different module; you do
+not need to export objects that you do not refer to by name. E.g.,
+\begin{verbatim}
+export type abc = array [0..10] of pqr;
+\end{verbatim}
+exports the name {\it{}abc}, but not {\it{}pqr}. It is not necessary to export
+{\it{}pqr} in order to access elements of an array of type {\it{}abc}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Importing modules}\label{sec:import}
+
+\grammarstart
+required\_module: \\
+      \>{\tt{}requires} string\_literal\LIST {\tt{};}
+\grammarend
+The {\it{}string\_literal} is a file name, denoting a module that
+should be imported. There is no default file name extension, but there
+is a search path (see {\tt{}-I} in Section \ref{sec:cmndline}).
+
+Importing a module makes the exported names of that module visible.
+However, if multiple imported modules export the same name, that name will
+not be visible. Imported names are overridden by names defined in the
+{\it{}source\_file} itself. Importing is not recursive.
+
+It is allowed to have circular dependencies between modules. E.g., {\it{}m1}
+may require {\it{}m2} while {\it{}m2} requires {\it{}m1}. (It makes sense to allow this,
+since routines can be defined in any order; Section \ref{sec:scope}.)
+However, there is an important restriction on such circular dependencies:
+
+\smallskip
+{\advance\leftskip by\parindent \advance\rightskip by\parindent \noindent
+If module {\it{}m1} has a circular dependency with module {\it{}m2}, then the top-level
+declarations of {\it{}m1} must not depend on {\it{}m2}.
+
+}\smallskip
+
+\noindent Top-level declarations are the definitions in the syntax
+of {\it{}source\_file}, but
+for routines the restriction only applies to the parameters and return
+type, not to the body. The following example is correct code.
+\medskip
+\hrule
+\begin{verbatim}
+// file m1
+requires "m2";
+
+export type color = {red, green, blue};
+
+export function f1(x: color): {0..255}
+CHP
+  { var y: byte;
+    y := f2(0);
+    f1 := y + 1
+  }
+\end{verbatim}
+\hrule
+
+\medskip
+\hrule
+\begin{verbatim}
+// file m2
+requires "m1";
+
+export type byte = {0..255};
+
+export function f2(x: byte): byte
+CHP
+  { f2 := x * 2 }
+
+export function g2(x: byte): byte
+CHP
+  { g2 := f1(blue) }
+\end{verbatim}
+\hrule
+\medskip
+
+However, the restriction prevents us from changing the return type of {\it{}f1}
+to {\it{}byte}, because the return type is part of {\it{}m1}'s top-level declarations.
+If we want to share the definition of {\it{}byte}, we should put it in a third
+module that is imported by both {\it{}m1} and {\it{}m2}.
+    
+Although importing is not recursive, the notion of dependency is
+transitive. Hence, there can be circular dependencies involving more than
+two files. The restriction applies to any two modules in the same cycle.
+
+A module should not import itself.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Types}\label{sec:types}
+
+\grammarstart
+type\_definition: \\
+      \>{\tt{}type} identifier = type {\tt{};} \\
+ \\
+type: \\
+       \>integer\_type \\
+\orbox \>symbol\_type \\
+\orbox \>array\_type \\
+\orbox \>record\_type \\
+\orbox \>union\_type \\
+\orbox \>wired\_type \\
+\orbox \>generic\_type \\
+\orbox \>identifier \\
+ \\
+generic\_type: \\
+      \>{\tt{}bool} \orbox \ {\tt{}int} \orbox \ {\tt{}symbol}
+\grammarend
+An {\it{}identifier} used as {\it{}type} must have been defined with a
+{\it{}type\_definition}.
+
+As a special case, if the {\it{}type} in an exported {\it{}type\_definition}
+is a {\it{}symbol\_type} (Section \ref{sec:symbol}), the symbol literals are
+exported as well.
+
+The language distinguishes between generic types and specific types;
+each specific type can be reduced to a generic type.
+Typically, variables have specific types, whereas expressions have only
+generic types. When types need to match, such as for an assignment, it
+is sufficient if the generic types are equal; hence, the typing is weak.
+Matching of types can be verified at compile-time.
+However, each variable may only
+hold values that belong to its specific type; the simulator uses run-time
+checks to verify this condition. We use the word `type' when the context
+makes clear whether we are referring to generic or specific types.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Boolean type}\label{sec:bool}
+
+The generic {\tt{}bool} type is an exception, in that there are no specific
+types. Values of {\tt{}bool} type are usually produced by comparisons, but
+you may declare variables of type {\tt{}bool} as well.
+The {\tt{}bool} type has only two values, {\tt{}true} and {\tt{}false}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Integer types}\label{sec:int}
+
+\grammarstart
+integer\_type: \\
+      \>\verb|{| const\_range \verb|}| \\
+ \\
+const\_range: \\
+      \>const\_expr {\tt{}..} const\_expr
+\grammarend
+{\it{}integer\_type} describes a specific type.
+The two expressions denote lower and upper bounds (the lower bound must
+come first). The corresponding generic type is the arbitrary-precision
+type {\tt{}int}, which is used for all integer expression evaluation.
+Any integer expression can be assigned to any integer variable, provided
+that the value lies within the bounds of the variable's specific type.
+Note that there is no automatic truncation of values.
+
+It is possible to declare variables or parameters of the generic {\tt{}int}
+type. This is not recommended for code that describes hardware, but may be
+useful when defining generic functions (such as {\it{}is\_even()}).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Integer fields}\label{sec:fielddef}
+
+\grammarstart
+field\_definition: \\
+      \>{\tt{}field} identifier {\tt{}=} {\tt{}[} const\_range {\tt{}]} {\tt{};}
+\grammarend
+This syntax gives a name to the specified range of bits. In this case,
+the higher bound may come first. Note that the field name is not tied
+to a particular integer type: it can be used with any integer value.
+See Sections \ref{sec:recordaccess} and \ref{sec:intindex}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Symbol types}\label{sec:symbol}
+
+\grammarstart
+symbol\_type: \\
+      \>\verb|{| identifier\LIST \verb|}|
+\grammarend
+A symbol type consists of a set of symbol literals, which are just names.
+For instance
+\begin{verbatim}
+type color = { red, orange, yellow, green, blue, purple };
+\end{verbatim}
+Unlike enumeration types in some languages, there is no ordering among
+symbol literals, nor is there an implied mapping to integers. The
+generic type for all symbol types is {\tt{}symbol}. Since all symbol values
+belong to the generic type, they are identified only by their name:
+if types {\it{}color} and {\it{}fruit} both have an {\it{}orange} value, these
+values are identical. The first occurrence of a name in a {\it{}symbol\_type}
+declares the name as a symbol literal; subsequent occurrences (in the same
+scope) do not count as declarations. Within a single {\it{}symbol\_type},
+each name should occur only once.
+
+To export symbol literals, the {\it{}symbol\_type} must be given a name
+with an exported {\it{}type\_definition} (Section \ref{sec:types}).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Array types}\label{sec:array}
+
+\grammarstart
+array\_type: \\
+      \>{\tt{}array} {\tt{}[} const\_range\LIST {\tt{}]} {\tt{}of} type
+\grammarend
+Having multiple ranges is merely a short-hand for nested array types: the
+two types
+\begin{verbatim}
+array [1..10, 0..5] of byte
+array [1..10] of array [0..5] of byte
+\end{verbatim}
+describe exactly the same specific type. Internally, the simulator
+always uses the latter form.
+
+The generic type of a specific array type is obtained by omitting the
+bounds, and replacing the element type by its generic type. For example,
+\begin{verbatim}
+var a: array [1..10] of byte;
+var b: array [0..5] of {-100..100};
+var c: array [1..10] of {red, green, blue};
+\end{verbatim}
+Arrays $a$ and $b$ have the same generic type, namely {\tt{}array} {\tt{}of}
+{\tt{}int}, but $c$ does not. When an array value is assigned to an
+array variable, the number of elements must be equal, and the assignment
+of each individual element must be valid. Hence, $a:=b$ can never be
+correct, but $b:=a[i..j]$ may be correct.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Record types}\label{sec:record}
+
+\grammarstart
+record\_type: \\
+      \>{\tt{}record} \verb|{| record\_field\TSEQ \verb|}| \\
+ \\
+record\_field: \\
+      \>identifier\LIST {\tt{}:} type
+\grammarend
+The field names are local to each specific {\it{}record\_type}. The
+generic type of a specific record type is obtained by omitting the field
+names, and replacing each field type by its generic type. For example,
+\begin{verbatim}
+var a: record { x, y: byte };
+var b: record { p, q: {-100..100} };
+var c: record { x, y, z: byte };
+\end{verbatim}
+Both {\it{}a} and {\it{}b} have the same generic type, namely
+\begin{verbatim}
+record { int; int }
+\end{verbatim}
+but {\it{}c} does not. Assignment of record types requires that each of the
+field assignments is valid.
+
+The field names are always accessed through an object of the record type;
+hence, they need not be exported.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Union types}\label{sec:union}
+
+\grammarstart
+union\_type: \\
+      \>{\tt{}union} \verb|{| union\_field\TSEQ \verb|}| \\
+ \\
+union\_field: \\
+       \>identifier \verb|{| identifier {\tt{},} identifier \verb|}| {\tt{}:} type \\
+\orbox \>{\tt{}default} {\tt{}:} type
+\grammarend
+Again, the field names are local to each specific {\it{}union\_type}, and need
+not themselves be exported.
+
+A union type should contain exactly one union field with the {\tt{}default}
+keyword.  This default type should not be an array or a record, nor should
+it be another union.  An expression of union type has the same generic type
+as its default type, and is effectively equivalent to this type.  The exception
+to this is when postfix union access is applied to the expression
+(Section \ref{sec:unionaccess}).
+
+Every other field must contain two function references after the field name.
+The first should take one argument of the default type and return a value of
+the field's type.  The second should take one argument of the field's type
+and return a value of the default type.
+
+An example of a union type is:
+\begin{verbatim}
+type byte = union {
+    default : {0..255};
+    signed{ui2si,si2ui} : {-128..127};
+}
+\end{verbatim}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Wired types}\label{sec:wired}
+
+\grammarstart
+wired\_type: \\
+      \>{\tt{}(} wire\_field\LIST {\tt{};} wire\_field\LIST {\tt{})} \\
+ \\
+wire\_field: \\
+      \>identifier \{{\tt{}[} const\_range\LIST {\tt{}]}\}\OPT wire\_initializer\OPT \\
+ \\
+wire\_initalizer: \\
+      \>{\tt{}+} \orbox \ {\tt{}-}
+\grammarend
+
+Variables and constants may not have a wired type.  Only a port may have a
+wired type.  The wired type is similar to the record type, except that all
+elements are booleans, or arrays of booleans.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Templated types}\label{sec:template}
+
+The syntax for a templated type is:
+
+\grammarstart
+      \>identifier {\tt{}:} {\tt{}type}
+\grammarend
+
+The syntax is similar to a declaration, but in this case identifier is defined as a
+named type, not an expression.  The expression must appear as a meta parameter
+(Section \ref{sec:metaparam}) for a process.  With regards to type checking, the
+identifier is regarded as a generic type unique unto itself (within this process).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Constants}\label{sec:const}
+
+\grammarstart
+const\_definition: \\
+      \>{\tt{}const} identifier \{{\tt{}:} type\}\OPT initializer {\tt{};} \\
+ \\
+initializer: \\
+      \>{\tt{}=} const\_expr
+\grammarend
+If the {\it{}type} is specified, the {\it{}initializer} must be a value of that type;
+otherwise, the (generic) type of the constant is determined directly
+from the initializer.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Routines}\label{sec:routines}
+
+The term `routine' refers to functions, procedures, and processes.
+
+\subsection{Parameter passing}\label{sec:parameters}
+
+\grammarstart
+value\_parameter: \\
+      \>{\tt{}const}\OPT {\tt{}val}\OPT identifier\LIST {\tt{}:} type \\
+ \\
+result\_parameter: \\
+       \>{\tt{}res} identifier\LIST {\tt{}:} type \\
+\orbox \>{\tt{}valres} identifier\LIST {\tt{}:} type
+\grammarend
+The term `parameter' refers to formal parameters; `argument' refers to
+actual parameters.
+
+The parameter passing mechanism for functions and procedures is value-result
+(a.k.a.~copy-restore) passing: {\tt{}val} and {\tt{}valres} parameters
+get their initial
+value assigned from the corresponding arguments at the very beginning
+of the call. At the very end of the call, the final values of
+{\tt{}res} and {\tt{}valres} parameters are copied to the corresponding
+arguments of the call. In a hardware implementation, this mechanism
+easily translates to receiving and sending initial and
+final values. During the call, the parameters are local variables of
+the routine (note that {\tt{}res} parameters are not initialized).
+
+\begin{verbatim}
+procedure g(val p: int; valres q: int; res r: int)
+CHP { q := q + p;
+      p := q;
+      r := p + 1;
+    }
+\end{verbatim}
+Suppose we have $x=3$ and $i=1$, then call $g(x, i, a[i])$.
+Afterward $x=3$, $i=4$, and $a[1]=5$. Note that the location of $a[i]$
+was determined before the call, so that $a[1]$ is modified rather than
+$a[4]$.
+
+If a {\tt{}val} parameter is declared constant, it cannot be written to,
+but it may be used in places such as the bounds of an array that require
+a {\it{}const\_expr}.
+
+The type requirements for parameter passing are the same as for
+assignment. In addition, the arguments for {\tt{}res} and {\tt{}valres}
+parameters must be \lvalue s (writable locations).
+It is an error to pass the same location for two result parameters in
+the same call. E.g., with the above example, $g(x, i, i)$ would be wrong.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Functions}\label{sec:function}
+
+\grammarstart
+function\_definition: \\
+      \>{\tt{}function} identifier {\tt{}(} value\_parameter\SEQ {\tt{})} {\tt{}:} type chp\_body
+\grammarend
+A function has a return type and is called as part of an expression.
+The parameters of functions are always {\tt{}val} parameters. Inside the
+function, the function name acts like a {\tt{}res} parameter. The value
+you assign to it corresponds to the function's return value.
+
+A function may contain nested functions and procedures, but no processes.
+
+Because there are no global variables, and because function parameters
+are value parameters, functions are free of side-effects. Also, functions
+do not have a persistent state.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Procedures}\label{sec:procedure}
+
+\grammarstart
+procedure\_definition: \\
+      \>{\tt{}procedure} identifier {\tt{}(} \\
+      \>\qquad\{value\_parameter \orbox \ result\_parameter\}\SEQOPT {\tt{})} chp\_body
+\grammarend
+A procedure has no return type; its call is a statement.
+
+A procedure may contain nested functions and procedures, but no processes.
+
+A procedure can modify its environment by modifying result parameters,
+but otherwise has no side-effects, nor a persistent state.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Processes}\label{sec:process}
+
+\grammarstart
+process\_definition: \\
+      \>{\tt{}process} identifier {\tt{}(} meta\_parameter\SEQOPT {\tt{})} \\
+      \>\qquad	{\tt{}(} port\_parameter\SEQOPT {\tt{})} process\_body \\
+ \\
+port\_parameter: \\
+       \>\{identifier {\tt{}[} const\_range\LIST {\tt{}]}\OPT direction\}\LIST {\tt{}:} type \\
+\orbox \>\{identifier {\tt{}[} const\_range\LIST {\tt{}]}\OPT \}\LIST \\
+ \\
+direction: \\
+      \>{\tt{}?} \orbox \ {\tt{}!}
+ \\
+process\_body: \\
+       \>chp\_body \\
+\orbox \>meta\_body \\
+\orbox \>chp\_body meta\_body
+\grammarend
+Processes have no value or result parameters; instead they have meta
+parameters and ports.
+Port parameters of the first form are data ports, used for sending and
+receiving values. A `{\tt{}?}' indicates an input port, a `{\tt{}!}'
+indicates an output port. The {\it{}type} is the data type of the port.
+
+Port parameters of the second form are synchronization ports. Both forms
+of ports can be arrayed by specifying the array range within brackets, and
+multidimensional arrays of ports can be created with a comma separated list.
+For data ports, the following two port paramters are equivalent:
+\begin{verbatim}
+X[0..N-1]? : T;
+X? : array [0..N-1] of T;
+\end{verbatim}
+
+Processes are not called, but instantiated. Within a process,
+the meta parameters act as constants (e.g., they can be used in
+type definitions).
+
+There are two types of processes, meta processes and CHP processes. Meta
+processes serve to instantiate other processes, eventually resulting in
+a process graph with only CHP processes. Meta processes cannot contain
+communications. Only when the complete process graph has been created,
+does the execution of the CHP program start. Meta processes are
+explained in Section \ref{sec:meta}.
+
+Often a meta process is writen to replace a sequential chp process with a
+collection of processes that perform in parallel the same function.  When this
+happens, the meta body should be appended to the chp body rather than replacing
+it.  By default the parallel version is chosen, but the sequential chp still
+plays a functional role (see Section \ref{sec:instantiation}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Routine body}\label{sec:body}
+
+\grammarstart
+chp\_body: \\
+      \>{\tt{}chp} \verb|{| \{definition \orbox \ declaration\}\SERIESOPT \\
+      \>\qquad parallel\_statement\TSEQOPT \verb|}| \\
+ \\
+declaration: \\
+      \>{\tt{}var} identifier\LIST {\tt{}:} type initializer\OPT {\tt{};}
+\grammarend
+Definitions inside a routine body are local to that routine; unlike
+global definitions, they cannot be exported. Variables are always
+local to a routine.
+
+If a variable has an initial value, the value must be of the variable's
+type. Unlike for constants, a variable's type cannot be omitted.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Scope and order of definition}\label{sec:scope}
+
+All names, including symbol literals, are in the same name space.
+However, there are multiple nested scopes, due to the nesting of
+definitions. Scope is always static, i.e.,
+the meaning of a name can be determined at compile time. The outermost
+scope level contains the names exported by imported modules. The next
+scope level is the module ({\it{}source\_file}) itself. Definitions and
+declarations
+inside a body are local to that body. Parameters of routines are also
+local to that routine's body.
+
+A name can always be redefined in a nested scope, hiding the original
+meaning of the name. Each name may be defined or declared only once in
+a particular scope, except for the names exported by imported modules.
+In case of the latter, if different modules export the same name, neither
+meaning of the name is visible. As explained in Section \ref{sec:symbol},
+all symbol literals belong to the same generic type. Symbol literals
+are only declared the first time they are encountered (in a scope).
+
+Most names are visible in their own scope, and in nested scopes if they
+have not been redefined. However, to avoid shared variables, variables
+must always be local to the routine that uses them.
+
+Routines can be defined in any order, but all other names must be
+defined or declared before they are used. (However, if a process definition
+and instantiation occur at the same scope level, then the definition must
+precede the instantiation.)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Statements}\label{sec:statements}
+
+\grammarstart
+parallel\_statement: \\
+      \>statement\LIST \\
+ \\
+statement: \\
+       \>{\tt{}skip} \\
+\orbox \>assignment \\
+\orbox \>communication \\
+\orbox \>loop\_statement \\
+\orbox \>selection\_statement \\
+\orbox \>procedure\_call \\
+\orbox \>\verb|{| parallel\_statement\TSEQ \verb|}| \\
+\orbox \>replicated\_statement \\
+ \\
+replicated\_statement: \\
+      \>{\tt{}<<} \{ {\tt{};} \orbox \ {\tt{},} \} identifier {\tt{}:} const\_range {\tt{}:} parallel\_statement\TSEQ {\tt{}>>}
+\grammarend
+Statements separated by commas are executed in parallel. A variable
+that is only read may be read by multiple statements in parallel.
+However, a variable that is modified may be accessed by only one of
+a group of parallel statements. With respect to this rule, communications
+count as modification of the port. If this exclusion rule is violated,
+the effect is undefined.
+
+Statements separated by semi-colons are executed in sequence. From
+the syntax it follows that commas bind tighter than semi-colons. Braces
+can be used to alter the binding.
+
+The replicated statement executes the set of statements after the second
+colon once for each value of the identifier within the given range.  If
+the replicator symbol is a comma, all of the statement sets are executed
+in parallel.  If it is a semi-colon the statements sets are executed
+sequentially, starting with the lowest value in the replication range
+and ending with the highest.
+
+A {\tt{}skip} statement has no effect.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Assignment}\label{sec:assignment}
+
+\grammarstart
+assignment: \\
+       \>lvalue {\tt{}:=} expr \\
+\orbox \>lvalue {\tt{}+} \\
+\orbox \>lvalue {\tt{}-} \\
+ \\
+lvalue: \\
+      \>postfix\_expr
+\grammarend
+An expression is an \lvalue\ if it corresponds to (part of) a variable.
+In Section \ref{sec:expr} we indicate which expressions are \lvalue s.
+
+An assignment with an {\tt{}:=} symbol requires that both expressions
+have the same generic type, and that the value belongs to the type of
+the assigned variable.
+
+The other two forms of assignment require that the \lvalue\ has type
+{\tt{}bool}; a {\tt{}+} sets the boolean to {\tt{}true}, a {\tt{}-} sets it
+to {\tt{}false}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Communication}\label{sec:communication}
+
+\grammarstart
+communication: \\
+       \>port\_expr \\
+\orbox \>port\_expr {\tt{}!} expr \\
+\orbox \>port\_expr {\tt{}?} lvalue \\
+\orbox \>port\_expr {\tt{}!} port\_expr {\tt{}?} \\
+\orbox \>port\_expr {\tt{}\#?} lvalue \\
+ \\
+port\_expr: \\
+      \>expr
+\grammarend
+The different forms of {\it{}communication} are referred to as sync, send,
+receive, pass, and peek, respectively.
+
+Note that a port of array or record type may either be connected to a single
+channel that passes the data as a whole, or as a group of channels that passes
+each field of data seperately (Section \ref{sec:connect}).  If the former is the
+case, an attempt to access
+a field of the port in one of the above communications will result in an error
+during simulation.  To avoid this, it is a good idea to make note of which ports
+need to connect to the latter type of channel at the beginning of a process definition.
+
+For a sync,
+the port must be a synchronization port; for all other communications it
+must be a data port.
+
+For a send, the port must be an output port, and the expression must be
+valid for the data type of the port.
+
+For a receive and a peek, the port must be an input port, and the
+value received is assigned to the \lvalue. The peek receives a value without
+removing it from the port; hence, a subsequent receive or peek will receive
+the same value.
+
+The first port of a pass must be an output port, the second must be
+an input port. The pass receives a value from the input port, and
+simultaneously (without introducing slack) sends it via the output port.
+The value received must be valid for the data type of the output port.
+
+All communication actions, including the peek, suspend until they can
+complete. None of these communications can be used on a port of wired type.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Repetition}\label{sec:loop}
+
+\grammarstart
+loop\_statement: \\
+       \>{\tt{}*[} guarded\_command\_list {\tt{}]} \\
+\orbox \>{\tt{}*[} arbited\_guarded\_command\_list {\tt{}]} \\
+\orbox \>{\tt{}*[} parallel\_statement\TSEQ {\tt{}]} \\
+ \\
+guarded\_command\_list: \\
+       \>guarded\_command \\
+\orbox \>guarded\_command\_list \{ {\tt{}\orbox} guarded\_command\_list \}\SERIESOPT  \\
+\orbox \>{\tt{}<<} {\tt{}\orbox} identifier {\tt{}:} const\_range {\tt{}:} guarded\_command\_list {\tt{}>>} \\
+ \\
+arbited\_guarded\_command\_list: \\
+       \>guarded\_command \\
+\orbox \>arbited\_guarded\_command\_list \{ {\tt{}[:]} arbited\_guarded\_command\_list \}\SERIESOPT  \\
+\orbox \>{\tt{}<<} {\tt{}[:]} identifier {\tt{}:} const\_range {\tt{}:} arbited\_guarded\_command\_list {\tt{}>>} \\
+ \\
+guarded\_command: \\
+      \>bool\_expr {\tt{}->} parallel\_statement\TSEQ \\
+ \\
+bool\_expr: \\
+      \>expr
+\grammarend
+The guard of a guarded command, i.e., the expression before the arrow,
+must have {\tt{}bool} type. Execution of a guarded command consists of
+execution of the statement sequence.
+
+The first two forms of the {\it{}loop\_statement} choose one guarded command
+from the guarded command list that has a true guard, and execute it.
+For the replicated guard list, a value of the identifier within the given range
+which produces a true guard is chosen.
+This process is repeated until no guard is true. 
+It is an error if any (non arbited) guarded command list contains more
+than one true guard (at the time the choice is made). 
+For an arbitrated guarded command list, an
+arbitrary choice is made among the guarded commands with a true guard.
+
+The last form of the {\it{}loop\_statement} executes the statement
+sequence repeatedly, forever.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Selection}\label{sec:select}
+
+\grammarstart
+selection\_statement: \\
+       \>{\tt{}[} guarded\_command\_list {\tt{}]} \\
+\orbox \>{\tt{}[} arbited\_guarded\_command\_list {\tt{}]} \\
+\orbox \>{\tt{}[} bool\_expr {\tt{}]}
+\grammarend
+The first two forms of the {\it{}selection\_statement} wait until one of the
+guarded commands has a true guard, then execute one of the guarded
+commands that has a true guard. The distinction between the first two
+forms is the same as for the {\it{}loop\_statement}: with the {\tt{}\orbox} separator
+it is an error if more than one guard is true.
+
+The last form of selection statement simply waits until the expression
+(which must have {\tt{}bool} type) is true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Procedure call}\label{sec:proccall}
+
+\grammarstart
+procedure\_call: \\
+      \>identifier \{ {\tt{}(} expr\LISTOPT {\tt{})} \}\OPT
+\grammarend
+The {\it{}identifier} must be the name of a procedure (not of a function).
+The argument expressions match the parameters of the procedure,
+in order. Let expression {\it{}x} match parameter {\it{}p}. If {\it{}p} is a {\tt{}val}
+or {\tt{}valres} parameter, the assignment {\it{}p:=x} is performed at
+the start of the procedure call. If {\it{}p} is a {\tt{}res} or {\tt{}valres}
+parameter, the assignment {\it{}x:=p} is performed at the end of the
+procedure call. In all cases, the standard rules for the assignment
+apply. In addition, the same \lvalue\ may not be used for two different
+result parameters.
+
+The parentheses are optional if the argument list is empty.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Expressions}\label{sec:expr}
+
+\grammarstart
+const\_expr: \\
+      \>expr \\
+ \\
+expr: \\
+      \>binary\_expr
+\grammarend
+An expression is a constant expression if all its constituent expressions
+are constants.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Binary expressions}\label{sec:binary}
+
+\grammarstart
+binary\_expr: \\
+       \>prefix\_expr \\
+\orbox \>binary\_expr binary\_operator binary\_expr \\
+\orbox \>replicated\_expr \\
+ \\
+binary\_operator: \\
+       \>\verb|^| \\
+       \> www \= wwwww \= wwwww \= \kill
+\orbox \> {\tt{}*} \> \orbox \ \ {\tt{}/} \> \orbox \ \ {\tt{}\%} \> \orbox \ \ {\tt{}mod} \\
+\orbox \> {\tt{}+} \> \orbox \ \ {\tt{}-} \> \orbox \ \ {\tt{}xor} \\
+\orbox \> {\tt{}<} \> \orbox \ \ {\tt{}<=} \> \orbox \ \ {\tt{}>} \> \orbox \ \ {\tt{}>=} \\
+\orbox \> {\tt{}=} \> \orbox \ \ {\tt{}!=}  \\
+\orbox \> {\tt{}\&} \> \orbox \ \ \verb'|' \\
+\orbox \> {\tt{}++} \\
+ \\
+replicated\_expr: \\
+        {\tt{}<<} binary\_operator identifier {\tt{}:} const\_range {\tt{}:} binary\_expr {\tt{}>>}
+\grammarend
+The ambiguity in the syntax of binary expressions is resolved by
+using operator precedence. Each line in the definition of
+{\it{}binary\_operator} corresponds to a precedence level: the first
+line has the highest level, i.e., `\verb|^|' binds the tightest. Operators
+listed on the same line have equal precedence. Among operators with
+equal precedence the order is left-to-right, i.e., all operators
+are left-associative.
+
+A binary expression is not an \lvalue.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Arithmetic operators}\label{sec:arithmetic}
+
+The following operators require that their operands have generic type
+{\tt{}int}; the result of the operation has type {\tt{}int}:
+\begin{verbatim}
+^  *  /  %  mod  +  -
+\end{verbatim}
+`\verb|^|' denotes exponentiation: \verb|2^N| means $2^N$. Since the result is an
+integer, the second operand must be $\ge 0$ ($x^0=1$ always).
+
+`{\tt{}/}' is integer division (rounding towards 0). Consider {\it{}a/b}.
+If {\it{}a} and {\it{}b} have the same sign, the result is $\ge 0$; otherwise
+the result is $\le 0$. `{\tt{}\%}' is the remainder of division. The
+sign of {\it{}a\%b} is the sign of {\it{}a}.
+
+{\tt{}mod}, on the other hand, is the standard modulo operation, which
+always yields a non-negative result ($a \mod b = a \mod\vert b\vert$).
+The operations are summarized by the following example.
+$$
+\vbox{\def\+{\phantom{-}}
+\halign{$#$\hfil&${}#$\hfil\qquad&$#$\hfil&${}#$\hfil\qquad&$#$\hfil&
+${}#$\hfil\cr
+\+10/\+3 &= \+3&   \+10\%\+3 &= \+1&	\+10 \mod \+3 &= \+1\cr
+-10/\+3 &= -3&	   -10\%\+3 &= -1&	-10 \mod \+3 &= \+2\cr
+\+10/{-3} &= -3&   \+10\%{-3} &= \+1&	\+10 \mod {-3} &= \+1\cr
+-10/{-3} &= \+3&   -10\%{-3} &= -1&	-10 \mod {-3} &= \+2\cr
+}}
+$$
+The {\tt{}/}, {\tt{}\%}, and {\tt{}mod} operators require that their second
+operand is not $0$.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Comparison}\label{sec:comparison}
+
+The {\tt{}<}, {\tt{}<=}, {\tt{}>}, and {\tt{}>=} operators all yield a {\tt{}bool} result. Their
+operands must either both have generic type {\tt{}int}, or both have
+type {\tt{}bool} (where {\tt{}false<true}).
+
+The {\tt{}=} and {\tt{}!=} operators also yield a {\tt{}bool} result. They
+require that both operands have the same generic type.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsubsection{Logical and bitwise operators}\label{sec:logical}
+
+The {\tt{}\&}, \verb'|', and {\tt{}xor} operators require that either both operands
+have type {\tt{}bool}, or both operands have generic type {\tt{}int}.
+
+If the operands have type {\tt{}bool}, the result also has type {\tt{}bool}.
+
+If the operands have generic type {\tt{}int}, the result also has
+type {\tt{}int}; in this case, the operation is a bitwise operation.
+Note that precedence of the operators is what is usually expected for
+the logical operations. Due to the arbitrary precision of integer
+expressions, care must be taken when bitwise operations are applied;
+see Section \ref{sec:prefixlogical}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Concatenation}\label{sec:concatenation}
+
+The {\tt{}++} operator denotes array concatenation. It requires that
+both operands have the same generic array type; the type of the result
+is that generic array type.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsubsection{Replicated expressions}\label{sec:repexpr}
+
+As with other forms of replication, {\tt{}<<} {\bf op} {\tt{}i} {\tt{}:} {\tt{}n..m} {\tt{}:} {\tt{}expr(i)} {\tt{}>>}
+is equivalent to:
+\smallskip
+{\bf {\tt{}expr(n)} op {\tt{}expr(n+1)} op $\cdots$ op {\tt{}expr(m)}}
+\smallskip
+\noindent However, to avoid ambiguity in the meaning of this expression, only associative
+binary operators may be used in a replicated expression.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Postfix expressions}\label{sec:postfix}
+
+\grammarstart
+postfix\_expr: \\
+       \>atom \\
+\orbox \>array\_access \\
+\orbox \>record\_access \\
+\orbox \>union\_access \\
+\orbox \>wire\_access
+\grammarend
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Indexing of arrays}\label{sec:indexing}
+
+\grammarstart
+array\_access: \\
+       \>postfix\_expr {\tt{}[} expr\LIST {\tt{}]} \\
+\orbox \>postfix\_expr {\tt{}[} expr {\tt{}..} expr {\tt{}]}
+\grammarend
+In both cases the {\it{}postfix\_expr} must have a specific array type, or
+have generic type {\tt{}int} (see Section \ref{sec:intindex}). The whole
+expression is an \lvalue\ if the {\it{}postfix\_expr} is an \lvalue.
+
+The expression $x[3,4,5]$ is exactly the same as $x[3][4][5]$;
+internally, the simulator uses the latter form.
+
+If the {\it{}postfix\_expr} has a specific array type with element type {\it{}T},
+then the first
+form of {\it{}array\_access} has result type {\it{}T}. The second form (sometimes
+called a {\it{}slice}) has as result type the generic type of the
+{\it{}postfix\_expr}. Note that you can only index an array with a specific
+type, i.e., an array with known bounds. Hence $x[1..4][2]$ is
+not a valid expression. The indices must be within the bounds of the
+array. For a slice, the smallest index must come first.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Indexing of integers}\label{sec:intindex}
+
+The same syntax used to index arrays can be used to access bits of
+an integer. In this case, the indices must be $\ge 0$. The first form,
+with a single index, has result type {\tt{}bool}. The second form (the slice)
+has result type {\tt{}int}.
+
+As explained in Section \ref{sec:prefixlogical}, some care is necessary
+when treating integers as arrays of bits. In particular, you should
+never set the sign bit directly. E.g.,
+\begin{verbatim}
+var x: {-128..127};
+x[7] := true
+\end{verbatim}
+If $x$ was $>0$, then the assignment makes $x>128$, not negative, because
+the infinite sequence of $0$ sign bits has not been changed. The following
+procedure sets the sign bit correctly.
+\begin{verbatim}
+// set sign bit x[pos] to b
+procedure set_sign(valres x: int; pos: int; b: bool)
+CHP
+  { [   b -> x := x | -2^pos
+    [] ~b -> x := x & (2^pos - 1)
+    ]
+  }
+\end{verbatim}
+The value of a slice is obtained by treating the specified bits as
+an unsigned integer. Hence, with the above $x$, $x:=x[0..7]$ is
+unsafe, because the result has range $0..255$. When taking a slice
+of an integer, it is allowed to put the largest index first.
+
+Indexing of integers may only be applied to contants and variables,
+not to ports.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Accessing fields of records}\label{sec:recordaccess}
+
+\grammarstart
+record\_access: \\
+      \>postfix\_expr {\tt{}.} identifier
+\grammarend
+The {\it{}postfix\_expr} must have a specific record type or have generic
+type {\tt{}int}. The expression is an \lvalue\ if the {\it{}postfix\_expr} is
+an \lvalue.
+
+In case of a record type, the identifier
+must be one of the record's field names. The result type is the type of
+the field.
+
+If the {\it{}postfix\_expr} is an integer, the identifier must be a field
+name defined with a {\it{}field\_definition} (Section \ref{sec:fielddef}). This
+specifies a slice of the integer, and is completely equivalent to the
+array notation for slices explained in Section \ref{sec:intindex}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Accessing fields of unions}\label{sec:unionaccess}
+
+\grammarstart
+union\_access: \\
+      \>postfix\_expr {\tt{}.} identifier
+\grammarend
+The {\it{}postfix\_expr} must be a port with a specific union type.
+This expression may only appear in a connection statement.
+
+The identifier must be one of the union's field names.
+This allows us to pipe each value on a channel through the field's
+specified function.
+For example, consider the example union type in Section \ref{sec:union}:
+\begin{verbatim}
+type byte = union {
+    default : {0..255};
+    signed{ui2si,si2ui} : {-128..127};
+}
+
+...
+
+connect A.O.signed, B.I;
+\end{verbatim}
+
+Process A can send unsigned values on O, while process B receives signed values.
+This is possible because the union access sets up the channel to pipe all of
+its data through the function ui2si.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Accessing wires}\label{sec:wireaccess}
+
+\grammarstart
+wire\_access: \\
+      \>postfix\_expr {\tt{}.} identifier
+\grammarend
+The {\it{}postfix\_expr} must be a port of wired type.
+
+This allows access to the wire as a boolean variable.  An array of wires
+will be accessed as an array of boolean variables.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Prefix expressions}\label{sec:prefix}
+
+\grammarstart
+prefix\_expr: \\
+       \>postfix\_expr \\
+\orbox \>{\tt{}\#} \verb|{| port\_expr\LIST {\tt{}:} bool\_expr \verb|}| \\
+\orbox \>prefix\_operator prefix\_expr \\
+ \\
+prefix\_operator: \\
+      \>{\tt{}+}  \orbox \ {\tt{}-}  \orbox \ \verb|~|  \orbox \ {\tt{}\#}
+\grammarend
+A prefix expression is not an \lvalue.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Arithmetic operators}\label{sec:prefixarith}
+
+The {\tt{}+} and {\tt{}-} operators require that their operand has generic type
+{\tt{}int}, which is also the result type.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Logical and bitwise operator}\label{sec:prefixlogical}
+
+The \verb|~| operator can be applied to a {\tt{}bool} operand, in which case
+it denotes negation and yields a {\tt{}bool} result. It may also be
+applied to an operand with generic type {\tt{}int}, in which case
+it is applied bitwise, resulting in the one's complement operation
+(the result type is {\tt{}int}).
+
+Because {\tt{}int} has arbitrary precision, care must be taken when
+bitwise operations are applied. For the purpose of bitwise operations,
+an integer is considered as an infinite array of 0s and 1s, using the
+standard 2's complement notation. Consequently, there is always an
+infinite number of equal sign bits. This means that the \verb|~| operator
+always changes the sign of an integer. While this is sound
+(since, by definition, $-x = \; \sim \!\! x + 1$), it may be unexpected if
+you intended a number to be an unsigned integer. For example,
+\verb|~0 = -1|.
+
+The binary bitwise operators likewise require care with the sign bits.
+Consider
+\begin{verbatim}
+var x: {-128..127}
+\end{verbatim}
+In this case, bit $7$ of $x$ is the sign bit. However, if $x>0$,
+then \verb'x|2^7' is larger than 128, not negative, because the infinite
+sequence of 0 bits has not been changed. To change the sign, you would
+need to do \verb'x|-2^7'.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Probe}\label{sec:probe}
+
+The operand of the probe (`{\tt{}\#}') prefix operator must be a port.
+The expression
+returns a {\tt{}bool} result, {\tt{}true} if a subsequent communication
+action on the port will complete.  Specifically, the probe will return
+{\tt{}true} only when the process at the other end of the channel is
+suspended on a sync, send, receive or pass operation.  In the case of
+the pass, the process on the opposite side of the pass must meet this
+criterion as well.  Executing a peek or evaluating a probe on the other
+side of the channel does not qualify.
+
+The value probe, the form of {\it{}prefix\_expr} with braces, takes a list
+of ports. The {\it{}bool\_expr} that follows can refer to the input ports in the
+list as if they were variables: each input port stands for the value that
+a subsequent communication will receive. The value probe is true if the
+individual probes of the each of the ports is true, and the expression
+evaluates to true.
+
+Neither form of probe suspends.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Atoms}\label{sec:atoms}
+
+\grammarstart
+atom: \\
+       \>identifier \\
+\orbox \>literal \\
+\orbox \>array\_constructor \\
+\orbox \>record\_constructor \\
+\orbox \>function\_call \\
+\orbox \>{\tt{}(} expr {\tt{})}
+\grammarend
+An identifier used as {\it{}atom} is an \lvalue\ if it is the name of
+a variable or parameter; the name of a function is also an \lvalue\ inside
+that function. (As mentioned in Section \ref{sec:scope}, variables, parameters,
+and function names used as variables, can only be accessed in their own
+scope, not in nested routines.)
+Other identifiers used as {\it{}atom} should be the names
+of constants or symbol literals. Parentheses do not affect whether
+an expression is an \lvalue.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Array constructor}\label{sec:arrayconstruct}
+
+\grammarstart
+array\_constructor: \\
+      \>{\tt{}[} expr\LIST {\tt{}]}
+\grammarend
+The expression must all have the same generic type $T$. The result type
+is a generic {\tt{}array} {\tt{}of} $T$. An {\it{}array\_constructor} is not
+an \lvalue.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Record constructor}\label{sec:recordconstruct}
+
+\grammarstart
+record\_constructor: \\
+      \>\verb|{| expr\LIST \verb|}|
+\grammarend
+The result type is a generic record where each field type is the
+generic type of the respective expression.
+A {\it{}record\_constructor} is not an \lvalue.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Function call}\label{sec:funccall}
+
+\grammarstart
+function\_call: \\
+      \>identifier {\tt{}(} expr\LIST {\tt{})}
+\grammarend
+The identifier must be the name of a function. The requirements for the
+arguments are the same as for procedure calls (Section \ref{sec:proccall}),
+but only value parameters are allowed. Note that a function must have
+at least one parameter. The type of the expression is the return type
+of the function.
+
+A function call is not an \lvalue. If all arguments are constants, the
+function call is also a constant.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Literals}\label{sec:literal}
+
+\grammarstart
+literal: \\
+       \>integer\_literal \\
+\orbox \>character\_literal \\
+\orbox \>string\_literal \\
+\orbox \>symbol\_literal \\
+\orbox \>boolean\_literal \\
+ \\
+symbol\_literal: \\
+      \>identifier \\
+ \\
+boolean\_literal: \\
+      \>{\tt{}false} \orbox \ {\tt{}true}
+\grammarend
+Literals are never \lvalue s. Integer literals have type {\tt{}int}.
+Character literals have type
+\begin{verbatim}
+type char = {0..127}
+\end{verbatim}
+Their values correspond to ASCII codes.
+A string literal is a 0-terminated generic {\tt{}array} {\tt{}of} {\tt{}int},
+similar to an {\it{}array\_constructor}.
+
+A {\it{}symbol\_literal} must have been declared as part of a {\it{}symbol\_type}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Meta processes}\label{sec:meta}
+
+\grammarstart
+meta\_body: \\
+      \>{\tt{}meta} \verb|{| \{definition \orbox \ meta\_declaration\}\SERIESOPT \\
+      \>\qquad  parallel\_statement*\TSEQOPT \verb|}|
+\grammarend
+A meta process is a process with a {\it{}meta\_body}. The form of a meta process
+is nearly the same as that of a CHP process, but there are some
+statements and declarations that can only occur in one type of process
+and not in the other. The main difference is with respect to execution:
+The simulator starts by executing meta processes, which have as goal to
+create the graph of CHP processes; this is the instantiation phase.
+If meta process {\it{}P} instantiates process {\it{}Q} (which may be a meta process
+itself), then {\it{}Q} does not start executing until {\it{}P} has terminated.
+If {\it{}Q} is a CHP process, then {\it{}Q} does not start executing until
+all meta processes have terminated.
+
+The instantiation phase ends when all meta processes have terminated.
+Once that happens, the execution phase starts by executing all instantiated
+CHP processes in parallel. The CHP processes
+model the actual hardware; the meta processes just serve to describe
+the hardware configuration.
+
+The `{\it{}parallel\_statement*}' in a {\it{}meta\_body} has the same form as
+a regular {\it{}parallel\_statement}, except that `{\it{}statement}' excludes
+communications and is extended as follows.
+\grammarstart
+statement:
+      \>\dots \\
+\orbox \>meta\_binding \\
+\orbox \>connection
+\grammarend
+Furthermore, a meta process may not contain any probes.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Process instances}\label{sec:instance}
+
+\grammarstart
+meta\_declaration: \\
+       \>{\tt{}instance} identifier\LIST {\tt{}:} process\_type {\tt{};} \\
+\orbox \>declaration \\
+ \\
+process\_type: \\
+       \>identifier \\
+\orbox \>{\tt{}array} {\tt{}[} const\_range\LIST {\tt{}]} {\tt{}of} process\_type
+\grammarend
+An {\tt{}instance} declaration instantiates one or more processes. The
+{\it{}identifier} in {\it{}process\_type} must be the name of a process
+(as defined with {\tt{}process}); this may be a meta process or a
+CHP process. Normally identifiers are declared immediately when
+they are encountered, but as a special case, instance names are only declared
+after parsing the {\it{}process\_type}: this means the instance name
+may be identical to the process name (assuming they are declared at
+different scope levels).
+
+Although an {\tt{}instance} declaration creates the
+process instance, it does not specify the values of the instance's
+meta parameters, nor its connections to other processes. These must be
+specified with subsequent statements.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Meta parameters}\label{sec:metaparam}
+
+\grammarstart
+meta\_parameter: \\
+      \>identifier\LIST {\tt{}:} meta\_type \\
+ \\
+meta\_type: \\
+      \>type \\
+      \>{\tt{}type}
+\grammarend
+Meta parameters get their value during the instantiation phase. Although
+their values are not known at compile-time, nevertheless they are considered
+constants.  Meta parameters may be expressions of a given type, or may themselves
+be a templated type using the {\tt{}type} keyword (Section \ref{sec:template}).
+
+Meta parameters are given a value with a {\it{}meta\_binding}.
+\grammarstart
+meta\_binding: \\
+      \>instance\_expr {\tt{}(} meta\_expr\LIST {\tt{})} \\
+ \\
+instance\_expr: \\
+      \>postfix\_expr \\
+ \\
+meta\_expr: \\
+      \>expr \\
+      \>{\tt{}<} type {\tt{}>}
+\grammarend
+The {\it{}instance\_expr} must be one of the process instances declared with
+{\tt{}instance}. The argument expressions must match the meta parameters
+of the corresponding process, just as with function parameters.  Types enclosed
+in {\tt{}<>} must match a templated type in the meta parameters.
+
+There must be a {\it{}meta\_binding} for each process instance that has
+meta parameters.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Connecting processes}\label{sec:connect}
+
+\grammarstart
+connection: \\
+      \>{\tt{}connect} connection\_list \\
+ \\
+connection\_list: \\
+           connection\_point {\tt{},} connection\_point \\
+\orbox \>{\tt{}all} identifier {\tt{}:} const\_range {\tt{}:} connection\_list \\
+ \\
+connection\_point: \\
+       \>port\_expr \\
+\orbox \>instance\_expr {\tt{}.} identifier
+\grammarend
+The first form of {\it{}connection\_list} creates a single channel to
+connect the two points listed.
+The second forms connects its sublist for each value of the identifier in
+the given range, just like a replicator.
+
+There are two different ways to connect two ports of array type:
+\begin{verbatim}
+connect A.X, B.Y;
+connect all i : 0..N-1 : A.X[i], B.Y[i];
+\end{verbatim}
+The former creates a single channel between the ports, while the latter
+creates N channels to connect each element of the arrays.  The former of
+these may cause a simulation error if the chp process being connected
+attepmts to access one of the N channels individually.
+The latter method is always safe, but it
+slows the simulation and can make debugging harder.
+
+A similar choice exists for connecting ports of record and union type.
+However, because of the restrictions on union field access (Section \ref{sec:unionaccess}),
+all methods of connecting unions are safe.  This also means that arrays and
+records within a union type are safe.
+
+The first form of {\it{}connection\_point} identifies a port of the current
+process. The second form identifies a port of an instantiated process.
+
+For data ports, if both {\it{}connection\_point}s have the same form, they
+must be ports with opposite directions (one input, one output). However,
+if one {\it{}connection\_point} has the first form and the other the
+second form, both must have the same direction. The data types of
+connected ports must be compatible.
+
+Using a port of the current process indicates a pass-through: the port
+is not used for direct communication, but instead is merely a `wire' between
+two other ports. The current implementation does not perform (run-time)
+range checks on the data type of a pass-through port, only on ports that
+are actually used in communication actions.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Lexical tokens}\label{sec:lexical}
+
+The description of lexical tokens is slightly informal. A token may not
+contain white space, unless explicitly allowed. In some cases tokens
+must be separated by white space to avoid ambiguity.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Comments}\label{sec:comments}
+
+\grammarstart
+comment: \\
+       \>{\tt{}/*} any\SERIESOPT {\tt{}*/} \\
+\orbox \>{\tt{}//} any-except-linebreak\SERIESOPT linebreak
+\grammarend
+A comment of the first form cannot contain `{\tt{}*/}'.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Integers}\label{sec:inttoken}
+
+\grammarstart
+integer\_literal: \\
+       \>decimal \\
+\orbox \>\{{\tt{}0x} \orbox \ {\tt{}0X}\} \{hex\_digit \orbox \ {\tt{}\_}\ \}\SERIES \\
+\orbox \>\{{\tt{}0b} \orbox \ {\tt{}0B}\} \{binary\_digit \orbox \ {\tt{}\_}\ \}\SERIES \\
+\orbox \>decimal {\tt{}\#} \{based\_digit \orbox \ {\tt{}\_}\ \}\SERIES \\
+ \\
+decimal: \\
+      \>decimal\_digit \{decimal\_digit \orbox \ {\tt{}\_}\ \}\SERIESOPT
+\grammarend
+Digits $>9$ are {\tt{}a}..{\tt{}z} (case-insensitive). Integers can contain underscores,
+but not as first character. The `{\tt{}\#}' notation allows for integers in
+any base, {\it{}1$<$base$\le$ 26}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Identifiers}\label{sec:idtoken}
+
+\grammarstart
+identifier: \\
+      \>\{letter \orbox \ {\tt{}\_}\ \} \{letter \orbox \ digit \orbox \ {\tt{}\_}\ \}\SERIESOPT
+\grammarend
+Identifiers may not be keywords; they are case-sensitive.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Keywords}\label{sec:kwtoken}
+
+Keywords are case-insensitive.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Characters and strings}\label{sec:idchar}
+
+\grammarstart
+character\_literal: \\
+      \>{\tt{}'} \{char\_character \orbox \ \verb|\| printable\_character\} {\tt{}'} \\
+ \\
+char\_character: \\
+      \>printable\_character except {\tt{}\\}
+\grammarend
+A backslash is used as escape character. The following escapes are
+recognized:
+
+\begin{center}
+\begin{tabular}{||c|c|c||c||c|c|c||}
+\cline{1-3} \cline{5-7}
+\verb|\a| & BELL & \verb|0x7| & \hspace{1.5in} & \verb|\r| & CR & \verb|0xD| \\
+\cline{1-3} \cline{5-7}
+\verb|\b| & BS   & \verb|0x8| &  & \verb|\q| & XON      & \verb|0x11| \\
+\cline{1-3} \cline{5-7}
+\verb|\t| & TAB  & \verb|0x9| &  & \verb|\s| & XOFF     & \verb|0x13| \\
+\cline{1-3} \cline{5-7}
+\verb|\n| & LF   & \verb|0xA| &  & \verb|\"| & \verb|"| & \verb|0x22| \\
+\cline{1-3} \cline{5-7}
+\verb|\v| & VT   & \verb|0xB| &  & \verb|\'| & \verb|'| & \verb|0x27| \\
+\cline{1-3} \cline{5-7}
+\verb|\f| & FF   & \verb|0xC| &  & \verb|\\| & \verb|\| & \verb|0x5C| \\
+\cline{1-3} \cline{5-7}
+\end{tabular}
+\end{center}
+
+A {\it{}printable\_character} is any character in the ASCII range
+{\tt{}0x20} through {\tt{}0x7E}, i.e., a space character or a character that involves
+ink when printing.
+
+\grammarstart
+string\_literal: \\
+      \>{\tt{}"} \{string\_character \orbox \ \verb|\| printable\_character\}\SERIES {\tt{}"} \\
+ \\
+string\_character: \\
+      \>printable\_character except {\tt{}"} and \verb|\|
+\grammarend
+Escapes for strings are the same as for characters.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+

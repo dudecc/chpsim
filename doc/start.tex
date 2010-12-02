@@ -1,0 +1,243 @@
+% start.tex: Example to get started.
+%
+% Author: Marcel van der Goot
+%
+% $Id: start.tex,v 1.2 2004/04/13 20:03:33 marcel Exp $
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Getting Started}\label{chap:gettingstarted}
+
+In this chapter we give an example program that illustrates several features
+of the CHP language. Although the example is no substitute for reading
+the rest of the manual, it is a good idea to try the example first,
+as a means of getting started. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Running the simulator}\label{sec:runningstart}
+
+To make sure that the simulator is installed, run
+\begin{verbatim}
+chpsim -help
+\end{verbatim}
+Assuming that {\tt{}chpsim} is installed, this will print a version number,
+followed by a list of command line options.  These options are described in
+Chapter \ref{chap:simulation}, but for now, ignore them.  Make sure that the
+version of chpsim is at least 2.0, as earlier versions have significant
+differences.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Example program}\label{sec:demo1}
+
+Create a file {\tt{}demo1.chp} with the following contents (without the line numbers).
+
+\medskip
+\hrule
+\begin{listing}{1}
+requires "stdio.chp"; // for reading and writing files
+
+export function is_odd(x: int): bool
+CHP
+  { [   x[0] -> is_odd := true
+    [] ~x[0] -> is_odd := false
+    ]
+  }
+
+type command = { Push, Pop, Top, Show };
+
+type ubyte = {0 .. 255};
+
+process stack(N: int)(I?: command; P?: ubyte; Q!: ubyte)
+CHP
+  { var s: array [0..N-1] of ubyte;
+    var c: command;
+    var top: int = -1;
+    *[ I?c;
+       [ c = `Push -> top := top + 1;
+                      P?s[top];
+      [] c = `Pop  -> Q!s[top];
+                      top := top - 1;
+      [] c = `Top  -> [  is_odd(s[top]) -> print(s[top], "is odd")
+                     [] ~is_odd(s[top]) -> print(s[top], "is even")
+                      ]
+      [] c = `Show -> show(s, top)
+       ]
+     ]
+  }
+
+/* note: tester is a terminating process */
+process tester()(cmnd!: command; p!, q?: ubyte)
+CHP
+ { var x: ubyte;
+   cmnd!`Push, p!5;
+   p!6, cmnd!`Push;
+   cmnd!`Pop, q?x;
+   show(x);
+   cmnd!`Top;
+   cmnd!`Push; p!x+2;
+   cmnd!`Show;
+ }
+
+process main()()
+META
+ { instance ps: stack;
+   instance ts: tester;
+   ps(5);
+   connect ps.P, ts.p;
+   connect ps.Q, ts.q;
+   connect ps.I, ts.cmnd;
+ }
+\end{listing}
+\hrule
+\medskip
+
+To simulate the example, run
+\begin{verbatim}
+chpsim demo1.chp
+\end{verbatim}
+At several points during simulation, the simulator will stop with
+a `{\tt{}(cmnd?)}' prompt. To continue the simulation, hit the enter key.
+Eventually, the simulation will terminate with an error message about
+deadlock, at which point you can hit enter to exit chpsim.
+
+To better understand the program, you may want to step through it.
+You do this by entering commands at the {\tt{}(cmnd?)} prompt. The {\tt{}help}
+command will list the available commands. For example, try
+\begin{verbatim}
+(cmnd?) next /ts
+\end{verbatim}
+then hit the enter key at subsequent {\tt{}(cmnd?)} prompts.
+{\tt{}/ts} is the instance name of the {\it{}tester} process (line 48); note the
+`{\tt{}/}': process instance names always start with a slash. With this command,
+the simulation will stop every time before executing a statement of
+the {\it{}tester} process. It will identify the line number and the statement
+where it is stopped. For instance
+\begin{verbatim}
+(next) /ts at demo1.chp[36:14]
+        p!5
+\end{verbatim}
+says that the simulator is stopped at {\tt{}p!5}, at line
+36 of {\tt{}demo1.chp}, to be executed by {\tt{}/ts}.
+The {\tt{}:14} identifies the character position in the line.
+
+Another good command to try is {\tt{}print}. For instance, {\tt{}print x} will print
+the value of variable {\it{}x}. {\tt{}print /ts} will print the port connections
+of process {\it{}/ts}.
+
+Below we give a very brief description of the example code; consult
+Chapter \ref{chap:syntax} for the details.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Modules}\label{sec:demorequire}
+
+Line {\tt{}1}.
+A program can consist of multiple modules. A module is imported with
+a {\tt{}requires} clause. Module {\tt{}stdio.chp} is a standard module that
+provides routines for reading and writing files; the example does not
+actually use any of the {\tt{}stdio.chp} routines. A module can be in
+the current working directory or in the module search path. The {\tt{}-v} option
+of {\tt{}chpsim} will report which files are actually read. There is no
+default extension (such as {\tt{}.chp}).
+
+To make a name visible outside a module (when that module is imported),
+it must be exported with {\tt{}export}. The only name exported by
+{\tt{}demo1.chp} is function {\it{}is\_odd} at line {\tt{}3}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Functions}\label{sec:demofunction}
+
+Lines {\tt{}3}--{\tt{}8}.
+Function {\it{}is\_odd} determines whether an integer is odd or even. The
+expression {\tt{}x[0]}, when {\it{}x} is an integer, returns bit 0 of the integer.
+For purpose of bit manipulation, integers always use a 2's complement
+notation. Integers have infinite precision.
+
+The function uses a selection statement to compute its result. In this
+case, the selection could be replaced by a single assignment:
+\begin{verbatim}
+is_odd := x[0]
+\end{verbatim}
+
+Note that the body of the function starts with the {\tt{}chp} keyword. An
+alternative is seen at line {\tt{}46}. Not demonstrated here are procedures,
+which are very similar to functions but do not return a result (but
+they can assign result parameters).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Types}\label{sec:demotypes}
+
+Lines {\tt{}10}--{\tt{}12}. These lines define two new types. {\it{}command} is a
+symbol type with four possible values. Note that these values are symbols
+and not strings --- strings are contained in double quotes and can contain any
+characters, while symbols (outside of the type declaration) are preceded by a
+single back tick and must be alphanumeric characters.  Variable
+{\it{}c} at line {\tt{}17} has this type.
+
+{\it{}ubyte} is a range of integers corresponding to an unsigned byte.
+Values of type {\it{}ubyte} and type {\tt{}int} can be mixed in expressions. However,
+whenever a value is assigned to a {\it{}ubyte} variable, it must be within
+the range of that type (there is no automatic truncation). See
+Section \ref{sec:types} for more details.
+
+There are also array types (line {\tt{}16}) and record types, as well as
+the boolean type {\tt{}bool}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Meta processes}\label{sec:demometa}
+
+Lines {\tt{}45}--{\tt{}53}. There are two types of processes, meta processes,
+and CHP processes. Meta processes only
+execute statements to create a graph of CHP processes; the actual
+computation is performed by the CHP processes. The simulator identifies
+two different phases, `instantiation', when only meta processes are
+executed, and `CHP execution', when the actual computation takes
+place. By default, the simulator starts by executing a process called {\it{}main}.
+
+Line {\tt{}47} creates an instance of the {\it{}stack} process. Its parameter {\it{}N}
+is assigned at line {\tt{}49}, and its ports connected at lines {\tt{}50}--{\tt{}52}.
+The {\it{}tester} process has no meta parameters; therefore, the equivalent
+of line {\tt{}49} would be a statement {\tt{}ts();}. Since this statement has no
+effect ({\it{}ts} is already created at line {\tt{}48}), it has been omitted.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{CHP}\label{sec:demochp}
+
+Lines {\tt{}14}--{\tt{}43}. Processes have two parameter lists, one for
+meta parameters (like {\it{}N} at line {\tt{}14}), the other for ports. Input
+ports are identified by a `{\tt{}?}', output ports by a `{\tt{}!}' (there are
+also synchronization ports, which are just identifiers).
+
+Output ports must be connected to input ports of similar type. As with
+variables, a run-time check compares actual values with the valid range.
+The {\it{}stack} process and the {\it{}tester} process are connected to each other.
+However, the {\it{}stack} process has an infinite loop ({\tt{}*[...]}), whereas
+the {\it{}tester} process terminates. Therefore, at some point the {\it{}stack}
+will attempt {\tt{}I?c} (line {\tt{}19}), when {\tt{}I} is no longer connected to
+another process. The simulator detects this error, then terminates.
+(When the error occurs, try {\tt{}(cmnd?) print /ps}.)
+
+Note that the {\it{}stack} process lacks any protection against overflow
+and underflow of the stack. You are encouraged to use the simulator
+to see what happens when these errors occur.
+
+The {\it{}print} and {\it{}show} procedures (e.g., lines {\tt{}24} and {\tt{}27}) are
+built-in to the simulator.
+
+
+
+
+
+
+
+
+
+

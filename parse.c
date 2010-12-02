@@ -1474,11 +1474,18 @@ static void *parse_function_definition(lex_tp *L)
 
 static void *parse_const_definition(lex_tp *L)
  { const_def *x;
+   dummy_type *end;
    lex_must_be(L, KW_const);
    x = new_parse(L, L->prev, 0, const_def);
    lex_must_be(L, TOK_id);
    x->id = L->prev->t.val.s;
-   if (lex_have_next(L, ':'))
+   if (lex_have_next(L, '['))
+     { end = new_parse(L, L->prev, 0, dummy_type);
+       x->tps = parse_inline_array(L, end);
+       lex_must_be(L, ':');
+       end->tps = parse_type(L);
+     }
+   else if (lex_have_next(L, ':'))
      { x->tps = parse_type(L); }
    x->z = parse_initializer(L);
    lex_must_be(L, ';');

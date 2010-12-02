@@ -1,0 +1,80 @@
+\contentsline {chapter}{\numberline {1}Getting Started}{5}
+\contentsline {section}{\numberline {1.1}Running the simulator}{5}
+\contentsline {section}{\numberline {1.2}Example program}{5}
+\contentsline {subsection}{\numberline {1.2.1}Modules}{7}
+\contentsline {subsection}{\numberline {1.2.2}Functions}{7}
+\contentsline {subsection}{\numberline {1.2.3}Types}{7}
+\contentsline {subsection}{\numberline {1.2.4}Meta processes}{7}
+\contentsline {subsection}{\numberline {1.2.5}CHP}{8}
+\contentsline {chapter}{\numberline {2}Language}{9}
+\contentsline {section}{\numberline {2.1}Source file}{9}
+\contentsline {subsection}{\numberline {2.1.1}Importing modules}{10}
+\contentsline {section}{\numberline {2.2}Types}{11}
+\contentsline {subsection}{\numberline {2.2.1}Boolean type}{11}
+\contentsline {subsection}{\numberline {2.2.2}Integer types}{11}
+\contentsline {subsubsection}{\numberline {2.2.2.1}Integer fields}{12}
+\contentsline {subsection}{\numberline {2.2.3}Symbol types}{12}
+\contentsline {subsection}{\numberline {2.2.4}Array types}{12}
+\contentsline {subsection}{\numberline {2.2.5}Record types}{13}
+\contentsline {subsection}{\numberline {2.2.6}Union types}{13}
+\contentsline {subsection}{\numberline {2.2.7}Wired types}{14}
+\contentsline {subsection}{\numberline {2.2.8}Templated types}{14}
+\contentsline {section}{\numberline {2.3}Constants}{14}
+\contentsline {section}{\numberline {2.4}Routines}{14}
+\contentsline {subsection}{\numberline {2.4.1}Parameter passing}{14}
+\contentsline {subsection}{\numberline {2.4.2}Functions}{15}
+\contentsline {subsection}{\numberline {2.4.3}Procedures}{15}
+\contentsline {subsection}{\numberline {2.4.4}Processes}{16}
+\contentsline {subsection}{\numberline {2.4.5}Routine body}{16}
+\contentsline {subsection}{\numberline {2.4.6}Scope and order of definition}{17}
+\contentsline {section}{\numberline {2.5}Statements}{17}
+\contentsline {subsection}{\numberline {2.5.1}Assignment}{17}
+\contentsline {subsection}{\numberline {2.5.2}Communication}{18}
+\contentsline {subsection}{\numberline {2.5.3}Repetition}{18}
+\contentsline {subsection}{\numberline {2.5.4}Selection}{19}
+\contentsline {subsection}{\numberline {2.5.5}Procedure call}{19}
+\contentsline {section}{\numberline {2.6}Expressions}{20}
+\contentsline {subsection}{\numberline {2.6.1}Binary expressions}{20}
+\contentsline {subsubsection}{\numberline {2.6.1.1}Arithmetic operators}{20}
+\contentsline {subsubsection}{\numberline {2.6.1.2}Comparison}{21}
+\contentsline {subsubsection}{\numberline {2.6.1.3}Logical and bitwise operators}{21}
+\contentsline {subsubsection}{\numberline {2.6.1.4}Concatenation}{21}
+\contentsline {subsubsection}{\numberline {2.6.1.5}Replicated expressions}{21}
+\contentsline {subsection}{\numberline {2.6.2}Postfix expressions}{21}
+\contentsline {subsubsection}{\numberline {2.6.2.1}Indexing of arrays}{21}
+\contentsline {subsubsection}{\numberline {2.6.2.2}Indexing of integers}{22}
+\contentsline {subsubsection}{\numberline {2.6.2.3}Accessing fields of records}{22}
+\contentsline {subsubsection}{\numberline {2.6.2.4}Accessing fields of unions}{22}
+\contentsline {subsubsection}{\numberline {2.6.2.5}Accessing wires}{23}
+\contentsline {subsection}{\numberline {2.6.3}Prefix expressions}{23}
+\contentsline {subsubsection}{\numberline {2.6.3.1}Arithmetic operators}{23}
+\contentsline {subsubsection}{\numberline {2.6.3.2}Logical and bitwise operator}{23}
+\contentsline {subsubsection}{\numberline {2.6.3.3}Probe}{24}
+\contentsline {subsection}{\numberline {2.6.4}Atoms}{24}
+\contentsline {subsubsection}{\numberline {2.6.4.1}Array constructor}{24}
+\contentsline {subsubsection}{\numberline {2.6.4.2}Record constructor}{24}
+\contentsline {subsubsection}{\numberline {2.6.4.3}Function call}{25}
+\contentsline {subsection}{\numberline {2.6.5}Literals}{25}
+\contentsline {section}{\numberline {2.7}Meta processes}{25}
+\contentsline {subsection}{\numberline {2.7.1}Process instances}{26}
+\contentsline {subsection}{\numberline {2.7.2}Meta parameters}{26}
+\contentsline {subsection}{\numberline {2.7.3}Connecting processes}{27}
+\contentsline {section}{\numberline {2.8}Lexical tokens}{27}
+\contentsline {subsection}{\numberline {2.8.1}Comments}{28}
+\contentsline {subsection}{\numberline {2.8.2}Integers}{28}
+\contentsline {subsection}{\numberline {2.8.3}Identifiers}{28}
+\contentsline {subsection}{\numberline {2.8.4}Keywords}{28}
+\contentsline {subsection}{\numberline {2.8.5}Characters and strings}{28}
+\contentsline {chapter}{\numberline {3}Simulation}{31}
+\contentsline {section}{\numberline {3.1}Command line arguments}{31}
+\contentsline {section}{\numberline {3.2}Execution}{33}
+\contentsline {subsection}{\numberline {3.2.1}The current statement}{33}
+\contentsline {subsection}{\numberline {3.2.2}Steps}{34}
+\contentsline {subsubsection}{\numberline {3.2.2.1}Execution of functions}{34}
+\contentsline {subsection}{\numberline {3.2.3}Breakpoints}{34}
+\contentsline {subsection}{\numberline {3.2.4}Tracing}{35}
+\contentsline {subsection}{\numberline {3.2.5}Inspecting the state}{35}
+\contentsline {subsection}{\numberline {3.2.6}Other commands}{36}
+\contentsline {subsection}{\numberline {3.2.7}Instantiation}{36}
+\contentsline {section}{\numberline {3.3}Built-in procedures}{37}
+\contentsline {section}{\numberline {3.4}Standard I/O}{38}

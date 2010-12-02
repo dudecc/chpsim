@@ -1,0 +1,53 @@
+requires "stdio.chp"; // for reading and writing files
+
+export function is_odd(x: int): bool
+CHP
+  { [   x[0] -> is_odd := true
+    [] ~x[0] -> is_odd := false
+    ]
+  }
+
+type command = { Push, Pop, Top, Show };
+
+type ubyte = {0 .. 255};
+
+process stack(N: int)(I?: command; P?: ubyte; Q!: ubyte)
+CHP
+  { var s: array [0..N-1] of ubyte;
+    var c: command;
+    var top: int = -1;
+    *[ I?c;
+       [ c = `Push -> top := top + 1;
+                      P?s[top];
+      [] c = `Pop  -> Q!s[top];
+                      top := top - 1;
+      [] c = `Top  -> [  is_odd(s[top]) -> print(s[top], "is odd")
+                     [] ~is_odd(s[top]) -> print(s[top], "is even")
+                      ]
+      [] c = `Show -> show(s, top)
+       ]
+     ]
+  }
+
+/* note: tester is a terminating process */
+process tester()(cmnd!: command; p!, q?: ubyte)
+CHP
+ { var x: ubyte;
+   cmnd!`Push, p!5;
+   p!6, cmnd!`Push;
+   cmnd!`Pop, q?x;
+   show(x);
+   cmnd!`Top;
+   cmnd!`Push; p!x+2;
+   cmnd!`Show;
+ }
+
+process main()()
+META
+ { instance ps: stack;
+   instance ts: tester;
+   ps(5);
+   connect ps.P, ts.p;
+   connect ps.Q, ts.q;
+   connect ps.I, ts.cmnd;
+ }

@@ -136,7 +136,7 @@ INLINE_STATIC int starts_process_definition(lex_tp *L)
  { return lex_have(L, KW_process); }
 
 INLINE_STATIC int starts_port_parameter(lex_tp *L)
- { return lex_have(L, TOK_id); }
+ { return lex_have(L, TOK_id) || lex_have(L, '('); }
 
 INLINE_STATIC int starts_meta_parameter(lex_tp *L)
  { return lex_have(L, TOK_id); }
@@ -1232,13 +1232,49 @@ static void *parse_wired_type(lex_tp *L)
    return x;
  }
 
+static void *parse_default_wire_decl(lex_tp *L)
+ { var_decl *x;
+   lex_must_be(L, TOK_id);
+   x = new_parse(L, L->prev, 0, var_decl);
+   x->id = L->prev->t.val.s;
+   if (lex_have_next(L, '['))
+     { x->tps = parse_inline_array(L, &generic_bool); }
+   else
+     { x->tps = (type_spec*)&generic_bool; }
+   if (lex_have_next(L, '+') || lex_have_next(L, '-'))
+     { x->z_sym = L->prev->t.tp; }
+   else if (lex_have_next(L, '='))
+     { x->z = parse_expr(L); }
+   return x;
+ }
+
+static void parse_default_wired_port(lex_tp *L, llist *l)
+/* Pre: '(' has been parsed */
+ { var_decl *v;
+   do { v = parse_default_wire_decl(L);
+        SET_FLAG(v->flags, EXPR_wire);
+        llist_prepend(l, v);
+      } while (lex_have_next(L, ','));
+   lex_must_be(L, ';');
+   do { v = parse_default_wire_decl(L);
+        SET_FLAG(v->flags, EXPR_wire | EXPR_writable);
+        llist_prepend(l, v);
+      } while (lex_have_next(L, ','));
+   lex_must_be(L, ')');
+ }
+
 typedef enum {PORT_none = 0, PORT_dir, PORT_sync, PORT_wire} parse_port_type;
 
 static void parse_port_parameter(lex_tp *L, llist *l)
  /* Note: object list is prepended to l in reverse order */
  { var_decl *x;
    parse_port_type curr, old = PORT_none;
-   dummy_type *end = new_parse(L, L->prev, 0, dummy_type);
+   dummy_type *end;
+   if (lex_have_next(L, '('))
+     { parse_default_wired_port(L, l);
+       return;
+     }
+   end = new_parse(L, L->prev, 0, dummy_type);
    do { lex_must_be(L, TOK_id);
         x = new_parse(L, L->prev, 0, var_decl);
         x->id = L->prev->t.val.s;

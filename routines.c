@@ -270,35 +270,8 @@ static int exec_function_def(function_def *x, exec_info *f)
    return EXEC_none;
  }
 
-static void check_new_wires(value_tp *v, type *tp, exec_info *f)
- { array_type *atps;
-   value_tp idxv;
-   wire_value *w;
-   long i;
-   int pos = VAR_STR_LEN(&f->scratch);
-   if (v->rep == REP_array)
-     { assert(tp->kind == TP_array);
-       atps = (array_type*)tp->tps;
-       eval_expr(atps->l, f);
-       pop_value(&idxv, f);
-       for (i = 0; i < v->v.l->size; i++)
-         { var_str_printf(&f->scratch, pos, "[%v]", vstr_val, &idxv);
-           check_new_wires(&v->v.l->vl[i], tp->elem.tp, f);
-           int_inc(&idxv, f);
-         }
-       clear_value_tp(&idxv, f);
-     }
-   else
-     { assert(v->rep == REP_wire);
-       wire_fix(&v->v.w, f);
-       w = v->v.w;
-       if (!IS_SET(w->flags, WIRE_has_writer))
-         { exec_error(f, f->curr->obj, "%s)", f->scratch.s); }
-     }
- }
-
 static void check_new_ports(value_tp *v, type *tp, exec_info *f)
-/* checks for dangling ports in newly created processes */
+/* checks for dangling ports/wires in newly created processes */
  { llist l, rl;
    long i, j, k;
    array_type *atps;
@@ -307,6 +280,7 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
    record_field *rf;
    wired_type *wtps;
    wire_decl *wd;
+   wire_value *w;
    int pos = VAR_STR_LEN(&f->scratch);
    process_state *meta_ps;
    meta_parameter *mp;
@@ -326,12 +300,11 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
          if (tp->kind == TP_wire)
            { wtps = (wired_type*)tp->tps;
              l = wtps->li;
-             pos += var_str_printf(&f->scratch, pos, " not connected\n"
-                                   "(No process writes to wire ");
+             pos += var_str_printf(&f->scratch, pos, ", wire ");
              for (i = 0; i < v->v.l->size; i++)
                { wd = (wire_decl*)llist_head(&l);
                  var_str_printf(&f->scratch, pos, "%s", wd->id);
-                 check_new_wires(&v->v.l->vl[i], &wd->tps->tp, f);
+                 check_new_ports(&v->v.l->vl[i], &wd->tps->tp, f);
                  l = llist_alias_tail(&l);
                  if (llist_is_empty(&l)) l = wtps->lo;
                }
@@ -368,6 +341,12 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
              int_inc(&idxv, f);
            }
          clear_value_tp(&idxv, f);
+       return;
+       case REP_wire:
+         wire_fix(&v->v.w, f);
+         w = v->v.w;
+         if (!IS_SET(w->flags, WIRE_has_writer))
+           { exec_error(f, f->curr->obj, "%s has no writer", f->scratch.s); }
        return;
        default:
          exec_error(f, f->curr->obj, "%s is not connected", f->scratch.s);

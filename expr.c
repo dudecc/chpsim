@@ -639,7 +639,7 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
        x->tp = d->tp;
        x->idx = d->var_idx;
        SET_FLAG(x->flags, EXPR_port_ext | EXPR_unconst);
-       SET_IF_SET(x->flags, d->flags, EXPR_port | EXPR_wire);
+       SET_IF_SET(x->flags, d->flags, EXPR_port | EXPR_wire | EXPR_writable);
        SET_IF_SET(x->flags, x->tp.tps->flags, EXPR_inherit);
        if (IS_SET(d->tps->flags, EXPR_generic)); /* Wait, what goes here? */
        return x;

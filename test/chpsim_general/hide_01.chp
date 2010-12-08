@@ -1,0 +1,10 @@
+requires "channel.chp";
+
+process A()(O!:std1of3)
+chp { <<; i : 1..22 : O!0 >> }
+
+process B()(I?:e1of3)
+prs { var x+; I.d[0] -> I.e- ~I.d[0] -> I.e+  I.d[0] -> x- ~I.d[0] -> x+ }
+
+process main()()
+meta { instance a:A; instance b:B; connect a.O.wire, b.I; }

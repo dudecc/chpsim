@@ -1,0 +1,15 @@
+Command line: ../../chpsim -batch hide_02.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: /a at hide_02.chp[4:40]
+	done
+Error occurred: cannot continue
+(cmnd) where
+/a at /usr/local/share/chpsim/builtin.chp[21:7]
+	procedure error()
+/a at hide_02.chp[4:40]
+	error("done")
+(cmnd) quit

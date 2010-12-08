@@ -263,11 +263,9 @@ extern void exec_warning(exec_info *f, void *obj, const char *fmt, ...)
 static void prs_error(exec_info *f, action *a, wire_value *w, const char *err)
  { int pos;
    process_state *meta_ps = f->meta_ps;
-   print_wire_exec(w, f);
-   pos = var_str_printf(&f->err, 0,
-                        "Error: %s transition on wire %s of process %s\n",
+   pos = var_str_printf(&f->err, 0, "Error: %s transition on wire %V\n",
                         IS_SET(w->flags, WIRE_value)? "Upward" : "Downward",
-                        f->scratch.s, meta_ps->nm);
+                        vstr_wire_context, w, meta_ps);
    if (a->cs->ps == f->meta_ps)
      { print_wire_exec(a->target.w, f);
        pos += var_str_printf(&f->err, pos, "  caused %s on wire %s\n",

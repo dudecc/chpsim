@@ -1,0 +1,11 @@
+Command line: ../../chpsim -batch hide_01.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: Downward transition on wire O.wire.d[0] of process /a
+  caused instability on wire x of process /b
+Error occurred: cannot continue
+(cmnd) where
+(cmnd) quit

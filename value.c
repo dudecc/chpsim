@@ -331,6 +331,36 @@ extern int vstr_wire(var_string *s, int pos, void *w, void *ps)
    return 0;
  }
 
+/* var_str_func2_tp: use as first arg for %V */
+extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps)
+ /* Print both w and the name of the reference frame of ps to s[pos...]
+  * This also handles the case when the real reference frame is hidden
+  */
+ { exec_info g;
+   var_decl *d;
+   port_value *pv;
+   char *ext;
+   exec_info_init(&g, 0);
+   g.meta_ps = ps;
+   print_wire_exec(w, &g);
+   if (is_visible(ps))
+     { var_str_printf(s, pos, "%s of process %s", g.scratch.s, g.meta_ps->nm); }
+   else
+     { ext = strchr(g.scratch.s, '.'); /* "Remove" local port name */
+       assert(ext);
+       d = llist_idx(&g.meta_ps->p->pl, 0);
+       if (g.meta_ps->var[d->var_idx].rep != REP_port)
+         { d = llist_idx(&g.meta_ps->p->pl, 1); }
+       assert(g.meta_ps->var[d->var_idx].rep == REP_port);
+       pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
+       assert(pv->dec);
+       var_str_printf(s, pos, "%v.%s%s of process %s", vstr_port, pv->p,
+                      pv->dec->id, ext, pv->p->ps->nm);
+     }
+   exec_info_term(&g);
+   return 0;
+ }
+
 static void print_port_exec(port_value *p, exec_info *f)
  /* Pre: f->meta_ps == p->ps: print the name of port p to f->scratch */
  { llist l = p->ps->p->pl;

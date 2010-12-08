@@ -201,6 +201,12 @@ extern void print_wire_value(wire_value *w, process_state *ps, print_info *f);
 extern int vstr_wire(var_string *s, int pos, void *w, void *ps);
  /* Print a name for w in the reference frame of ps to s[pos...] */
 
+/* var_str_func2_tp: use as first arg for %V */
+extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps);
+ /* Print both w and the name of the reference frame of ps to s[pos...]
+  * This also handles the case when the real reference frame is hidden
+  */
+
 extern void print_port_value(port_value *p, print_info *f);
  /* print the name of port p to f */
 

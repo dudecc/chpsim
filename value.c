@@ -126,24 +126,27 @@ extern void print_value_tp(value_tp *v, print_info *f)
                 print_value_tp(&v->v.u->v, f);
        break;
        case REP_port:
-                print_string("port --> ", f);
                 if (!v->v.p->p)
-                  { print_string("(disconnected)", f); }
+                  { print_string("disconnected port", f); }
                 else if (!is_visible(v->v.p->p->ps))
-                  { print_string("(wired decomposition)", f); }
+                  { assert(v->v.p->p->dec);
+                    print_string("port decomposed through field ", f);
+                    print_string(v->v.p->p->dec->id, f);
+                  }
                 else
-                  { print_string(v->v.p->p->ps->nm, f);
+                  { print_string("port --> ", f);
+                    print_string(v->v.p->p->ps->nm, f);
                     print_char(':', f);
                     print_port_value(v->v.p->p, f);
+                    if (!IS_SET(v->v.p->wprobe.flags, WIRE_value))
+                      { print_string(", # = false", f); }
+                    else if (v->v.p->v.rep)
+                      { print_string(", # = true, data = ", f);
+                        print_value_tp(&v->v.p->v, f);
+                      }
+                    else
+                      { print_string(", # = true", f); }
                   }
-                if (!IS_SET(v->v.p->wprobe.flags, WIRE_value))
-                  { print_string(", # = false", f); }
-                else if (v->v.p->v.rep)
-                  { print_string(", # = true, data = ", f);
-                    print_value_tp(&v->v.p->v, f);
-                  }
-                else
-                  { print_string(", # = true", f); }
        break;
        case REP_process:
                 print_string("process ", f);

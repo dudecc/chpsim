@@ -39,6 +39,7 @@ DEF_CLASS_B(int_subscript, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(array_subrange, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(field_of_record, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(field_of_union, expr, 0, 0, OBJ_zero);
+DEF_CLASS_B(debug_field_of_union, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(array_constructor, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(record_constructor, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(call, expr, 0, 0, OBJ_zero);

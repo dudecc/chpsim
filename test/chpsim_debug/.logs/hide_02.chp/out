@@ -1,0 +1,16 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /a at hide_02.chp[12:6]
+	O!0
+(cmnd?)   Wire is driven by output I.e of process /b
+(cmnd?) (view) /b at hide_02.chp[15:6]
+	*[I.e+; ... ]
+(cmnd?)   Wire is driven by output O.wire.d[0] of process /a
+(cmnd?)   Wire is driven by output O.wire.d[1] of process /a
+(cmnd?)   Wire is driven by output O.wire.d[2] of process /a
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+(cmnd) quit

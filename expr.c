@@ -605,8 +605,12 @@ static void *try_union(field_of_record *x, sem_info *f)
    uf->d = r;
    uf->id = r->id;
    uf->tp = r->tp;
-   if (!IS_SET(uf->flags, EXPR_port) || !IS_SET(f->flags, SEM_connect))
+   if (!IS_SET(uf->flags, EXPR_port))
+     { sem_error(f, x, "Union fields can only be accessed through ports"); }
+   if (!IS_SET(f->flags, SEM_connect | SEM_debug))
      { sem_error(f, x, "Cannot access a union field except with 'connect'"); }
+   if (IS_SET(f->flags, SEM_debug))
+     { uf->class = CLASS_debug_field_of_union; }
    if (uf->tp.kind == TP_wire)
      { SET_FLAG(uf->flags, EXPR_wire); }
    return uf;
@@ -2847,6 +2851,39 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
    push_value(&v, f);
  }
 
+static void eval_debug_field_of_union(debug_field_of_union *x, exec_info *f)
+/* Only called from the debug prompt - doesn't modify any connections */
+ { value_tp xv, v, *ve;
+   value_union *vu;
+   var_decl *d;
+   int dir;
+   eval_expr(x->x, f);
+   pop_value(&xv, f);
+   if (x->d->up.p->class == CLASS_process_def)
+     { if (!xv.rep || (xv.rep == REP_port && !xv.v.p->p))
+         { exec_error(f, x, "Port %v is not connected", vstr_obj, x->x); }
+       if (xv.rep != REP_port || xv.v.p->p->dec != x->d)
+         { exec_error(f, x, "Port %v is not decomposed via field %s",
+                      vstr_obj, x->x, x->id);
+         }
+       dir = !IS_SET(x->flags, EXPR_inport);
+       d = llist_idx(&xv.v.p->p->ps->p->pl, dir? 1 : 0);
+       alias_value_tp(&v, &xv.v.p->p->ps->var[d->var_idx], f);
+     }
+   else
+     { if (!xv.rep)
+         { exec_error(f, x, "Port %v is not connected", vstr_obj, x->x); }
+       if (xv.rep != REP_union ||
+           (xv.v.u->d != x->d->dn.f && xv.v.u->d != x->d->up.f))
+         { exec_error(f, x, "Port %v is not decomposed via field %s",
+                      vstr_obj, x->x, x->id);
+         }
+       alias_value_tp(&v, &xv.v.u->v, f);
+     }
+   clear_value_tp(&xv, f);
+   push_value(&v, f);
+ }
+
 static void assign_field_of_union(field_of_union *x, exec_info *f)
 /* Only used in connect statements */
  { value_tp v;
@@ -3249,6 +3286,7 @@ extern void init_expr(void)
    set_print(array_subrange);
    set_print(field_of_record);
    set_print(field_of_union);
+   set_print_cp(debug_field_of_union, field_of_union);
    set_print(array_constructor);
    set_print(record_constructor);
    set_print(call);
@@ -3290,6 +3328,7 @@ extern void init_expr(void)
    set_assign(field_of_record);
    set_eval(field_of_union);
    set_assign(field_of_union);
+   set_eval(debug_field_of_union);
    set_eval(array_constructor);
    /* eval_record_constructor = eval_array_constructor */
    set_eval_cp(record_constructor, array_constructor);

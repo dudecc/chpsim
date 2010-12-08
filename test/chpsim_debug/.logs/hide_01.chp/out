@@ -1,0 +1,22 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /a is an instance of hide_01.chp[10:0] A
+  O.wire = {(0), [(0), (0), (0)]}
+(active) /a at hide_01.chp[11:6]
+(cmnd?) (view) /a at hide_01.chp[11:6]
+	O!0
+(cmnd?)   O = port decomposed through field wire
+(cmnd?)   O.wire = {(0), [(0), (0), (0)]}
+(cmnd?) (cmnd?) (watch) /b:I.e up at time 20088
+(watch) /b:I.e down at time 67969
+(watch) /b:I.e up at time 106838
+(watch) /b:I.e down at time 173255
+(watch) /b:I.e up at time 355489
+(watch) /b:I.e down at time 355665
+(watch) /b:I.e up at time 380344
+--- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+(cmnd) quit

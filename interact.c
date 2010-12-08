@@ -102,6 +102,7 @@ static void sem_interact(expr **e, sem_flags flags, user_info *f)
    g.L = f->L;
    g.user = f;
    g.flags = flags;
+   SET_FLAG(g.flags, SEM_debug);
    if (f->cxt) g.cxt = f->cxt;
    else if (f->curr && !IS_SET(f->flags, USER_global))
      { g.cxt = f->curr->cxt; }
@@ -264,7 +265,8 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
  /* Pre: v->rep, v is a port or array/record/union of ports */
  { int i, pos = VAR_STR_LEN(&f->scratch);
    array_type *atps;
-   value_tp idxv;
+   var_decl *d;
+   value_tp idxv, *pv;
    record_type *rtps;
    record_field *rf;
    llist m;
@@ -319,7 +321,16 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
    else if (!v->v.p->p)
      { report(f, "  %s has been disconnected\n", f->scratch.s); }
    else if (!is_visible(v->v.p->p->ps))
-     { report(f, "  %s --> (wired decomposition)\n", f->scratch.s); }
+     { assert(v->v.p->p->dec);
+       d = llist_idx(&v->v.p->p->ps->p->pl, 0);
+       pv = &v->v.p->p->ps->var[d->var_idx];
+       if (pv->v.p == v->v.p->p)
+         { d = llist_idx(&v->v.p->p->ps->p->pl, 1);
+           pv = &v->v.p->p->ps->var[d->var_idx];
+         }
+       report(f, "  %s.%s = %v\n",
+              f->scratch.s, v->v.p->p->dec->id, vstr_val, pv);
+     }
    else
      { report(f, "  %s --> %s:%v\n", f->scratch.s,
               v->v.p->p->ps->nm, vstr_port, v->v.p->p);
@@ -1359,14 +1370,35 @@ static void wire_fanin(wire_value *w, user_info *f)
  { hash_table emap; /* maps wire_exprs to llist of fanins */
    int i, nr;
    process_state *ps;
+   var_decl *d;
+   port_value *pv;
    wire_expr *pu = 0, *pd = 0;
    print_info g;
+   char *ext;
+   ps = w->wframe->cs->ps;
    if (!IS_SET(w->wframe->flags, ACTION_is_pr))
-     { report(f, "  Wire has no fanins\n");
+     { if (ps->b->class != CLASS_chp_body && ps->b->class != CLASS_hse_body)
+         { report(f, "  Wire has no fanins\n"); }
+       else if (is_visible(ps))
+         { report(f, "  Wire is driven by output %V of process %s\n",
+                  vstr_wire, w, ps, ps->nm);
+         }
+       else
+         { vstr_wire(&f->scratch, 0, w, ps); /* get full wire name */
+           ext = strchr(f->scratch.s, '.'); /* "Remove" local port name */
+           assert(ext);
+           d = llist_idx(&ps->p->pl, 0);
+           if (ps->var[d->var_idx].rep != REP_port)
+             { d = llist_idx(&ps->p->pl, 1); }
+           assert(ps->var[d->var_idx].rep == REP_port);
+           pv = ps->var[d->var_idx].v.p; /* The "real" port */
+           assert(pv->dec);
+           report(f, "  Wire is driven by output %v.%s%s of process %s\n",
+                  vstr_port, pv->p, pv->dec->id, ext, pv->p->ps->nm);
+         }
        return;
      }
    hash_table_init(&emap, 1, HASH_ptr_is_key, (hash_func*)emap_delete);
-   ps = w->wframe->cs->ps;
    for (i = 0; i < ps->nr_var; i++)
      { _wire_fanin(&ps->var[i], &emap, &pu, &pd, w); }
    nr = 0; if (pu) nr++; if (pd) nr++;

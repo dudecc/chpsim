@@ -1,0 +1,17 @@
+//r
+//p /a
+//v /a
+//p O
+//p O.wire
+//watch O.wire.e
+
+requires "channel.chp";
+
+process A()(O!:std1of3)
+chp { O!0; O!1; O!2 }
+
+process B()(I?:e1of3)
+hse { *[I.e+;[I.d[0]|I.d[1]|I.d[2]];I.e-;[~(I.d[0]|I.d[1]|I.d[2])]] }
+
+process main()()
+meta { instance a:A; instance b:B; connect a.O.wire, b.I; }

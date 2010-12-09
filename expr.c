@@ -2559,8 +2559,7 @@ static void eval_field_of_record(field_of_record *x, exec_info *f)
        f->meta_ps = v.v.ps;
      }
    else if (v.rep == REP_port)
-     { assert(IS_SET(f->flags, EVAL_connect));
-       if (!v.v.p->p) /* double connection error */
+     { if (!v.v.p->p) /* double connection error */
          { push_value(&v, f);
            return;
          }
@@ -2654,7 +2653,7 @@ static void wu_reload(field_of_union *x, port_value *p, int dir, exec_info *f)
  * the decomposed port. Otherwise, throw an appropriate error.
  */
  { var_decl *d;
-   value_tp v;
+   value_tp v, *ve;
    if (!p->dec)
      { exec_error(f, x, "Port %v is already connected to %s",
                   vstr_obj, x->x, p->ps->nm);
@@ -2667,7 +2666,10 @@ static void wu_reload(field_of_union *x, port_value *p, int dir, exec_info *f)
      { alias_value_tp(&v, &p->v, f); }
    else
      { d = llist_idx(&p->ps->p->pl, dir? 1 : 0);
-       alias_value_tp(&v, &p->ps->var[d->var_idx], f);
+       ve = &p->ps->var[d->var_idx];
+       if (!ve->rep && IS_SET(f->flags, EVAL_lvalue))
+         { force_value(ve, (expr*)x, f); }
+       alias_value_tp(&v, ve, f);
        f->meta_ps = p->ps; /* Used by get_wire_connect */
      }
    push_value(&v, f);
@@ -2720,7 +2722,7 @@ extern void wu_proc_remove(value_tp *v, int dir, exec_info *f)
  }
 
 static void eval_wired_union_field(field_of_union *x, exec_info *f)
- { value_tp v;
+ { value_tp v, *ve;
    process_state *ps;
    port_value *p;
    var_decl *d;
@@ -2794,7 +2796,10 @@ static void eval_wired_union_field(field_of_union *x, exec_info *f)
        ps->nm = make_str(f->scratch.s);
      }
    d = llist_idx(&ps->p->pl, dir? 1 : 0);
-   alias_value_tp(&v, &ps->var[d->var_idx], f);
+   ve = &ps->var[d->var_idx];
+   if (!ve->rep && IS_SET(f->flags, EVAL_lvalue))
+     { force_value(ve, (expr*)x, f); }
+   alias_value_tp(&v, ve, f);
    f->meta_ps = ps; /* Used by get_wire_connect */
    push_value(&v, f);
  }

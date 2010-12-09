@@ -1,0 +1,8 @@
+Command line: ../../chpsim -batch pdecomp7.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) quit

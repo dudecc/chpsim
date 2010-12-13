@@ -329,7 +329,7 @@ static void *sem_symbol_type(symbol_type *x, sem_info *f)
    while (!llist_is_empty(&m))
      { nm = llist_head(&m);
        if (nm->id == lastnm)
-         { sem_error(f, "Symbol type has duplicate symbol `%s", lastnm); }
+         { sem_error(f, x, "Symbol type has duplicate symbol `%s", lastnm); }
        lastnm = nm->id;
        m = llist_alias_tail(&m);
      }

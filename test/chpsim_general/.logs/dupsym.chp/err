@@ -1,0 +1,3 @@
+Command line: ../../chpsim -batch dupsym.chp
+
+dupsym.chp[1:9] Error: Symbol type has duplicate symbol `A

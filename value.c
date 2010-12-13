@@ -128,24 +128,22 @@ extern void print_value_tp(value_tp *v, print_info *f)
        case REP_port:
                 if (!v->v.p->p)
                   { print_string("disconnected port", f); }
-                else if (!is_visible(v->v.p->p->ps))
-                  { assert(v->v.p->p->dec);
-                    print_string("port decomposed through field ", f);
+                else if (!is_visible(v->v.p->p->ps) && v->v.p->p->dec)
+                  { print_string("port decomposed through field ", f);
                     print_string(v->v.p->p->dec->id, f);
                   }
                 else
                   { print_string("port --> ", f);
-                    print_string(v->v.p->p->ps->nm, f);
-                    print_char(':', f);
-                    print_port_value(v->v.p->p, f);
-                    if (!IS_SET(v->v.p->wprobe.flags, WIRE_value))
-                      { print_string(", # = false", f); }
-                    else if (v->v.p->v.rep)
-                      { print_string(", # = true, data = ", f);
-                        print_value_tp(&v->v.p->v, f);
+                    if (!print_port_connect(v->v.p->p, f))
+                      { if (!IS_SET(v->v.p->wprobe.flags, WIRE_value))
+                          { print_string(", # = false", f); }
+                        else if (v->v.p->v.rep)
+                          { print_string(", # = true, data = ", f);
+                            print_value_tp(&v->v.p->v, f);
+                          }
+                        else
+                          { print_string(", # = true", f); }
                       }
-                    else
-                      { print_string(", # = true", f); }
                   }
        break;
        case REP_process:
@@ -397,6 +395,63 @@ extern int vstr_port(var_string *s, int pos, void *p)
    exec_info_term(&g);
    return 0;
  }
+
+extern int print_port_connect(port_value *p, print_info *f)
+/* Print (process name):(port_name), where port name may include one or
+ * more levels of decomposition.  If disconnected, print "disconnected"
+ * and return 1, otherwise return 0;
+ */
+ { exec_info g;
+   value_tp *pv;
+   var_decl *d;
+   char *rs, *is;
+   if (!p)
+     { print_string("(disconnected)", f);
+       return 1;
+     }
+   else if (!is_visible(p->ps))
+     { assert(!p->dec);
+       d = llist_idx(&p->ps->p->pl, 0);
+       pv = &p->ps->var[d->var_idx];
+       if (pv->rep != REP_port || !pv->v.p->dec)
+         { d = llist_idx(&p->ps->p->pl, 0);
+           pv = &p->ps->var[d->var_idx];
+         }
+       assert(pv->rep == REP_port && pv->v.p->dec);
+       if (print_port_connect(pv->v.p->p, f)) return 1;
+       print_char('.', f);
+       print_string(pv->v.p->dec->id, f);
+       exec_info_init(&g, 0);
+       g.meta_ps = p->ps;
+       print_port_exec(p, &g);
+       rs = strchr(g.scratch.s, '.');
+       is = strchr(g.scratch.s, '[');
+       if (rs && (!is || is > rs))
+         { print_string(rs, f); }
+       else if (is && (!rs || rs > is))
+         { print_string(is, f); }
+       exec_info_term(&g);
+     }
+   else
+     { print_string(p->ps->nm, f);
+       print_char(':', f);
+       print_port_value(p, f);
+     }
+   return 0;
+ }
+
+/* var_str_func_tp: use as first arg for %v */
+extern int vstr_port_connect(var_string *s, int pos, void *p)
+ /* print p to s[pos...] (see print_port_connect) */
+ { print_info f;
+   print_info_init(&f);
+   f.s = s; f.pos = pos;
+   print_port_connect(p, &f);
+   VAR_STR_X(f.s, f.pos) = 0;
+   return 0;
+ }
+
+
 
 extern value_list *new_value_list(int size, exec_info *f)
  /* allocate new list with given size */

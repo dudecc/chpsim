@@ -2,7 +2,7 @@
 --- instantiation ----------------------
 (cmnd?) --- CHP execution ----------------------
 (cmnd?)   /a is an instance of hide_01.chp[10:0] A
-  O.wire = {(0), [(0), (0), (0)]}
+  O.wire (wired)
 (active) /a at hide_01.chp[11:6]
 (cmnd?) (view) /a at hide_01.chp[11:6]
 	O!0

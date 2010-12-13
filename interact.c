@@ -316,25 +316,27 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
      { var_str_printf(&f->scratch, pos, ".%s", v->v.u->f->id);
        show_conn_aux(&v->v.u->v, &v->v.u->f->tp, f);
      }
+   else if (v->rep == REP_wire)
+     { report(f, "  %s = %v", f->scratch.s, vstr_val, v); }
    else if (v->rep != REP_port)
      { report(f, "  %s has not been connected\n", f->scratch.s); }
    else if (!v->v.p->p)
      { report(f, "  %s has been disconnected\n", f->scratch.s); }
-   else if (!is_visible(v->v.p->p->ps))
-     { assert(v->v.p->p->dec);
-       d = llist_idx(&v->v.p->p->ps->p->pl, 0);
+   else if (!is_visible(v->v.p->p->ps) && v->v.p->p->dec)
+     { d = llist_idx(&v->v.p->p->ps->p->pl, 0);
        pv = &v->v.p->p->ps->var[d->var_idx];
        if (pv->v.p == v->v.p->p)
          { d = llist_idx(&v->v.p->p->ps->p->pl, 1);
            pv = &v->v.p->p->ps->var[d->var_idx];
          }
-       report(f, "  %s.%s = %v\n",
-              f->scratch.s, v->v.p->p->dec->id, vstr_val, pv);
+       var_str_printf(&f->scratch, pos, ".%s", v->v.p->p->dec->id);
+       meta_ps = f->global->meta_ps;
+       f->global->meta_ps = v->v.p->p->ps;
+       show_conn_aux(pv, &d->tp, f);
+       f->global->meta_ps = meta_ps;
      }
    else
-     { report(f, "  %s --> %s:%v\n", f->scratch.s,
-              v->v.p->p->ps->nm, vstr_port, v->v.p->p);
-     }
+     { report(f, "  %s --> %v\n", f->scratch.s, vstr_port_connect, v->v.p->p); }
  }
 
 static void show_connections(process_state *ps, user_info *f)

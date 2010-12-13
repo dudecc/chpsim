@@ -2901,12 +2901,12 @@ static void assign_field_of_union(field_of_union *x, exec_info *f)
        assert(v.rep == REP_port);
        if (v.v.p->p)
          { dir = !IS_SET(x->flags, EXPR_inport);
-           assert(v.v.p->p->dec = x->d);
+           assert(v.v.p->p->dec == x->d);
            f->meta_ps = ps = v.v.p->p->ps;
          }
        else
          { dir = IS_SET(x->flags, EXPR_inport);
-           assert(v.v.p->dec = x->d);
+           assert(v.v.p->dec == x->d);
            if (v.v.p->v.rep) return;
            f->meta_ps = ps = v.v.p->ps;
          }

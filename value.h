@@ -214,6 +214,16 @@ extern void print_port_value(port_value *p, print_info *f);
 extern int vstr_port(var_string *s, int pos, void *p);
  /* print the name of port p to s[pos...] */
 
+extern int print_port_connect(port_value *p, print_info *f);
+/* Print (process name):(port_name), where port name may include one or
+ * more levels of decomposition.  If disconnected, print "disconnected"
+ * and return 1, otherwise return 0;
+ */
+
+/* var_str_func_tp: use as first arg for %v */
+extern int vstr_port_connect(var_string *s, int pos, void *p);
+ /* print p to s[pos...] (see print_port_connect) */
+
 /********** expression evaluation ********************************************/
 
 extern void eval_expr(void *obj, struct exec_info *f);

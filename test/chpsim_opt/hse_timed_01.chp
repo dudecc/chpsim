@@ -1,5 +1,4 @@
 //-timed
-requires "builtin-2.0.chp";
 process sink()(I? : (e-;d-))
 hse { *[I.e+;[I.d];I.e-;[~I.d]] }
 delay {

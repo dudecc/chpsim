@@ -6,6 +6,6 @@ Command line: ../../chpsim -batch -timed hse_timed_01.chp
 --- error ------------------------------
 Error: deadlock
 (cmnd) where
-/b at hse_timed_01.chp[4:13]
+/b at hse_timed_01.chp[3:13]
 	[I.d]
 (cmnd) quit

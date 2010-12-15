@@ -1,5 +1,4 @@
 //-timed
-requires "builtin-2.0.chp";
 requires "channel.chp";
 
 const N = 100;

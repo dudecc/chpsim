@@ -32,3 +32,12 @@ CHP
     [] ~cond -> error("Assertion failed");
     ]
   }
+
+// Return the current simulation time (debugging purposes only please)
+export function time() : int
+BUILTIN
+
+// Return a random integer between 0 and N-1
+// Note that this uses the same generator as the random timing model
+export function random(N : int) : int
+BUILTIN

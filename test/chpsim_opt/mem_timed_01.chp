@@ -1,5 +1,4 @@
 //-timed
-requires "builtin-2.0.chp";
 requires "channel.chp";
 process mem(ROM[0..7]:{0..15})(A? : e1of8; D[0..3]! : e1of2)
 hse { var a : {0..7}; A.e+;

@@ -47,6 +47,7 @@ extern void user_info_init(user_info *f)
    lex_tp_init(f->L);
    f->L->fin = stdin;
    f->L->fin_nm = "(interaction)";
+   SET_FLAG(f->L->flags, LEX_readline);
    llist_init(&f->old_L);
    llist_init(&f->cmds);
    llist_init(&f->procs);
@@ -1773,9 +1774,7 @@ extern token_tp prompt_user(user_info *f, const char *prompt)
      { return fake_prompt(f, prompt); }
    else if (IS_SET(f->flags, USER_quit))
      { exit(0); }
-   fprintf(stdout, "%s", prompt);
-   fflush(stdout);
-   t = lex_start_cmnd(f->L);
+   t = lex_prompt_cmnd(f->L, prompt);
    if (f->log)
      { fprintf(f->log, "%s%s", prompt, f->L->line.s); }
    if (f->old_L) /* source file, not stdin */
@@ -1851,8 +1850,7 @@ extern void interact(exec_info *g, const str *deflt)
             f->L = llist_idx_extract(&f->old_L, 0);
             continue;
           }
-        else if (t == TOK_eof && feof(f->L->fin))
-          /* TOK_eof also happens with read errors, especially ctrl-C */
+        else if (t == TOK_eof)
           { cmnd = make_str("batch"); }
         else if (t == TOK_nl || t == TOK_eof)
           { f->L->curr->t.tp = TOK_nl; cmnd = deflt; }

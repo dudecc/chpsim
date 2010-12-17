@@ -191,8 +191,8 @@ CLIBDIR = clib
 SUBDIRS = $(CLIBDIR)
 AM_CFLAGS = -I$(CLIBDIR) -DPKGDATADIR='"$(pkgdatadir)"'
 
-# Include GMP and math
-LDADD = $(CLIBDIR)/libalways.a -lgmp -lm
+# Include readline, GMP and math
+LDADD = $(CLIBDIR)/libalways.a -lreadline -lgmp -lm
 chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
                  modules.c parse.c parse_obj.c print.c routines.c \
                  sem_analysis.c statement.c types.c value.c variables.c \

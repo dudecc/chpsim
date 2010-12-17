@@ -6,8 +6,8 @@ SUBDIRS = $(CLIBDIR)
 AM_CFLAGS = -I$(CLIBDIR)
 LDADD = $(CLIBDIR)/libalways.a
 
-# Include GMP and math
-LDADD += -lgmp -lm
+# Include readline, GMP and math
+LDADD += -lreadline -lgmp -lm
 
 bin_PROGRAMS = chpsim
 chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \

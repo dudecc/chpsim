@@ -101,13 +101,13 @@
 #define PACKAGE_NAME "chpsim"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "chpsim full-2.0-beta"
+#define PACKAGE_STRING "chpsim 2.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "chpsim"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "full-2.0-beta"
+#define PACKAGE_VERSION "2.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -124,7 +124,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "full-2.0-beta"
+#define VERSION "2.0"
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

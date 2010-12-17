@@ -67,7 +67,8 @@ typedef struct token_info
 
 FLAGS(lex_flags)
    { FIRST_FLAG(LEX_cmnd), /* reading interactive commands */
-     NEXT_FLAG(LEX_cmnd_kw) /* recognize keywords on debug prompt */
+     NEXT_FLAG(LEX_cmnd_kw), /* recognize keywords on debug prompt */
+     NEXT_FLAG(LEX_readline) /* Use readline instead of gets */
    };
 
 typedef struct lex_tp
@@ -94,10 +95,10 @@ extern void lex_start(lex_tp *L);
     Resets L to start reading a new file, then reads first token.
  */
 
-extern token_tp lex_start_cmnd(lex_tp *L);
+extern token_tp lex_prompt_cmnd(lex_tp *L, const char *prompt);
  /* Pre: L has been initialized;
 	 L->fin is open for reading.
-    Reads a new line of input and scans and returns the first token.
+    Prompt for a new line of input and scans and returns the first token.
  */
 
 extern void lex_tp_term(lex_tp *L);

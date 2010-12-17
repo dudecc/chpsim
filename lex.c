@@ -9,6 +9,9 @@
 #include <ascii.h>
 #include <string_table.h>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #define INLINE_LEX_C
 #include "lex.h"
 
@@ -223,13 +226,31 @@ static char *read_line(lex_tp *L)
    return L->c;
  }
 
-extern token_tp lex_start_cmnd(lex_tp *L)
+extern token_tp lex_prompt_cmnd(lex_tp *L, const char *prompt)
  /* Pre: L has been initialized;
 	 L->fin is open for reading.
-    Reads a new line of input and scans and returns the first token.
+    Prompt for a new line of input and scans and returns the first token.
  */
- { RESET_FLAG(L->flags, LEX_cmnd);
-   if (!read_line(L)) return TOK_eof;
+ { char *line;
+   if (IS_SET(L->flags, LEX_readline))
+     { line = readline(prompt);
+       if (!line)
+         { VAR_STR_X(&L->line, 0) = 0;
+           return TOK_eof;
+         }
+       if (*line) add_history(line);
+       var_str_copy(&L->line, line);
+       var_str_cat(&L->line, "\n");
+       free(line);
+       L->lnr++;
+       L->c = L->line.s;
+     }
+   else
+     { fprintf(stdout, "%s", prompt);
+       fflush(stdout);
+       RESET_FLAG(L->flags, LEX_cmnd);
+       if (!read_line(L)) return TOK_eof;
+     }
    SET_FLAG(L->flags, LEX_cmnd);
    lex_next(L);
    return L->curr->t.tp;

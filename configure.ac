@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([chpsim], [full-2.0-beta], [cc@async.caltech.edu])
+AC_INIT([chpsim], [2.0], [cc@async.caltech.edu])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([exec.h])
 AC_CONFIG_HEADER([config.h])
@@ -17,6 +17,13 @@ AC_CHECK_HEADER(gmp.h)
 if test "$ac_cv_header_gmp_h" == no
 then
   AC_MSG_ERROR([Chpsim requires the GMP library.])
+fi
+
+AC_CHECK_HEADER(readline/readline.h)
+AC_CHECK_HEADER(readline/history.h)
+if test "$ac_cv_header_readline_h" == no || "$ac_cv_header_history_h" == no
+then
+  AC_MSG_ERROR([Chpsim requires the Readline library.])
 fi
 
 # Checks for header files.

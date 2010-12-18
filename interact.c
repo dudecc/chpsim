@@ -21,6 +21,8 @@
 #include "parse.h"
 #include <errno.h>
 
+#include <readline/readline.h>
+
 /*extern*/ int app_brk = -1;
 
 static int is_prefix(const char *p, const char *s)
@@ -1535,12 +1537,18 @@ static int cmnd_batch(user_info *f)
 static int cmnd_source(user_info *f)
  { FILE *cmnd_file;
    const str *cmnd_fnm;
-   if (!lex_have_next(f->L, TOK_string) && !lex_have_next(f->L, TOK_id))
-     { report(f, "  Usage: source \"filename\"\n");
+   SET_FLAG(f->L->flags, LEX_filename);
+   lex_redo(f->L);
+   if (!lex_have_next(f->L, TOK_string) || !lex_have(f->L, TOK_nl))
+     { report(f, "  Usage: source [\"]filename[\"]\n");
+       RESET_FLAG(f->L->flags, LEX_filename);
+       lex_redo(f->L);
        return 2;
      }
    cmnd_fnm = f->L->prev->t.val.s;
    cmnd_file = fopen(cmnd_fnm, "r");
+   RESET_FLAG(f->L->flags, LEX_filename);
+   lex_redo(f->L);
    if (!cmnd_file)
      { report(f, "  Could not open file %s\n", cmnd_fnm);
        return 2;
@@ -1684,15 +1692,17 @@ static cmnd_entry cmnd_list[] =
      { "help", "h", cmnd_help, "!help [command] - command summary" }
    };
 
+#define NR_CMND CONST_ARRAY_SIZE(cmnd_list)
+
 static cmnd_entry *find_cmnd(const str *cmnd)
  /* Find command */
  { int i;
    cmnd_entry *e;
-   for (i = 0; i < CONST_ARRAY_SIZE(cmnd_list); i++)
+   for (i = 0; i < NR_CMND; i++)
      { if (cmnd_list[i].cmnd == cmnd)
          { return &cmnd_list[i]; }
      }
-   for (i = 0; i < CONST_ARRAY_SIZE(cmnd_list); i++)
+   for (i = 0; i < NR_CMND; i++)
      { e = &cmnd_list[i];
        if (e->prefix && is_prefix(e->prefix, cmnd) && is_prefix(cmnd, e->cmnd))
          { return e; }
@@ -1712,7 +1722,7 @@ static int cmnd_help(user_info *f)
            return 1;
          }
      }
-   for (i = 0; i < CONST_ARRAY_SIZE(cmnd_list); i++)
+   for (i = 0; i < NR_CMND; i++)
      { e = &cmnd_list[i];
        if (*e->help != '!')
          { report(f, "  %s: \t%s\n", e->cmnd, e->help); }
@@ -1991,12 +2001,31 @@ extern void show_path(user_info *f)
  }
 
 
-/********** startup **********************************************************/
+/********** readline/startup *************************************************/
+
+static char *command_generator(const char *text, int state)
+ { static int len, idx;
+   if (!state)
+     { len = strlen(text);
+       idx = 0;
+     }
+   else idx++;
+   while (idx < NR_CMND && strncmp(cmnd_list[idx].cmnd, text, len)) idx++;
+   return (idx < NR_CMND)? strdup(cmnd_list[idx].cmnd) : 0;
+ }
+
+static char **interact_completion(const char *text, int start, int end)
+ { if (start == 0)
+     { return rl_completion_matches(text, command_generator); }
+   return 0;
+ }
 
 extern void init_interact(int app)
  /* call at startup; pass unused object app index */
  { int i;
-   for (i = 0; i < CONST_ARRAY_SIZE(cmnd_list); i++)
+   for (i = 0; i < NR_CMND; i++)
      { cmnd_list[i].cmnd = make_str(cmnd_list[i].cmnd); }
    app_brk = app;
+   rl_readline_name = "Chpsim";
+   rl_attempted_completion_function = interact_completion;
  }

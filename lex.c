@@ -651,6 +651,34 @@ static void scan_string(lex_tp *L)
    L->c = c;
  }
 
+static void scan_filename(lex_tp *L)
+ /* Pre: L is at first character of filename
+    Scan till first unescaped space
+ */
+ { char *c = L->c;
+   int i = 0;
+   L->curr->t.tp = TOK_string;
+   while (*c != '\n' && *c != ' ')
+     { if (*c != '\\')
+         { VAR_STR_X(&L->scratch, i) = *c; i++;
+	   c++;
+	 }
+       else if (c[1] == ' ')
+         { VAR_STR_X(&L->scratch, i) = ' '; i++;
+	   c+=2;
+	 }
+       else
+         { L->c = c;
+	   VAR_STR_X(&L->scratch, i) = scan_escape(L); i++;
+	   c = L->c;
+	 }
+     }
+   VAR_STR_X(&L->scratch, i) = 0;
+   L->curr->t.val.s = strdup(L->scratch.s);
+   L->c = c;
+ }
+
+
 
 /********** comments *********************************************************/
 
@@ -702,7 +730,17 @@ extern void lex_next(lex_tp *L)
    L->curr->lnr = L->lnr;
    L->curr->start_pos = c - L->line.s;
    L->curr->end_pos = 0;
-   if (isalpha(*c) || *c == '_')
+   if (IS_SET(L->flags, LEX_filename))
+     { if (*c == '"')
+         { scan_string(L); }
+       else if (*c == '\n')
+         { L->curr->t.tp = TOK_nl;
+           *c = 0;
+         }
+       else
+         { scan_filename(L); }
+     }
+   else if (isalpha(*c) || *c == '_')
      { scan_id_kw(L); }
    else if (*c == '`')
      { scan_tok_symbol(L); }

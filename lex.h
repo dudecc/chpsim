@@ -68,6 +68,7 @@ typedef struct token_info
 FLAGS(lex_flags)
    { FIRST_FLAG(LEX_cmnd), /* reading interactive commands */
      NEXT_FLAG(LEX_cmnd_kw), /* recognize keywords on debug prompt */
+     NEXT_FLAG(LEX_filename), /* parse in filenames as strings */
      NEXT_FLAG(LEX_readline) /* Use readline instead of gets */
    };
 

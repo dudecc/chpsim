@@ -1850,7 +1850,7 @@ extern void interact(exec_info *g, const str *deflt)
         llist_init(&f->L->alloc_list);
         if (setjmp(err_jmp))
           { parse_cleanup(f->L);
-            f->L->flags = LEX_cmnd;
+            RESET_FLAG(f->L->flags, LEX_cmnd_kw | LEX_filename);
             RESET_FLAG(f->flags, USER_global);
             e = 0;
             continue;

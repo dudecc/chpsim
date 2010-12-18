@@ -1,0 +1,4 @@
+//p badvar
+//p	"readline01.c	
+
+process main()() meta { }

@@ -1,0 +1,17 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /a at hide_04.chp[8:6]
+	[false]
+(cmnd?) 2 fanouts:
+O.wire.d[0] -> /b:I.e-
+~O.wire.d[0] -> /b:I.e+
+(cmnd?) --- error ------------------------------
+Error: deadlock
+  1 threads are permanently suspended:
+(susp-perm) /a at hide_04.chp[8:6]
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/a at hide_04.chp[8:6]
+	[false]
+(cmnd) quit

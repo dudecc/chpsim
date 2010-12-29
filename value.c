@@ -213,8 +213,9 @@ static int _print_wire_value
    record_field *rf;
    wired_type *wtps;
    wire_decl *wd;
+   var_decl *d;
    int pos = VAR_STR_LEN(&f->scratch);
-   process_state *meta_ps;
+   process_state *meta_ps, *ps;
    meta_parameter *mp;
    type_value *tpv;
    if (tp && tp->kind == TP_generic)
@@ -276,7 +277,21 @@ static int _print_wire_value
          clear_value_tp(&idxv, f);
        return 0;
        case REP_port:
-       return w == &v->v.p->wprobe || w == &v->v.p->p->wprobe;
+         if (w == &v->v.p->wprobe) return 1;
+         else if (v->v.p->p)
+           { if (w == &v->v.p->p->wprobe) return 1;
+             if (!v->v.p->p->dec) return 0;
+             var_str_printf(&f->scratch, pos, ".%s", v->v.p->p->dec->id);
+             meta_ps = f->meta_ps;
+             f->meta_ps = ps = v->v.p->p->ps;
+             d = llist_idx(&ps->p->pl, 0);
+             if (ps->var[d->var_idx].v.p == v->v.p->p)
+               { d = llist_idx(&ps->p->pl, 1); }
+             res = _print_wire_value(&ps->var[d->var_idx], &d->tp, w, f);
+             f->meta_ps = meta_ps;
+             return res;
+           }
+       return 0;
        case REP_wire:
        return w == v->v.w;
        default:

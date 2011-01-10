@@ -1,0 +1,14 @@
+function tobit4(x : {0..15}) : array [0..4] of {0..3}
+chp { <<; i : 0..1 : tobit4[i] := x[2*i..2*i+1] >> }
+function frombit4(x[0..1] : {0..3}) : {0..15}
+chp { <<; i : 0..1 : frombit4[2*i..2*i+1] := x[i] >> }
+
+export type bit4 = union { default : {0..15};
+                           q {tobit4, frombit4} : array [0..1] of {0..3};
+                         };
+
+process A()(I?, O! : bit4) chp { }
+
+process main()()
+meta { instance a : A; connect all i : 0..1 : a.I.q[i], a.O.q[i]; }
+

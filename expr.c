@@ -2808,10 +2808,14 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
 /* Only used in connect statements */
  { value_tp v, *ve;
    value_union *vu;
+   exec_flags flags;
    if (x->d->up.p->class == CLASS_process_def)
      { eval_wired_union_field(x, f); return; }
+   flags = f->flags;
+   RESET_FLAG(f->flags, EVAL_lvalue);
    eval_expr(x->x, f);
    pop_value(&v, f);
+   ASSIGN_FLAG(f->flags, flags, EVAL_lvalue);
    if (!v.rep && IS_SET(f->flags, EVAL_lvalue))
      { v.rep = REP_union;
        v.v.u = vu = new_value_union(f);

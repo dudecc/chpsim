@@ -429,7 +429,7 @@ extern int print_port_connect(port_value *p, print_info *f)
        d = llist_idx(&p->ps->p->pl, 0);
        pv = &p->ps->var[d->var_idx];
        if (pv->rep != REP_port || !pv->v.p->dec)
-         { d = llist_idx(&p->ps->p->pl, 0);
+         { d = llist_idx(&p->ps->p->pl, 1);
            pv = &p->ps->var[d->var_idx];
          }
        assert(pv->rep == REP_port && pv->v.p->dec);

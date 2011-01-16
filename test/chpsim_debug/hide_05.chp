@@ -1,0 +1,28 @@
+//r
+//p /a[2]
+//v /a[2]
+//p O
+//p /b
+//v /b
+//p I
+//p I.d
+
+
+process toquad()(I? : {0..255}; O[0..3]! : {0..3})
+chp { var x : {0..255}; I?x; <<, i : 0..3 : O[i]!x[2*i..2*i+1] >> }
+
+process fromquad()(I[0..3]? : {0..3}; O! : {0..255})
+chp { var x : {0..255}; <<, i : 0..3 : I[i]?x[2*i..2*i+1] >>; O!x }
+
+type byte = union { default : {0..255};
+                    d { toquad, fromquad } : array [0..3] of {0..3};
+                  };
+
+process A()(O!:{0..3})
+chp { O!0; O!1; O!3 }
+
+process B()(I?:byte)
+chp { [#{I:I=0}]; I; [#{I:I=85}]; I; [#{I:I=255}]; I }
+
+process main()()
+meta { instance a[0..3]:A; instance b:B; connect all i : 0..3 : b.I.d[i], a[i].O; }

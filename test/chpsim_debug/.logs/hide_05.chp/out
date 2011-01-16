@@ -1,0 +1,26 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /a[2] is an instance of hide_05.chp[21:0] A
+  O --> /b:I.d[2]
+(active) /a[2] at hide_05.chp[22:6]
+(cmnd?) (view) /a[2] at hide_05.chp[22:6]
+	O!0
+(cmnd?)   O = port --> /b:I.d[2], # = false
+(cmnd?)   /b is an instance of hide_05.chp[24:0] B
+  I.d[0] --> /a[0]:O
+  I.d[1] --> /a[1]:O
+  I.d[2] --> /a[2]:O
+  I.d[3] --> /a[3]:O
+(active) /b at hide_05.chp[25:6]
+(cmnd?) (view) /b at hide_05.chp[25:6]
+	[#{I : I = 0}]
+(cmnd?)   I = port decomposed through field d
+(cmnd?)   I.d = [port --> /a[0]:O, # = false, port --> /a[1]:O, # = false, port --> /a[2]:O, # = false, port --> /a[3]:O, # = false]
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/b at hide_05.chp[25:21]
+	[#{I : I = 85}]
+(cmnd) quit

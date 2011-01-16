@@ -380,28 +380,29 @@ extern void run_checks(wire_value *w, exec_info *f)
 extern void sched_instance(ctrl_state *cs, exec_info *f)
 /* Only use this for instances during instantiation */
  { process_def *p = cs->ps->p;
+   llist_prepend(&f->user->wait, cs);
+   cs->cxt = p->cxt;
+ }
+
+extern void sched_instance_real(ctrl_state *cs, exec_info *f)
+/* Only use this during instantiation when nothing is scheduled */
+ { process_def *p = cs->ps->p;
    void *b;
    exec_info *g;
-   if (IS_SET(f->flags, EXEC_single)) /* Don't schedule */
-     { llist_prepend(&f->user->wait, cs);
-       cs->cxt = p->cxt;
-     }
+   assert(cs->ps->nr_thread == -1);
+   cs->ps->nr_thread = 1;
+   if (p->mb && !IS_SET(f->flags, EXEC_sequential))
+     { b = p->mb; }
+   else if (p->pb) b = p->pb;
+   else if (p->hb) b = p->hb;
+   else if (p->cb) b = p->cb;
+   else b = p->mb;
+   cs->ps->b = b;
+   cs->cxt = cs->ps->b->cxt;
+   if (b == p->mb)
+     { insert_sched(cs, f); }
    else
-     { assert(cs->ps->nr_thread == -1);
-       cs->ps->nr_thread = 1;
-       if (p->mb && !IS_SET(f->flags, EXEC_sequential))
-         { b = p->mb; }
-       else if (p->pb) b = p->pb;
-       else if (p->hb) b = p->hb;
-       else if (p->cb) b = p->cb;
-       else b = p->mb;
-       cs->ps->b = b;
-       cs->cxt = cs->ps->b->cxt;
-       if (b == p->mb)
-         { insert_sched(cs, f); }
-       else
-         { llist_prepend(&f->chp, cs); }
-     }
+     { llist_prepend(&f->chp, cs); }
  }
 
 extern ctrl_state *nested_seq(llist *l, exec_info *f)
@@ -490,10 +491,8 @@ extern void exec_run(exec_info *f)
                interact(f, make_str("instantiate"));
              }
            else
-             { while (!llist_is_empty(&f->user->wait))
-                 { f->curr = llist_idx_extract(&f->user->wait, 0);
-                   sched_instance(f->curr, f);
-                 }
+             { f->curr = llist_idx_extract(&f->user->wait, 0);
+               sched_instance_real(f->curr, f);
              }
            continue;
          }

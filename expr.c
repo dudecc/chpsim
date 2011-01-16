@@ -1826,7 +1826,10 @@ static value_tp *find_ref_aux(port_value *p, value_tp *v, exec_info *f)
        case REP_union:
          return find_ref_aux(p, &v->v.u->v, f);
        case REP_port:
-         return (v->v.p==p)? v : 0;
+         if (v->v.p == p) return v;
+         if (!v->v.p->p && v->v.p->v.rep)
+           { return find_ref_aux(p, &v->v.p->v, f); }
+         return 0;
        default:
          return 0;
      }
@@ -2051,6 +2054,7 @@ static void assign_array_subscript(array_subscript *x, exec_info *f)
    eval_expr(x->x, f);
    RESET_FLAG(f->flags, EVAL_lvalue);
    pop_value(&xxval, f);
+   assert(xxval.rep == REP_array);
    if (!idxval.rep)
      { exec_error(f, x->idx, "Unknown index [%v]", vstr_obj, x->idx); }
    atps = (array_type*)x->x->tp.tps;
@@ -2449,6 +2453,7 @@ static void assign_array_subrange(array_subrange *x, exec_info *f)
    eval_expr(x->x, f);
    RESET_FLAG(f->flags, EVAL_lvalue);
    pop_value(&xxval, f);
+   assert(xxval.rep == REP_array);
    eval_expr(x->l, f);
    pop_value(&lidxval, f);
    eval_expr(x->h, f);
@@ -2816,6 +2821,16 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
    eval_expr(x->x, f);
    pop_value(&v, f);
    ASSIGN_FLAG(f->flags, flags, EVAL_lvalue);
+   if (!type_compatible_exec(&x->tp, f->meta_ps,
+                             &x->d->dn.f->ret->tp, f->curr->ps, f))
+     { exec_error(f, x, "Return type of union function %s for field %s "
+                        "does not match", x->d->dn.f->id, x->id);
+     }
+   if (!type_compatible_exec(&x->x->tp, f->meta_ps,
+                             &x->d->up.f->ret->tp, f->curr->ps, f))
+     { exec_error(f, x, "Return type of union function %s for field %s "
+                        "does not match", x->d->dn.f->id, x->id);
+     }
    if (!v.rep && IS_SET(f->flags, EVAL_lvalue))
      { v.rep = REP_union;
        v.v.u = vu = new_value_union(f);
@@ -2826,6 +2841,7 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
        assign(x->x, &v, f);
        alias_value_tp(&v, ve, f);
        push_value(&v, f);
+       ASSIGN_FLAG(f->flags, flags, EVAL_lvalue);
        return; 
      }
    else if (!v.rep)

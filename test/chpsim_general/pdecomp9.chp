@@ -1,0 +1,41 @@
+process dn()(I? : {0..2}; O! : record { a, b : bool; })
+chp { var x : {0..2}; *[ I?x; [ x<2 -> O!{true,x[0]} [] x=2 -> O.a!false ] ] }
+
+process up()(I? : record { a, b : bool; }; O! : {0..2})
+chp { var a, b : bool;
+      *[ I.a?a; [ a -> I.b?b; [ b -> O!1 [] ~b -> O!0 ] [] ~a -> O!2 ] ]
+}
+
+type cond = union { default : {0..2};
+                    d {dn, up} : record { a, b : bool; };
+                  };
+
+process A()(Oa!, Ob! : bool)
+chp { <<; i : 1..9 : Oa!true, Ob!false; Oa!true, Ob!true; Oa!false >> }
+
+process AA()(O! : cond)
+meta { instance a : A;
+       connect O.d.a, a.Oa;
+       <<; i : 1..99 : skip >>;
+       connect O.d.b, a.Ob;
+}
+
+
+process B()(Ia?, Ib? : bool)
+chp { <<; i : 1..9 : [#{Ia,Ib:Ia&~Ib}]; Ia, Ib;
+                     [#{Ia,Ib:Ia&Ib}]; Ia, Ib;
+                     [#{Ia:~Ia}]; Ia;
+      >>; print("done")
+}
+
+process BB()(I? : cond)
+meta { instance b : B;
+       connect I.d.a, b.Ia;
+       <<; i : 1..99 : skip >>;
+       connect I.d.b, b.Ib;
+}
+
+process main()()
+meta { instance a : AA; instance b : BB;
+       connect a.O, b.I;
+}

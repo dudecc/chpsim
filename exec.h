@@ -257,6 +257,11 @@ extern void sched_instance(ctrl_state *cs, exec_info *f);
     Determine which body to execute and dispatch to the appropriate list
  */
 
+extern void sched_instance_real(ctrl_state *cs, exec_info *f);
+/* This actually implements what the above claims to do,
+ * but should only be used when nothing else is scheduled
+ */
+
 extern ctrl_state *nested_seq(llist *l, exec_info *f);
  /* Create and return ctrl_state for seq l, as nested sequence of current
     statement. Time has been set to current time (may be changed), and the

@@ -8,7 +8,7 @@
 	O!0
 (cmnd?)   O = port decomposed through field wire
 (cmnd?)   O.wire = {(0), [(0), (0), (0)]}
-(cmnd?) (cmnd?) (watch) /b:I.e up at time 20088
+(cmnd?) (cmnd?) (watch) /b:I.e up at time 11686
 (watch) /b:I.e down at time 67969
 (watch) /b:I.e up at time 106838
 (watch) /b:I.e down at time 173255

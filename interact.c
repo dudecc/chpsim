@@ -1511,13 +1511,23 @@ static int cmnd_clear(user_info *f)
 /* llist_func */
 static int _cmnd_inst(ctrl_state *cs, user_info *f)
  { if (cs != f->curr) return 0;
-   sched_instance(f->curr, f->global);
+   sched_instance_real(f->curr, f->global);
    return 1;
  }
 
 /* cmnd_func_tp */
 static int cmnd_inst(user_info *f)
  { ctrl_state **cs;
+   if (!IS_SET(f->flags, EXEC_instantiation))
+     { report(f, "  Instantiation is already complete\n");
+       return 1;
+     }
+   else if (pqueue_root(&f->global->sched) && !lex_have(f->L, TOK_nl))
+     { report(f, "  Warning: instantiate will ignore arguments and "
+                 "finish the current meta body\n");
+       SET_FLAG(f->global->flags, EXEC_single);
+       return 0;
+     }
    if (set_focus(f)) return 1;
    llist_find_extract(&f->wait, (llist_func*)_cmnd_inst, f);
    SET_FLAG(f->global->flags, EXEC_single);

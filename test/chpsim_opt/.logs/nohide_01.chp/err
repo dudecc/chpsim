@@ -3,7 +3,7 @@ Command line: ../../chpsim -batch -nohide -watchall nohide_01.chp
 --- global constants -------------------
 --- instantiation ----------------------
 --- CHP execution ----------------------
-(watch) /b:I.e up at time 20088
+(watch) /b:I.e up at time 11686
 (watch) /a/O/wire:O.d[0] up at time 42623
 (watch) /b:I.e down at time 67969
 (watch) /a/O/wire:O.d[0] down at time 73326

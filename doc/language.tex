@@ -248,10 +248,6 @@ generic\_type: \\
 An {\it{}identifier} used as {\it{}type} must have been defined with a
 {\it{}type\_definition}.
 
-As a special case, if the {\it{}type} in an exported {\it{}type\_definition}
-is a {\it{}symbol\_type} (Section \ref{sec:symbol}), the symbol literals are
-exported as well.
-
 The language distinguishes between generic types and specific types;
 each specific type can be reduced to a generic type.
 Typically, variables have specific types, whereas expressions have only
@@ -315,25 +311,24 @@ See Sections \ref{sec:recordaccess} and \ref{sec:intindex}.
 
 \grammarstart
 symbol\_type: \\
-      \>\verb|{| identifier\LIST \verb|}|
+      \>\verb|{| symbol\_literal\LIST \verb|}|
+ \\
+symbol\_literal: \\
+      \>\verb|`| identifier
 \grammarend
-A symbol type consists of a set of symbol literals, which are just names.
+A symbol type consists of a set of symbol literals, which are just names
+preceded by a backtick.
 For instance
 \begin{verbatim}
-type color = { red, orange, yellow, green, blue, purple };
+type color = { `red, `orange, `yellow, `green, `blue, `purple };
 \end{verbatim}
 Unlike enumeration types in some languages, there is no ordering among
 symbol literals, nor is there an implied mapping to integers. The
 generic type for all symbol types is {\tt{}symbol}. Since all symbol values
 belong to the generic type, they are identified only by their name:
-if types {\it{}color} and {\it{}fruit} both have an {\it{}orange} value, these
-values are identical. The first occurrence of a name in a {\it{}symbol\_type}
-declares the name as a symbol literal; subsequent occurrences (in the same
-scope) do not count as declarations. Within a single {\it{}symbol\_type},
+if types {\it{}color} and {\it{}fruit} both have an \verb|`orange| value, these
+values are identical. Within a single {\it{}symbol\_type},
 each name should occur only once.
-
-To export symbol literals, the {\it{}symbol\_type} must be given a name
-with an exported {\it{}type\_definition} (Section \ref{sec:types}).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -639,7 +634,7 @@ type. Unlike for constants, a variable's type cannot be omitted.
 
 \subsection{Scope and order of definition}\label{sec:scope}
 
-All names, including symbol literals, are in the same name space.
+All names are in the same name space.
 However, there are multiple nested scopes, due to the nesting of
 definitions. Scope is always static, i.e.,
 the meaning of a name can be determined at compile time. The outermost
@@ -653,9 +648,7 @@ A name can always be redefined in a nested scope, hiding the original
 meaning of the name. Each name may be defined or declared only once in
 a particular scope, except for the names exported by imported modules.
 In case of the latter, if different modules export the same name, neither
-meaning of the name is visible. As explained in Section \ref{sec:symbol},
-all symbol literals belong to the same generic type. Symbol literals
-are only declared the first time they are encountered (in a scope).
+meaning of the name is visible.
 
 Most names are visible in their own scope, and in nested scopes if they
 have not been redefined. However, to avoid shared variables, variables
@@ -1212,8 +1205,8 @@ a variable or parameter; the name of a function is also an \lvalue\ inside
 that function. (As mentioned in Section \ref{sec:scope}, variables, parameters,
 and function names used as variables, can only be accessed in their own
 scope, not in nested routines.)
-Other identifiers used as {\it{}atom} should be the names
-of constants or symbol literals. Parentheses do not affect whether
+The other type of identifier used as an {\it{}atom} the name of
+a constant. Parentheses do not affect whether
 an expression is an \lvalue.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1267,7 +1260,7 @@ literal: \\
 \orbox \>boolean\_literal \\
  \\
 symbol\_literal: \\
-      \>identifier \\
+      \>\verb|`| identifier \\
  \\
 boolean\_literal: \\
       \>{\tt{}false} \orbox \ {\tt{}true}
@@ -1280,8 +1273,6 @@ type char = {0..127}
 Their values correspond to ASCII codes.
 A string literal is a 0-terminated generic {\tt{}array} {\tt{}of} {\tt{}int},
 similar to an {\it{}array\_constructor}.
-
-A {\it{}symbol\_literal} must have been declared as part of a {\it{}symbol\_type}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

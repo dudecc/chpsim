@@ -194,7 +194,8 @@ extern void init_chp(int app0, FILE *user_stdout)
    init_lex();
    init_print(app0 + App_print);
    init_sem_analysis(app0 + App_sem, app0 + App_import);
-   init_value(app0 + App_eval, app0 + App_range, app0 + App_assign);
+   init_value(app0 + App_eval, app0 + App_range,
+              app0 + App_assign, app0 + App_conn);
    init_exec(app0 + App_exec, app0 + App_pop);
    init_interact(app0 + App_brk);
 

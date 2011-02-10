@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch constwire02.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at constwire02.chp[11:7]
+	Connecting initially false wire to rail 'true'
+Error occurred: cannot continue
+(cmnd) where
+/ at constwire02.chp[11:7]
+	connect a.I.d[1], true
+(cmnd) quit

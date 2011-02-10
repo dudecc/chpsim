@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch constwire03.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at constwire03.chp[13:15]
+	Port a.I.d[2] is already connected
+Error occurred: cannot continue
+(cmnd) where
+/ at constwire03.chp[13:7]
+	connect a.I.d[2], false
+(cmnd) quit

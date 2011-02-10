@@ -116,6 +116,7 @@ DEF_CLASS_B(instance_stmt, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(meta_binding, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(connection, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(wired_connection, statement, 0, 0, OBJ_zero);
+DEF_CLASS_B(const_wired_connection, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(production_rule, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(transition, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(delay_hold, statement, 0, 0, OBJ_zero);

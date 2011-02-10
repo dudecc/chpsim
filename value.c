@@ -59,6 +59,7 @@
 /*extern*/ int app_eval = -1;
 /*extern*/ int app_range = -1;
 /*extern*/ int app_assign = -1;
+/*extern*/ int app_conn = -1;
 
 /********** expression evaluation ********************************************/
 
@@ -110,8 +111,7 @@ static void no_eval(expr *x, exec_info *f)
 
 extern void eval_expr(void *obj, exec_info *f)
  /* Evaluate expr *obj */
- { APP_OBJ_VFZ(app_eval, obj, f, no_eval);
- }
+ { APP_OBJ_VFZ(app_eval, obj, f, no_eval); }
 
 /* var_str_func_tp: use as first arg for %v */
 extern int vstr_mpz(var_string *s, int pos, void *z)
@@ -151,7 +151,9 @@ extern void print_value_tp(value_tp *v, print_info *f)
                 mpz_get_str(f->s->s + f->pos, 10, v->v.z->z);
                 f->pos += strlen(f->s->s + f->pos);
        break;
-       case REP_symbol: print_string(v->v.s, f);
+       case REP_symbol:
+                print_char('`', f);
+                print_string(v->v.s, f);
        break;
        case REP_array: bo = '['; bc = ']';
        /* fall-through */
@@ -543,6 +545,7 @@ extern port_value *new_port_value(process_state *ps, exec_info *f)
    p->v.rep = REP_none;
    p->ps = ps;
    p->dec = 0;
+   p->nv = 0;
    return p;
  }
 
@@ -1085,6 +1088,17 @@ extern void assign(expr *x, value_tp *val, exec_info *f)
    f->val = w;
  }
 
+static void *no_connect(expr *x, exec_info *f)
+ /* called when x has no connect function */
+ { error("Internal error: "
+         "Object class %s has no connect method", x->class->nm);
+   return 0;
+ }
+
+extern value_tp *connect_expr(void *obj, exec_info *f)
+ /* Evaluate expr *obj */
+ { return APP_OBJ_PFZ(app_conn, obj, f, no_connect); }
+
 /********** creating wire expressions ***************************************/
 
 extern wire_expr *new_wire_expr(exec_info *f)
@@ -1568,9 +1582,10 @@ extern void crit_node_step(action *a, wire_value *w, exec_info *f)
 
 /*****************************************************************************/
 
-extern void init_value(int app1, int app2, int app3)
+extern void init_value(int app1, int app2, int app3, int app4)
  /* call at startup; pass unused object app indices */
  { app_eval = app1;
    app_range = app2;
    app_assign = app3;
+   app_conn = app4;
  }

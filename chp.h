@@ -99,6 +99,7 @@ enum { App_print, /* these definitions are just to get App_nr_chp right */
        App_eval,
        App_range,
        App_assign,
+       App_conn,
        App_brk,
 
        App_nr_chp /* nr of app indices to reserve */

@@ -412,6 +412,7 @@ CLASS(connection)
    };
 
 CLASS_COPY(wired_connection, connection);
+CLASS_COPY(const_wired_connection, connection);
 
 CLASS(production_rule)
    { PARSE_OBJ;

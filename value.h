@@ -142,6 +142,7 @@ FLAGS(wire_flags)
      NEXT_FLAG(WIRE_held_dn), /* delay_hold is stopping downward transition */
      NEXT_FLAG(WIRE_wait), /* a transition is pending on hold removal */
      NEXT_FLAG(WIRE_watch), /* print all transitions of this wire */
+     NEXT_FLAG(WIRE_reset), /* set if wire is held at its initial value */
      WIRE_val_mask = WIRE_undef | WIRE_value
    };
 
@@ -213,6 +214,7 @@ struct port_value
      value_tp v; /* value, only used for REP_inport */
      process_state *ps; /* process that communicates on this port */
      union_field *dec; /* is this part of a decomposition process? */
+     value_tp *nv; /* used for disconnected ports of meta processes */
    };
 
 /********** printing *********************************************************/
@@ -370,11 +372,20 @@ extern void assign(expr *x, value_tp *val, struct exec_info *f);
     Note: you should do a range_check() first.
  */
 
+extern value_tp *connect_expr(void *obj, struct exec_info *f);
+ /* Evaluate expr *obj */
+
 extern int app_assign;
 #define set_assign(C) set_app(CLASS_ ## C, app_assign, (obj_func*)assign_ ## C)
  /* To set assign_abc as assign function for class abc */
-#define set_assign_cp(C,D) set_app(CLASS_ ## C, app_assign, (obj_func*)assign_ ## D)
+#define set_assign_cp(C,D) set_app(CLASS_##C, app_assign, (obj_func*)assign_##D)
  /* Used if C is a copy of D, and uses the same assign function */
+
+extern int app_conn;
+#define set_connect(C) set_app(CLASS_ ## C, app_conn, (obj_func*)connect_ ## C)
+ /* To set connect_abc as connect function for class abc */
+#define set_connect_cp(C,D) set_app(CLASS_##C, app_conn, (obj_func*)connect_##D)
+ /* Used if C is a copy of D, and uses the same connect function */
 
 /********** creating wire expressions ***************************************/
 
@@ -444,7 +455,7 @@ extern void crit_node_step(action *a, wire_value *w, struct exec_info *f);
 
 /*****************************************************************************/
 
-extern void init_value(int app1, int app2, int app3);
+extern void init_value(int app1, int app2, int app3, int app4);
  /* call at startup; pass unused object app indices */
 
 #endif /* VALUE_H */

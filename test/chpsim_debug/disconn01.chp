@@ -1,0 +1,9 @@
+//r
+//r
+//p /b
+//v /b
+//p O
+
+process A()(I? : int) chp { }
+process B()(O! : int) chp { O!0 }
+process main()() meta { instance a : A; instance b : B; connect a.I, b.O; }

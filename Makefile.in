@@ -31,7 +31,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = chpsim$(EXEEXT)
+bin_PROGRAMS = chpsim$(EXEEXT) chpconv$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(dist_pkgdata_DATA) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -49,6 +49,15 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkgdatadir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
+am_chpconv_OBJECTS = chpconv.$(OBJEXT) builtin_io.$(OBJEXT) \
+	chp.$(OBJEXT) exec.$(OBJEXT) expr.$(OBJEXT) interact.$(OBJEXT) \
+	lex.$(OBJEXT) modules.$(OBJEXT) parse.$(OBJEXT) \
+	parse_obj.$(OBJEXT) print.$(OBJEXT) routines.$(OBJEXT) \
+	sem_analysis.$(OBJEXT) statement.$(OBJEXT) types.$(OBJEXT) \
+	value.$(OBJEXT) variables.$(OBJEXT)
+chpconv_OBJECTS = $(am_chpconv_OBJECTS)
+chpconv_LDADD = $(LDADD)
+chpconv_DEPENDENCIES = $(CLIBDIR)/libalways.a
 am_chpsim_OBJECTS = chpsim.$(OBJEXT) builtin_io.$(OBJEXT) \
 	chp.$(OBJEXT) exec.$(OBJEXT) expr.$(OBJEXT) interact.$(OBJEXT) \
 	lex.$(OBJEXT) modules.$(OBJEXT) parse.$(OBJEXT) \
@@ -65,8 +74,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(chpsim_SOURCES)
-DIST_SOURCES = $(chpsim_SOURCES)
+SOURCES = $(chpconv_SOURCES) $(chpsim_SOURCES)
+DIST_SOURCES = $(chpconv_SOURCES) $(chpsim_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -201,6 +210,14 @@ chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
                  sem_analysis.h statement.h types.h variables.h \
                  path.def symbol.def
 
+chpconv_SOURCES = chpconv.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
+                  modules.c parse.c parse_obj.c print.c routines.c \
+                  sem_analysis.c statement.c types.c value.c variables.c \
+                  lex.h parse_obj.h print.h value.h builtin_io.h chp.h \
+                  exec.h expr.h modules.h parse.h routines.h interact.h \
+                  sem_analysis.h statement.h types.h variables.h \
+                  path.def symbol.def
+
 
 # CHP library files
 dist_pkgdata_DATA = builtin.chp stdio.chp channel.chp
@@ -282,6 +299,9 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+chpconv$(EXEEXT): $(chpconv_OBJECTS) $(chpconv_DEPENDENCIES) 
+	@rm -f chpconv$(EXEEXT)
+	$(LINK) $(chpconv_OBJECTS) $(chpconv_LDADD) $(LIBS)
 chpsim$(EXEEXT): $(chpsim_OBJECTS) $(chpsim_DEPENDENCIES) 
 	@rm -f chpsim$(EXEEXT)
 	$(LINK) $(chpsim_OBJECTS) $(chpsim_LDADD) $(LIBS)
@@ -294,6 +314,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/builtin_io.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chpconv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chpsim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expr.Po@am__quote@

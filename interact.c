@@ -60,6 +60,7 @@
 #include "interact.h"
 #include "modules.h"
 #include "routines.h"
+#include "statement.h"
 #include "expr.h"
 #include "types.h"
 #include "parse.h"
@@ -1423,7 +1424,11 @@ static void wire_fanin(wire_value *w, user_info *f)
    print_info g;
    ps = w->wframe->cs->ps;
    if (!IS_SET(w->wframe->flags, ACTION_is_pr))
-     { if (ps->b->class != CLASS_chp_body && ps->b->class != CLASS_hse_body)
+     { if (ps == &const_frame_ps)
+         { report(f, "  Wire is connected to rail '%s'\n",
+                  IS_SET(w->flags, WIRE_value)? "true" : "false");
+         }
+       else if (ps->b->class != CLASS_chp_body && ps->b->class != CLASS_hse_body)
          { report(f, "  Wire has no fanins\n"); }
        else
          { report(f, "  Wire is driven by output %V\n",
@@ -1675,7 +1680,6 @@ static int cmnd_meta(user_info *f)
      }
    return 1;
  }
-
 
 /********** commands *********************************************************/
 

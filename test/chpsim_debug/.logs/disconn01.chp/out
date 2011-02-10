@@ -1,0 +1,12 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?)   /b is an instance of disconn01.chp[8:0] B
+  O --> /a:I
+(suspended) /b at disconn01.chp[8:28]
+(cmnd?) (view) /b at disconn01.chp[8:28]
+	O!0
+(cmnd?)   O = port --> /a:I, # = false
+(cmnd?) 

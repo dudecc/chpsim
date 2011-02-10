@@ -61,7 +61,7 @@ FLAGS(print_flags)
      NEXT_FLAG(PR_meta), /* Print only the meta body of a process */
      NEXT_FLAG(PR_simple_var), /* Reduce arrays/records to individual vars */
      NEXT_FLAG(PR_cast), /* Print declarations using cast syntax */
-     NEXT_FLAG(PR_reset), /* Have gates.c print with reset trnsistors */
+     NEXT_FLAG(PR_reset), /* Add reset transistors where necessary */
      NEXT_FLAG(PR_user) /* first value to be used for app-specific flags*/
    };
 

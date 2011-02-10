@@ -1,0 +1,17 @@
+//r
+//v /a
+//fanin I.d[1]
+
+process A()(I? : (e-; d[0..2]-))
+hse { I.e+; [I.d[0]]; I.e-; [~I.d[0]]; I.e+; [I.d[2]]; I.e-; [~I.d[2]] }
+
+process B()(O! : (e-; d[0..1]-))
+hse { [O.e]; O.d[0]+; [~O.e]; O.d[0]-; [O.e]; O.d[1]+; [~O.e]; O.d[1]- }
+
+process main()()
+meta { instance a : A; instance b : B;
+       connect a.I.e, b.O.e;
+       connect a.I.d[0], b.O.d[0];
+       connect a.I.d[1], false;
+       connect a.I.d[2], b.O.d[1];
+}

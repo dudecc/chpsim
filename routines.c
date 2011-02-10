@@ -172,7 +172,6 @@ static void print_process_def(process_def *x, print_info *f)
      }
  }
 
-
 /********** semantic analysis ************************************************/
 
 static void get_builtin_func(function_def *x, sem_info *f);

@@ -197,19 +197,18 @@ extern process_state *new_process_state(exec_info *f, const str *nm)
  }
 
 extern void free_process_state(process_state *ps, exec_info *f)
- /* Deallocate the process state. If refcnt is not 0, then variables
-    are deallocated but meta parameters and ps itself is not
-    (this is used for user interaction).
+ /* Deallocate the process state. If refcnt is not 0, then currently
+    nothing is deallocated to facilitate debugging.
  */
  { value_tp *v;
    int i;
-   v = ps->var;
-   for (i = 0; i < ps->nr_var; i++)
-     { clear_value_tp(&v[i], f); }
-   if (v)
-     { free(v); ps->var = 0; ps->nr_var = 0; }
    if (!ps->refcnt)
-     { v = ps->meta;
+     { v = ps->var;
+       for (i = 0; i < ps->nr_var; i++)
+         { clear_value_tp(&v[i], f); }
+       if (v)
+         { free(v); ps->var = 0; ps->nr_var = 0; }
+       v = ps->meta;
        for (i = 0; i < ps->nr_meta; i++)
          { clear_value_tp(&v[i], f); }
        if (v)

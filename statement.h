@@ -81,4 +81,10 @@ extern void exec_meta_binding_aux(meta_binding *x, value_tp *v, exec_info *f);
  * array of processes.
  */
 
+extern process_state const_frame_ps;
+extern ctrl_state const_frame;
+/* This virtual frame is used as a write frame when a wire is
+ * connected to a rail.
+ */
+
 #endif /* STATEMENT_H */

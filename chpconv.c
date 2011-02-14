@@ -397,6 +397,7 @@ typedef struct name_info
      int indent;
      int first;
      int io_stat;
+     int wnm_pos;
    } name_info;
 
 /* Priorities:
@@ -750,31 +751,25 @@ static void print_aliases(name_info *f)
    hash_apply_data(&f->names, (hash_vfunc*)_print_aliases, f);
  }
 
-static void _print_gate(value_tp *v, name_info *f)
- { int i;
-   hash_entry *e;
+static void _print_gate(wire_value *w, name_info *f)
+ { hash_entry *e;
    node_name *nm;
-   switch (v->rep)
-     { case REP_array: case REP_record:
-         for (i = 0; i < v->v.l->size; i++)
-           { _print_gate(&v->v.l->vl[i], f); }
-       return;
-       case REP_wire:
-         e = hash_find(&f->names, (char*)v->v.w);
-         assert(e);
-         nm = e->data.p;
-         if (f->first) f->first = 0;
-         else if (f->f->pos - f->nl_pos + strlen(nm->nm) > 76)
-           { print_string(",\n", f->f);
-             do_indent(f);
-           }
-         else
-           { print_string(", ", f->f); }
-         print_string(nm->nm, f->f);
-       return;
-       default:
-       return;
+   e = hash_find(&f->names, (char*)w);
+   assert(e);
+   nm = e->data.p;
+   if (f->first) f->first = 0;
+   else if (f->f->pos - f->nl_pos + strlen(nm->nm)
+                      + VAR_STR_LEN(&f->scratch) - f->wnm_pos > 73)
+     { print_string(",\n", f->f);
+       do_indent(f);
      }
+   else
+     { print_string(", ", f->f); }
+   print_char('.', f->f);
+   print_string(&f->scratch.s[f->wnm_pos], f->f);
+   print_char('(', f->f);
+   print_string(nm->nm, f->f);
+   print_char(')', f->f);
  }
 
 static void print_gate(process_state *p, name_info *f)
@@ -797,10 +792,9 @@ static void print_gate(process_state *p, name_info *f)
        f->indent = f->f->pos - f->nl_pos;
      }
    f->first = 1;
-   for (l = p->p->pl; !llist_is_empty(&l); l = llist_alias_tail(&l))
-     { d = llist_head(&l);
-       _print_gate(&p->var[d->var_idx], f);
-     }
+   f->wnm_pos = VAR_STR_LEN(&f->scratch);
+   f->wfn = (wire_func*)_print_gate;
+   named_wire_exec(p, f);
    print_string(");\n", f->f);
 }
 

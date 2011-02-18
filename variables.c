@@ -405,24 +405,27 @@ static void counter_var_fix(value_tp *v, exec_info *f)
      }
  }
 
-static void wire_init(value_tp *v, type *tp, token_tp sym, exec_info *f)
+static void wire_init
+(value_tp *v, type *tp, token_tp sym, parse_obj_flags flags, exec_info *f)
  /* Pre: tp is wired type, boolean wire, or an array thereof */
  { int i;
    wired_type *wtps;
    llist l;
    wire_decl *w;
    value_tp zval;
+   parse_obj_flags wfl;
    switch (tp->kind)
      { case TP_array:
          force_value_array(v, tp, f);
          for (i = 0; i < v->v.l->size; i++)
-           { wire_init(&v->v.l->vl[i], tp->elem.tp, sym, f); }
+           { wire_init(&v->v.l->vl[i], tp->elem.tp, sym, flags, f); }
        return;
        case TP_wire:
          wtps = (wired_type*)tp->tps;
          v->v.l = new_value_list(wtps->nr_var, f);
          v->rep = REP_record;
          l = wtps->li;
+         wfl = LI_IS_WRITE(flags, wtps->type)? EXPR_writable : 0;
          for (i = 0; i < v->v.l->size; i++)
            { w = llist_head(&l);
              if (w->z)
@@ -434,14 +437,19 @@ static void wire_init(value_tp *v, type *tp, token_tp sym, exec_info *f)
                  wire_var_fix(&v->v.l->vl[i], f);
                }
              else
-               { wire_init(&v->v.l->vl[i], &w->tps->tp, w->init_sym, f); }
+               { wire_init(&v->v.l->vl[i], &w->tps->tp, w->init_sym, wfl, f); }
              l = llist_alias_tail(&l);
-             if (llist_is_empty(&l)) l = wtps->lo;
+             if (llist_is_empty(&l))
+               { l = wtps->lo;
+                 wfl ^= EXPR_writable;
+               }
            }
        return;
        case TP_bool:
          v->v.w = new_wire_value(sym, f);
          v->rep = REP_wire;
+         if (IS_SET(flags, EXPR_writable))
+           { SET_FLAG(v->v.w->flags, WIRE_has_writer); }
        return;
        default:
          assert(!"Illegal wired type");
@@ -464,7 +472,7 @@ static int exec_var_decl(var_decl *x, exec_info *f)
          { counter_var_fix(val, f); }
      }
    else if (IS_SET(x->flags, EXPR_wire))
-     { wire_init(val, &x->tp, x->z_sym, f); }
+     { wire_init(val, &x->tp, x->z_sym, x->flags, f); }
    return EXEC_next;
  }
 

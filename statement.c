@@ -1630,8 +1630,6 @@ static void wire_connect
                g->b_write = !g->b_write;
              }
          }
-       g->a_write = !g->a_write;
-       g->b_write = !g->b_write;
      }
    else /* TP_bool */
      { if (va->rep) { wire_fix(&va->v.w, f); wa = va->v.w; }

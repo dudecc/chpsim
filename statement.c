@@ -1590,7 +1590,7 @@ struct wc_info
 static void wire_connect
 (value_tp *va, value_tp *vb, type *tp, struct wc_info *g, exec_info *f)
 /* Pre: run type_compatible_exec on a and b
- * TODO: Set g.init_sym properly in all cases
+ * TODO: A LOT of this code has been made redundant by the wire_init routine...
  */
  { int i, a_flag, b_flag;
    wire_value *wa, *wb;
@@ -1668,7 +1668,13 @@ static void wire_connect
        else if (!vb->rep)
          { vb->v.w = wa; }
        else /* va and vb are both prexisting wires */
-         { SET_FLAG(wb->flags, WIRE_forward);
+         { if (IS_SET(wa->flags, WIRE_undef))
+             { ASSIGN_FLAG(wa->flags, wb->flags, WIRE_val_mask); }
+           else if (((wa->flags ^ wb->flags) & WIRE_val_mask) == WIRE_value)
+             { exec_error(f, f->curr->obj, "Incompatible initial values"
+                          "in connect");
+             }
+           SET_FLAG(wb->flags, WIRE_forward);
            wb->u.w = wa;
            wb->refcnt--;
            if (!wb->refcnt) free(wb);

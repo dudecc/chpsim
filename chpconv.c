@@ -494,6 +494,7 @@ static node_name *new_node_name(name_info *f)
    nm->nm = strdup(f->scratch.s);
    nm->priority = f->priority;
    nm->alias = 0;
+   return nm;
  }
 
 static void _node_name_free(node_name *nm)

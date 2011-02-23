@@ -1,0 +1,27 @@
+//r
+//v /b
+//p O.wire
+
+requires "channel.chp";
+
+export process or2_lo()((i0, i1; o-))
+prs { var o_+;
+      i0 | i1 -> o_- ~i0 & ~i1 -> o_+
+      o_ -> o- ~o_ -> o+
+}
+
+process A()(I? : (e-; d[0..1]-))
+hse { I.e+; [I.d[0]]; I.e-; [~I.d[0]]; I.e+; [I.d[1]]; I.e-; [~I.d[1]] }
+
+process B()(O! : std1of3)
+chp { O!0; O!2 }
+
+process main()()
+meta { instance a : A; instance b : B;
+       instance g : or2_lo;
+       connect a.I.e, b.O.wire.e;
+       connect a.I.d[0], b.O.wire.d[0];
+       connect b.O.wire.d[2], g.i0;
+       connect g.i1, b.O.wire.d[2];
+       connect                g.o, a.I.d[1];
+}

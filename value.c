@@ -712,6 +712,7 @@ extern void copy_value_tp(value_tp *w, value_tp *v, exec_info *f)
        vu = v->v.u;
        w->v.u = wu = new_value_union(f);
        wu->d = vu->d;
+       wu->f = vu->f;
        copy_value_tp(&wu->v, &vu->v, f);
      }
    else if (v->rep == REP_process) /* no new memory */
@@ -802,6 +803,7 @@ extern void copy_and_clear(value_tp *w, value_tp *v, exec_info *f)
          { vu->refcnt--; 
            w->v.u = wu = new_value_union(f);
            wu->d = vu->d;
+           wu->f = vu->f;
            copy_value_tp(&wu->v, &vu->v, f);
          }
      }

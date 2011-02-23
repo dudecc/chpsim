@@ -1437,7 +1437,7 @@ static void set_ps(value_tp *v, process_state *ps, exec_info *f)
 static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
 /* Pre: we are connecting two ports of the current process */
  { int i, dir;
-   value_tp *swap = 0;
+   value_tp *swap = 0, *nv;
    value_list *al, *bl;
    connection *x = (connection*)f->curr->obj;
    if (vala->rep != REP_port && valb->rep == REP_port)
@@ -1467,11 +1467,13 @@ static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
            }
          set_ps(valb, vala->v.p->p->ps, f);
          vala->v.p->ps = (valb->rep == REP_port)? valb->v.p->p->ps : 0;
-         *find_reference(vala->v.p->p, f) = *valb;
+         nv = find_reference(vala->v.p->p, f);
+         *nv = *valb;
          valb->rep = REP_port;
          valb->v.p = vala->v.p->p;
          vala->v.p->p = 0; vala->v.p->wprobe.refcnt--;
          valb->v.p->p = 0; valb->v.p->wprobe.refcnt--;
+         vala->v.p->nv = valb->v.p->nv = nv;
        return;
        case REP_array: case REP_record:
          if (vala->rep != valb->rep)
@@ -1536,7 +1538,7 @@ static int exec_connection(connection *x, exec_info *f)
      }
    else if (psb != f->curr->ps) /* pass from local vala to new valb */
      { set_ps(vala, valb->v.p->ps, f);
-       valb->v.p->nv = vala;
+       valb->v.p->nv = valb;
        tmp = *vala; *vala = *valb; *valb = tmp;
      }
    else /* connecting two local ports */

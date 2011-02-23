@@ -2782,8 +2782,7 @@ extern void wu_proc_remove(value_tp *v, int dir, exec_info *f)
    ps = v->v.p->p->ps;
    d = llist_idx(&ps->p->pl, dir? 0 : 1);
    /* d is now the decomposed port from the other side */
-   v->v.p->v = ps->var[d->var_idx];
-   ps->var[d->var_idx].rep = REP_none;
+   copy_value_tp(&v->v.p->v, &ps->var[d->var_idx], f);
    v->v.p->dec = v->v.p->p->dec;
    v->v.p->p->p = 0; v->v.p->p->wprobe.refcnt--;
    v->v.p->p = 0; v->v.p->wprobe.refcnt--;

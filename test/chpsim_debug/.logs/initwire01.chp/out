@@ -1,0 +1,9 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /b at initwire01.chp[17:6]
+	O!0
+(cmnd?)   O.wire = {(0), [(0), (0), (0)]}
+(cmnd?) --- error ------------------------------
+Error: deadlock
+No threads left.

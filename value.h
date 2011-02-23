@@ -116,7 +116,6 @@ struct value_union
    { int refcnt; /* reference count */
      function_def *d;
      union_field *f;
-     process_state *ps;
      value_tp v;
    };
 

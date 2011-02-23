@@ -55,6 +55,8 @@ static const char version[] = "2.0";
 
 /********** initialization ***************************************************/
 
+static hash_table proc_names;
+
 static void init_chpconv(void)
  {
 #ifdef MALLOCDBG
@@ -62,6 +64,7 @@ static void init_chpconv(void)
 #endif
    app_nr = App_nr_chp;
    init_chp(0, stdout);
+   hash_table_init(&proc_names, 1, 0, 0);
  }
 
 /********** input and simulation *********************************************/
@@ -78,10 +81,11 @@ static void open_meta_name(process_state *p, print_info *f);
  * f to output to this file.
  */
 
-static void convert(user_info *U, process_def *dp, llist *pl)
- /* Instantiate the program, starting with an instance of dp.
-    llist(char*) pl is list of instances to output.
- */
+static int declare_new(process_state *p);
+/* Return 1 if this process has already been declared */
+
+static void prepare_convert(user_info *U, process_def *dp)
+ /* Instantiate the program, starting with an instance of dp. */
  { exec_info *f;
    print_info g;
    llist m;
@@ -90,26 +94,42 @@ static void convert(user_info *U, process_def *dp, llist *pl)
    f = prepare_exec(U, dp);
    interact_instantiate(f);
    prepare_chp(f);
+ }
 
+static void convert_recur(value_tp *v, FILE *o);
+
+static void convert(process_state *ps, FILE *o, int recur)
+ /* Convert process ps, and output to file o.  If !o, then output to the
+  * file <process name>.v instead. If recur, also output all sub processes.
+  */
+ { print_info g;
+   int i;
+   if (declare_new(ps)) return; // Already declared
+   if (recur)
+     { for (i = 0; i < ps->nr_var; i++)
+         { convert_recur(&ps->var[i], o); }
+     }
    print_info_init_new(&g);
    SET_FLAG(g.flags, PR_reset);
-   for (m = *pl; !llist_is_empty(&m); m = llist_alias_tail(&m))
-     { s = llist_head(&m);
-       ps = find_instance(U, make_str(s), 0);
-       if (!ps)
-         { report(U, "Instance %s does not exist, skipping...", s);
-           continue;
-         }
-       open_meta_name(ps, &g);
-       print_meta_process(ps, &g);
-       print_info_flush(&g);
-       fclose(g.f);
-       g.f = 0;
-     }
+   if (o)
+     { g.f = o; }
+   else
+     { open_meta_name(ps, &g); }
+   print_meta_process(ps, &g);
+   print_info_flush(&g);
+   if (!o)
+     { fclose(g.f); }
    print_info_term(&g);
+ }
 
-   report(f->user, "--- done -------------------------------\n");
-   term_exec(f);
+static void convert_recur(value_tp *v, FILE *o)
+ { int i;
+   if (v->rep == REP_array || v->rep == REP_record)
+     { for (i = 0; i < v->v.l->size; i++)
+         { convert_recur(&v->v.l->vl[i], o); }
+     }
+   else if (v->rep == REP_process && v->v.ps->b->class == CLASS_meta_body)
+     { convert(v->v.ps, o, 1); }
  }
 
 /********** command line *****************************************************/
@@ -124,6 +144,8 @@ static void usage(const char *fmt, ...)
 	"\n"
 	"\t-main id       - specify initial process [main]\n"
 	"\t-p /id         - convert this instance\n"
+	"\t-R             - recursively convert subinstances\n"
+	"\t-o file        - specify the desired output filename\n"
 	"\t-I dir         - add directory to module search path\n"
 	"\t-I-            - clear module search path\n"
 	"\t-C command ... - execute a command before interaction\n"
@@ -155,18 +177,19 @@ static int need_arg(int argc, char *argv[], int i)
 
 
 extern int main(int argc, char *argv[])
- { int i = 1, err = 0;
+ { int i = 1, err = 0, recur = 0;
    const char *fin_nm = 0;
    const char *main_id = 0;
    process_def *dp;
+   process_state *ps;
    user_info f_user, *U = &f_user;
    module_def *src_md;
    char *a;
-   llist pl; /* llist(char *) pl; instances to output */
+   llist m, pl; /* llist(char *) pl; instances to output */
    llist curr_cmd; /* llist(char *); commands to execute */
+   FILE *outfile = 0;
    init_chpconv();
    user_info_init(U);
-   SET_FLAG(U->flags, USER_random);
    set_default_path(U);
    llist_init(&pl);
    while (i < argc)
@@ -215,6 +238,16 @@ extern int main(int argc, char *argv[])
 	     }
 	   llist_prepend(&pl, argv[i]);
 	 }
+       else if (!strcmp(argv[i], "-R"))
+         { recur = 1; }
+       else if (!strcmp(argv[i], "-o"))
+         { i = need_arg(argc, argv, i);
+           FOPEN(outfile, argv[i], "w");
+           if (!outfile)
+             { fprintf(stderr, "Could not open file %s for writing", argv[i]);
+               exit(1);
+             }
+         }
        else if (!strcmp(argv[i], "-help") || !strcmp(argv[i], "-h"))
          { usage(0); }
        else if (argv[i][0] == '-')
@@ -254,7 +287,25 @@ extern int main(int argc, char *argv[])
 	     );
        exit(err);
      }
-   convert(U, dp, &pl);
+   prepare_convert(U, dp);
+   if (llist_is_empty(&pl))
+     { llist_prepend(&pl, "/"); }
+   for (m = pl; !llist_is_empty(&m); m = llist_alias_tail(&m))
+     { a = llist_head(&m);
+       ps = find_instance(U, make_str(a), 0);
+       if (!ps)
+         { report(U, "Instance %s does not exist, skipping...", a);
+           continue;
+         }
+       if (ps->b->class != CLASS_meta_body)
+         { report(U, "Instance %s is not a meta process, skipping...", a);
+           continue;
+         }
+       convert(ps, outfile, recur);
+     }
+   report(U, "--- done -------------------------------\n");
+   if (outfile) fclose(outfile);
+   term_exec(U->global);
    exit(0);
    return 0;
  }
@@ -385,6 +436,23 @@ static void open_meta_name(process_state *p, print_info *f)
    VAR_STR_X(f->s, pos) = 0;
  }
 
+static int declare_new(process_state *p)
+/* Return 1 if this process has already been declared */
+ { print_info g;
+   hash_entry *e;
+   int ret;
+   print_info_init_new(&g);
+   SET_FLAG(g.flags, PR_reset);
+   print_meta_name(p, &g);
+   ret = hash_insert(&proc_names, g.s->s, &e);
+   if (!ret)
+     { e->data.p = p->p; }
+   else if (p->p != e->data.p)
+     { assert(!"Process name space collision"); }
+   print_info_term(&g);
+   return ret;
+ }
+
 typedef void wire_func(wire_value *, void *);
 
 typedef struct name_info
@@ -454,6 +522,7 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
    record_field *rf;
    wired_type *wtps;
    wire_decl *wd;
+   wire_value *w;
    int pos = VAR_STR_LEN(&f->scratch);
    if (tp && tp->kind == TP_generic) assert(!"No templated types");
    switch(v->rep)
@@ -472,7 +541,7 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
                      f->priority++;
                    }
                }
-             f->priority-=2;
+             f->priority-=3;
            }
          else
            { l = tp->elem.l;
@@ -500,18 +569,25 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
          if (v->v.p->p)
            { assert(!"Process has non wired ports"); }
          else if (v->v.p->nv)
-           { if (v->v.p->dec)
+           { assert(v->v.p->nv != v);
+             if (v->v.p->dec)
                { _named_wire_exec(v->v.p->nv, &v->v.p->dec->tps->tp, f); }
              else
                { _named_wire_exec(v->v.p->nv, tp, f); }
            }
          else if (v->v.p->v.rep)
-           { assert(!"How do I figure out the type here"); }
+           { if (v->v.p->dec)
+               { _named_wire_exec(&v->v.p->v, &v->v.p->dec->tps->tp, f); }
+             else
+               { assert(!"How do I figure out the type here"); }
+           }
          else
            { assert(!"Wait, what?"); }
        return;
        case REP_wire:
-           (*f->wfn)(v->v.w, f);
+           w = v->v.w;
+           while (IS_SET(w->flags, WIRE_forward)) w = w->u.w;
+           (*f->wfn)(w, f);
        return;
        default:
          assert(!"Process has bad ports");
@@ -540,10 +616,32 @@ static void named_wire_exec(process_state *p, name_info *f)
  }
 
 static void _name_nodes(wire_value *w, name_info *f)
+/* Pre: f->scratch contains a potential name for wire w, and f->priority
+ *      is set so that we can tell whether a name is an input (IS_INPUT(f))
+ *      and whether a name is essential (i.e. external).
+ * Ensure that f->names maps w to either a single non-essential name or a list
+ * of one or more essential names.  If one of the essential names is an input,
+ * it must also come first on the list.  Since external inputs are drivers,
+ * there should be at most one essential input in a given list.  Also, if the
+ * wire is tied to a rail, the rail name should be added as an essential name
+ * if and only if the wire has no drivers.
+ */
  { hash_entry *e;
    node_name *nm, *nmx;
    if (hash_insert(&f->names, (char*)w, &e))
      { nm = e->data.p;
+       if (nm->priority == 20) // nm is a rail...
+         { if ((f->priority > 9)? IS_INPUT(f) : !IS_INPUT(f)) // w has a driver
+             { nmx = nm->alias;
+               free(nm->nm);
+               free(nm);
+               if (!nmx)
+                 { e->data.p = new_node_name(f);
+                   return;
+                 }
+               e->data.p = nmx;
+             }
+         }
        if (nm->priority > 9 && f->priority > 9)
          { nmx = new_node_name(f);
            if (IS_INPUT(f))
@@ -565,11 +663,13 @@ static void _name_nodes(wire_value *w, name_info *f)
      { e->data.p = nm = new_node_name(f);
        if (w->wframe->cs == &const_frame)
          { if (nm->priority > 9)
-             { NEW(nmx);
+             { if (IS_INPUT(f)) return; // External driver
+               NEW(nmx);
                nmx->alias = nm;
                e->data.p = nmx;
              }
-           else 
+           else if (!IS_INPUT(f)) return; // Internal driver
+           else
              { nmx = nm;
                free(nmx->nm);
              }
@@ -863,7 +963,7 @@ static void print_meta_process(process_state *p, print_info *f)
    print_gates(p, &g);
    g.indent = 0;
    do_indent(&g);
-   print_string("endmodule\n", f);
+   print_string("endmodule\n\n", f);
  }
 
 

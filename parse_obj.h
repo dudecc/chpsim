@@ -230,6 +230,8 @@ CLASS(field_of_record)
      field_def *field; /* assigned by sem() if x is an integer */
    };
 
+CLASS_COPY(field_of_process, field_of_record);
+
 CLASS_1(union_field);
 CLASS(field_of_union)
    { EXPR_OBJ;

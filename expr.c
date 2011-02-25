@@ -689,7 +689,8 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
        SET_FLAG(x->flags, EXPR_port_ext | EXPR_unconst);
        SET_IF_SET(x->flags, d->flags, EXPR_port | EXPR_wire | EXPR_writable);
        SET_IF_SET(x->flags, x->tp.tps->flags, EXPR_inherit);
-       if (IS_SET(d->tps->flags, EXPR_generic)); /* Wait, what goes here? */
+       if (IS_SET(d->tps->flags, EXPR_generic)); /* TODO: Wait, what goes here? */
+       x->class = CLASS_field_of_process;
        return x;
      }
    SET_IF_SET(x->flags, x->x->flags, EXPR_all_constx);
@@ -2672,10 +2673,6 @@ static void *connect_field_of_record(field_of_record *x, exec_info *f)
    v = connect_expr(x->x, f);
    if (!v->rep)
      { force_value(v, x->x, f); }
-   else if (v->rep == REP_process)
-     { f->meta_ps = v->v.ps; /* Use subprocess's reference frame */
-       return &v->v.ps->cs->var[x->idx];
-     }
    else if (v->rep == REP_port)
      { if (!v->v.p->p) /* double connection error */
          { return v; }
@@ -2683,6 +2680,16 @@ static void *connect_field_of_record(field_of_record *x, exec_info *f)
      } 
    assert(v->rep == REP_record);
    return &v->v.l->vl[x->idx];
+ }
+
+static void *connect_field_of_process(field_of_process *x, exec_info *f)
+ { value_tp xval, *v;
+   v = connect_expr(x->x, f);
+   if (!v->rep)
+     { exec_error(f, x, "Instance used before it was declared"); }
+   assert(v->rep == REP_process);
+   f->meta_ps = v->v.ps; /* Use subprocess's reference frame */
+   return &v->v.ps->cs->var[x->idx];
  }
 
 static process_state *new_wu_process
@@ -3316,6 +3323,7 @@ extern void init_expr(void)
    set_print_cp(int_subscript, array_subscript);
    set_print(array_subrange);
    set_print(field_of_record);
+   set_print_cp(field_of_process, field_of_record);
    set_print(field_of_union);
    set_print_cp(debug_field_of_union, field_of_union);
    set_print(array_constructor);
@@ -3339,6 +3347,7 @@ extern void init_expr(void)
    set_sem_cp(int_subscript, array_subscript);
    set_sem(array_subrange);
    set_sem(field_of_record);
+   set_sem_cp(field_of_process, field_of_record);
    set_sem(array_constructor);
    set_sem(record_constructor);
    set_sem(call);
@@ -3359,6 +3368,7 @@ extern void init_expr(void)
    set_eval(field_of_record);
    set_assign(field_of_record);
    set_connect(field_of_record);
+   set_connect(field_of_process);
    set_connect(field_of_union);
    set_eval(debug_field_of_union);
    set_eval(array_constructor);

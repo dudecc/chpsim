@@ -1,0 +1,12 @@
+Command line: ../../chpsim -batch badinst.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- error ------------------------------
+Error: / at badinst.chp[3:15]
+	Instance used before it was declared
+Error occurred: cannot continue
+(cmnd) where
+/ at badinst.chp[3:7]
+	connect a.I, a.O
+(cmnd) quit

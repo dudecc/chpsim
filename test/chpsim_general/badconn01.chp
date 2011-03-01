@@ -1,0 +1,33 @@
+type A = {red, blue, green};
+type B = array [0..1] of bool;
+
+function a2b(a : A) : B
+chp { [ a=`red -> a2b:=[true,true]
+     [] a=`blue -> a2b:=[true,false]
+     [] a=`green -> a2b:=[false,false]
+  ] }
+
+function b2a(b : B) : A
+chp { [ b[0] & b[1] -> b2a:=`red
+     [] b[0] & ~b[1] -> b2a:=`blue
+     [] ~b[0] -> b2a:=`green
+  ] }
+
+type AB = union { default : B; a{b2a,a2b} : A; };
+
+process X()(O! : A)
+chp { O!`red; O!`green; O!`blue }
+
+process Y()(I? : B)
+chp { var x : B; <<; i : 0..2 : I?x; print(x) >> }
+
+process YY()(I? : AB)
+meta { instance y : Y; connect all i : 0..1 : I[i], y.I[i]; }
+
+process main()()
+meta {
+  instance x : X;
+  instance y : YY;
+  connect x.O, y.I.a;
+}
+

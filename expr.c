@@ -2139,6 +2139,8 @@ static void *connect_array_subscript(array_subscript *x, exec_info *f)
          }
        port_to_array(xxval, x->x, f);
      }
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
    assert(xxval->rep == REP_array);
    l = xxval->v.l;
    atps = (array_type*)x->x->tp.tps;
@@ -2678,6 +2680,8 @@ static void *connect_field_of_record(field_of_record *x, exec_info *f)
          { return v; }
        port_to_array(v, x->x, f);
      } 
+   else if (v->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
    assert(v->rep == REP_record);
    return &v->v.l->vl[x->idx];
  }

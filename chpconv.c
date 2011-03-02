@@ -56,6 +56,8 @@ static const char version[] = "2.0";
 /********** initialization ***************************************************/
 
 static hash_table proc_names;
+static int list_cells;
+static const char *last_declare;
 
 static void init_chpconv(void)
  {
@@ -65,6 +67,7 @@ static void init_chpconv(void)
    app_nr = App_nr_chp;
    init_chp(0, stdout);
    hash_table_init(&proc_names, 1, 0, 0);
+   list_cells = 0;
  }
 
 /********** input and simulation *********************************************/
@@ -124,12 +127,27 @@ static void convert(process_state *ps, FILE *o, int recur)
 
 static void convert_recur(value_tp *v, FILE *o)
  { int i;
+   const char* msg;
+   process_def *p;
    if (v->rep == REP_array || v->rep == REP_record)
      { for (i = 0; i < v->v.l->size; i++)
          { convert_recur(&v->v.l->vl[i], o); }
      }
-   else if (v->rep == REP_process && v->v.ps->b->class == CLASS_meta_body)
-     { convert(v->v.ps, o, 1); }
+   else if (v->rep == REP_process)
+     { if (v->v.ps->b->class == CLASS_meta_body)
+         { convert(v->v.ps, o, 1); }
+       else if (!declare_new(v->v.ps) && list_cells)
+         { if (v->v.ps->b->class == CLASS_prs_body)
+             { msg = "Using PRS"; }
+           else if (v->v.ps->b->class == CLASS_hse_body)
+             { msg = "Using HSE"; }
+           else
+             { msg = "WARNING: Using CHP"; }
+           p = v->v.ps->p;
+           printf("%s process %s(%s[%d:%d]) as a cell\n", msg, last_declare,
+                  p->src, p->lnr, p->lpos);
+         }
+     }
  }
 
 /********** command line *****************************************************/
@@ -152,6 +170,7 @@ static void usage(const char *fmt, ...)
 	"\t-batch         - non-interactive instantiation\n"
 	"\t-log file      - keep log of interaction\n"
 	"\t-v             - report which files are read etc.\n"
+	"\t-l             - list all non meta bodies found during recursion\n"
 	"\n",
         version
    );
@@ -240,6 +259,8 @@ extern int main(int argc, char *argv[])
 	 }
        else if (!strcmp(argv[i], "-R"))
          { recur = 1; }
+       else if (!strcmp(argv[i], "-l"))
+         { list_cells = 1; }
        else if (!strcmp(argv[i], "-o"))
          { i = need_arg(argc, argv, i);
            FOPEN(outfile, argv[i], "w");
@@ -441,6 +462,7 @@ static int declare_new(process_state *p)
  { print_info g;
    hash_entry *e;
    int ret;
+   process_def *x;
    print_info_init_new(&g);
    SET_FLAG(g.flags, PR_reset);
    print_meta_name(p, &g);
@@ -448,7 +470,15 @@ static int declare_new(process_state *p)
    if (!ret)
      { e->data.p = p->p; }
    else if (p->p != e->data.p)
-     { assert(!"Process name space collision"); }
+     { x = e->data.p;
+       if (x->mb || p->p->mb)
+         { fprintf(stderr, "Process name %s used in both %s[%d:%d] and "
+                   "%s[%d:%d]\n", g.s->s, p->p->src, p->p->lnr, p->p->lpos,
+                   x->src, x->lnr, x->lpos);
+           exit(1);
+         }
+     }
+   last_declare = e->key;
    print_info_term(&g);
    return ret;
  }
@@ -466,6 +496,7 @@ typedef struct name_info
      int first;
      int io_stat;
      int wnm_pos;
+     process_state *p; // For error output
    } name_info;
 
 /* Priorities:
@@ -524,8 +555,16 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
    wired_type *wtps;
    wire_decl *wd;
    wire_value *w;
+   process_state *ps;
+   port_value *p;
+   var_decl *d;
    int pos = VAR_STR_LEN(&f->scratch);
-   if (tp && tp->kind == TP_generic) assert(!"No templated types");
+   if (tp && tp->kind == TP_generic)
+     { fprintf(stderr, "In instance %s of process %s(%s[%d:%d]),\n"
+               "port %s has templated type\n", f->p->nm, f->p->p->id,
+               f->p->p->src, f->p->p->lnr, f->p->p->lpos, f->scratch.s);
+       exit(1);
+     }
    switch(v->rep)
      { case REP_record:
          if (tp->kind == TP_wire)
@@ -567,8 +606,21 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
          _named_wire_exec(&v->v.u->v, &v->v.u->f->tp, f); // Ignore union name
        return;
        case REP_port:
-         if (v->v.p->p)
-           { assert(!"Process has non wired ports"); }
+         p = v->v.p->dec? v->v.p : v->v.p->p;
+         if (v->v.p->p && p->dec)
+           { ps = p->ps;
+             assert(!is_visible(ps));
+             d = llist_idx(&ps->p->pl, 0);
+             if (ps->var[d->var_idx].v.p == p)
+               { d = llist_idx(&ps->p->pl, 1); }
+             _named_wire_exec(&ps->var[d->var_idx], &p->dec->tps->tp, f);
+           }
+         else if (v->v.p->p)
+           { fprintf(stderr, "In instance %s of process %s(%s[%d:%d]),\n"
+                     "port %s is not a wired port\n", f->p->nm, f->p->p->id,
+                     f->p->p->src, f->p->p->lnr, f->p->p->lpos, f->scratch.s);
+             exit(1);
+           }
          else if (v->v.p->nv)
            { assert(v->v.p->nv != v);
              if (v->v.p->dec)
@@ -605,6 +657,7 @@ static void named_wire_exec(process_state *p, name_info *f)
  { llist l;
    var_decl *d;
    int pos = VAR_STR_LEN(&f->scratch), priority = f->priority;
+   f->p = p;
    for (l = p->p->pl; !llist_is_empty(&l); l = llist_alias_tail(&l))
      { d = llist_head(&l);
        var_str_printf(&f->scratch, pos, "%s", d->id);

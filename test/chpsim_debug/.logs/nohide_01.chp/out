@@ -9,7 +9,7 @@
   T = <type>
   MAP = [0, 1, 2]
   I --> /a:O
-  O (wired)
+  O (wired) {(0), [(0), (0), (0)]}
 (active) /a/O/wire at /usr/local/share/chpsim/channel.chp[19:7]
 (active) /a/O/wire at /usr/local/share/chpsim/channel.chp[23:2]
 (cmnd?) --- error ------------------------------

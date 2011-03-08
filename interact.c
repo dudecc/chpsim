@@ -347,7 +347,7 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
      }
    else if (v->rep == REP_record)
      { if (tp->kind == TP_wire)
-         { report(f, "  %s (wired)\n", f->scratch.s); }
+         { report(f, "  %s (wired) %v\n", f->scratch.s, vstr_val, v); }
        else
          { rtps = (record_type*)tp->tps;
            assert(rtps && rtps->class == CLASS_record_type);
@@ -369,7 +369,18 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
    else if (v->rep != REP_port)
      { report(f, "  %s has not been connected\n", f->scratch.s); }
    else if (!v->v.p->p)
-     { report(f, "  %s has been disconnected\n", f->scratch.s); }
+     { if (v->v.p->nv)
+         { assert(v->v.p->nv != v);
+           if (v->v.p->dec)
+             { show_conn_aux(v->v.p->nv, &v->v.p->dec->tps->tp, f); }
+           else
+             { show_conn_aux(v->v.p->nv, tp, f); }
+         }
+       else if (v->v.p->v.rep && v->v.p->dec)
+         { show_conn_aux(&v->v.p->v, &v->v.p->dec->tps->tp, f); }
+       else
+         { report(f, "  %s has been disconnected\n", f->scratch.s); }
+     }
    else if (!is_visible(v->v.p->p->ps) && v->v.p->p->dec)
      { d = llist_idx(&v->v.p->p->ps->p->pl, 0);
        pv = &v->v.p->p->ps->var[d->var_idx];
@@ -566,8 +577,6 @@ static int cmnd_show(user_info *f)
        ps = find_instance(f, nm, 0);
        if (!ps || ps->nr_thread == 0)
          { report(f, "  No such process instance: %s\n", nm); }
-       else if (ps->nr_thread < -1)
-         { report(f, "  Process instance %s has terminated\n", nm); }
        else
          { report(f, "  %s is an instance of %s[%d:%d] %s", nm,
                   ps->p->src, ps->p->lnr, ps->p->lpos, ps->p->id);
@@ -576,6 +585,8 @@ static int cmnd_show(user_info *f)
            f->limit = 0;
            if (ps->nr_thread == -1)
              { report(f, "  Process instance %s has not yet started\n", nm); }
+           else if (ps->nr_thread < -1)
+             { report(f, "  Process instance %s has terminated\n", nm); }
            else if (ps->b->class == CLASS_prs_body)
              { report(f, "  Process instance %s has production rules", nm); }
            else

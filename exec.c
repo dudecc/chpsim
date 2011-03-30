@@ -116,8 +116,8 @@ extern void exec_info_term(exec_info *f)
  }
 
 extern ctrl_state *new_ctrl_state(exec_info *f)
- /* Allocate a new state. time is set to the current time, meta is
-    set from f->curr (if any). Other fields are initialized to 0.
+ /* Allocate a new state. time is set to the current time,
+    other fields are initialized to 0.
     The state has not yet been scheduled.
     Note: a ctrl_state is deallocated just before a pop, but the var[]
     array is not automatically cleared.
@@ -148,7 +148,7 @@ extern ctrl_state *new_ctrl_state(exec_info *f)
    return s;
  }
 
-static void free_ctrl_state(ctrl_state *s, exec_info *f)
+extern void free_ctrl_state(ctrl_state *s, exec_info *f)
  { mpz_clear(s->act.time);
    free(s);
  }

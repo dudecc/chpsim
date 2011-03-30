@@ -144,7 +144,8 @@ static void *parse_expr_interact(user_info *f)
    return e;
  }
 
-static void sem_interact(expr **e, sem_flags flags, user_info *f)
+static void sem_interact
+(expr **e, sem_flags flags, ctrl_state *cs, user_info *f)
  { sem_info g;
    sem_info_init(&g);
    g.L = f->L;
@@ -152,20 +153,20 @@ static void sem_interact(expr **e, sem_flags flags, user_info *f)
    g.flags = flags;
    SET_FLAG(g.flags, SEM_debug);
    if (f->cxt) g.cxt = f->cxt;
-   else if (f->curr && !IS_SET(f->flags, USER_global))
-     { g.cxt = f->curr->cxt; }
+   else if (cs)
+     { g.cxt = cs->cxt; }
    else
      { g.cxt = f->main->p->cxt->parent; }
    *e = sem(*e, &g);
    sem_info_term(&g);
  }
 
-static void eval_interact(value_tp *v, expr *e, user_info *f)
+static void eval_interact(value_tp *v, expr *e, ctrl_state *cs, user_info *f)
  { exec_info g;
-   if (f->curr && !IS_SET(f->flags, USER_global))
+   if (cs)
      { exec_info_init(&g, f->global);
-       g.curr = f->curr;
-       g.meta_ps = f->curr->ps;
+       g.curr = cs;
+       g.meta_ps = cs->ps;
        SET_FLAG(f->flags, USER_debug);
        eval_expr(e, &g);
        pop_value(v, &g);
@@ -598,8 +599,8 @@ static int cmnd_show(user_info *f)
        if (!lex_have(f->L, TOK_nl))
          { report(f, "  Usage: print [expression|instance]\n"); }
        else
-         { sem_interact(&e, 0, f);
-           eval_interact(&val, e, f);
+         { sem_interact(&e, 0, f->curr, f);
+           eval_interact(&val, e, f->curr, f);
            report(f, "  %v = %v\n", vstr_obj, e, vstr_val, &val);
            clear_value_tp(&val, f->global);
          }
@@ -923,7 +924,7 @@ extern brk_return set_breakpoint(void *obj, user_info *f)
      { if (lex_have_next(f->L, TOK_id))
          { if (f->L->prev->t.val.s != make_str("if")) return BRK_usage;
            e = parse_expr_interact(f);
-           sem_interact(&e, 0, f);
+           sem_interact(&e, 0, f->curr, f);
          }
        if (!lex_have(f->L, TOK_nl)) return BRK_usage;
        if (IS_SET(x->flags, DBG_break)) return BRK_stmt_err;
@@ -1210,23 +1211,54 @@ static int check_brk_cond(exec_info *f)
 
 typedef void wire_func_tp(wire_value *w, user_info *f);
  /* Execute a command with a single argument that is a wire
-    No return, assume interaction should continue
+    No return - assume interaction should continue
  */
 
 static int wire_cmnd(wire_func_tp *F, const str *cmd, user_info *f)
- { expr *e;
+ { process_state *ps = 0;
+   ctrl_state *cs;
+   const str *nm;
+   expr *e;
    wire_value *w;
    value_tp val;
    if (lex_have(f->L, TOK_nl))
-     { report(f, "  Usage: %s expression\n", cmd);
+     { report(f, "  Usage: %s [instance : ] expression\n", cmd);
        return 1;
+     }
+   else if (lex_have_next(f->L, TOK_instance))
+     { nm = f->L->prev->t.val.s;
+       ps = find_instance(f, nm, 0);
+       if (!lex_have_next(f->L, ':'))
+         { report(f, "  Usage: %s [instance : ] expression\n", cmd);
+           return 1;
+         }
+       if (!ps || ps->nr_thread == 0)
+         { report(f, "  No such process instance: %s\n", nm);
+           return 1;
+         }
+       if (ps->nr_thread > 0)
+         { f->cxt = ps->b->cxt; }
+       else
+         { f->cxt = ps->p->cxt; }
      }
    e = parse_expr_interact(f);
    if (!lex_have(f->L, TOK_nl))
-     { report(f, "  Usage: %s expression\n", cmd); }
+     { report(f, "  Usage: %s [instance : ] expression\n", cmd); }
    else
-     { sem_interact(&e, SEM_prs, f);
-       eval_interact(&val, e, f);
+     { sem_interact(&e, SEM_prs, f->curr, f);
+       if (!ps)
+         { eval_interact(&val, e, f->curr, f); }
+       else if (ps->nr_thread > 0)
+         { eval_interact(&val, e, ps->cs, f); }
+       else
+         { NEW(cs);
+           cs->ps = ps;
+           cs->nr_var = ps->nr_var;
+           cs->var = ps->var;
+           /* Other fields of cs should not matter here */
+           eval_interact(&val, e, f->curr, f);
+           free(cs);
+         }
        if (val.rep == REP_wire)
          { w = val.v.w;
            while (IS_SET(w->flags, WIRE_forward))
@@ -1237,6 +1269,7 @@ static int wire_cmnd(wire_func_tp *F, const str *cmd, user_info *f)
          { report(f, "  Expression in %s must be a wire\n", cmd); }
        clear_value_tp(&val, f->global);
      }
+   f->cxt = 0;
    parse_cleanup(f->L);
    return 1;
  }
@@ -1655,18 +1688,15 @@ static int cmnd_meta(user_info *f)
        if (mv->rep)
          { clear_value_tp(mv, f->global); }
        e = parse_expr_interact(f);
-       SET_FLAG(f->flags, USER_global);
-       sem_interact(&e, 0, f);
+       sem_interact(&e, 0, 0, f);
        if (!type_compatible(&mp->tp, &e->tp))
          { report(f, "  Type of meta parameter %s does not match value %v",
                   mp->id, vstr_obj, e);
-           RESET_FLAG(f->flags, USER_global);
            f->cxt = 0;
            parse_cleanup(f->L);
            return 2;
          }
-       eval_interact(&val, e, f);
-       RESET_FLAG(f->flags, USER_global);
+       eval_interact(&val, e, 0, f);
        copy_and_clear(mv, &val, f->global);
        parse_cleanup(f->L);
        l = llist_alias_tail(&l); i++;
@@ -1699,66 +1729,79 @@ typedef struct cmnd_entry
      const char *prefix;
      cmnd_func_tp *f;
      const char *help; /* if start with !, then not listed by default */
+     const char *longhelp; /* if not 0, use this string for specific help */
    } cmnd_entry;
 
 /* cmnd_func_tp */
 static int cmnd_help(user_info *f);
 
 static cmnd_entry cmnd_list[] =
-   { { "step", "s", cmnd_step, "step [instance] - take one step" },
+   { { "step", "s", cmnd_step, "step [instance] - take one step", 0 },
      { "next", "n", cmnd_next,
-          "next [instance] - take one step (call is one step)" },
-     { "continue", "c", cmnd_continue, "- continue execution (a.k.a. 'run')" },
-     { "run", "r", cmnd_continue, "!- same as continue" },
+          "next [instance] - take one step (call is one step)", 0 },
+     { "continue", "c", cmnd_continue,
+          "- continue execution (a.k.a. 'run')", 0 },
+     { "run", "r", cmnd_continue, "!- same as continue", 0 },
      { "instantiate", "i", cmnd_inst,
-          "instantiate [instance] - finish current process" },
+          "instantiate [instance] - finish current process", 0 },
      { "meta", "m", cmnd_meta,
-          "meta expr [, expr ...] - set meta parameters of the root process" },
+          "meta expr [, expr ...] - set root meta parameters", 0 },
      { "trace", "t", cmnd_trace,
-                "trace [instance] - trace process execution" },
+          "trace [instance] - trace process execution", 0 },
      { "watch", "w", cmnd_watch,
-                "watch expression - show all transitions of the given wire" },
-     { "break", "b", cmnd_break,
-             "break [if condition] - set breakpoint at current statement\n\t\t"
-             "break instance [linenr [: position]] [if condition]:\n\t\t\t"
-                " set breakpoint in a single instance\n\t\t"
-             "break [\"file\"] linenr [: position] [if condition]:\n\t\t\t"
-                " set breakpoint across all instances\n\t\t"
-             "break [\"file\"] routine [. routine ...]:\n\t\t\t"
-                " set breakpoint at the beginning of a routine" },
-     { "clear", "cl", cmnd_clear,
-             "clear - clear breakpoint at current statement\n\t\t"
-             "clear instance [linenr [: position]]:\n\t\t\t"
-                " clear breakpoint by instance\n\t\t"
-             "clear [\"file\"] linenr [: position]:\n\t\t\t"
-                " clear breakpoint by module name\n\t\t"
-             "clear [\"file\"] routine [. routine ...]:\n\t\t\t"
-                " clear breakpoint at the beginning of a routine\n\t\t"
-             "clear trace [instance] - stop tracing\n\t\t"
-             "clear watch expression - stop watching\n\t\t"
-             "clear step [instance] - clear step/next status" },
+          "watch ... - show all transitions of a wire",
+          "watch ... - show all transitions of a wire\n\t\t"
+          "watch expr - watch a wire specified from the current frame\n\t\t"
+          "watch instance : expr - watch a wire from the specified frame"},
+     { "break", "b", cmnd_break, "break ... - set a breakpoint",
+          "break [if condition] - set breakpoint at current statement\n\t\t"
+          "break instance [linenr [: position]] [if condition]:\n\t\t\t"
+             " set breakpoint in a single instance\n\t\t"
+          "break [\"file\"] linenr [: position] [if condition]:\n\t\t\t"
+             " set breakpoint across all instances\n\t\t"
+          "break [\"file\"] routine [. routine ...]:\n\t\t\t"
+             " set breakpoint at the beginning of a routine" },
+     { "clear", "cl", cmnd_clear, "clear ... - clear breakpoints, traces, etc.",
+          "clear - clear breakpoint at current statement\n\t\t"
+          "clear instance [linenr [: position]]:\n\t\t\t"
+             " clear breakpoint by instance\n\t\t"
+          "clear [\"file\"] linenr [: position]:\n\t\t\t"
+             " clear breakpoint by module name\n\t\t"
+          "clear [\"file\"] routine [. routine ...]:\n\t\t\t"
+             " clear breakpoint at the beginning of a routine\n\t\t"
+          "clear trace [instance] - stop tracing\n\t\t"
+          "clear watch expression - stop watching\n\t\t"
+          "clear step [instance] - clear step/next status" },
      { "print", "p", cmnd_show,
-                "print - show current threads (a.k.a. 'show')\n\t\t"
-                "print instance - show connections and position\n\t\t"
-                "print expression - evaluate the expression" },
-     { "show", "sh", cmnd_show, "!- same as print" },
-     { "fanout", "fano", cmnd_fanout, "! - display fanout production rules" },
-     { "fanin", "fani", cmnd_fanin, "! - display fanin production rules" },
-     { "critical", "cr", cmnd_critical, "! - list critical transitions" },
-     { "where", "wh", cmnd_where, "- show call stack" },
+          "print - show all threads\n\t\t"
+          "print instance - show connections and position\n\t\t"
+          "print expression - evaluate an expression", 0 },
+     { "show", "sh", cmnd_show, "!- same as print", 0 },
+     { "fanin", "fani", cmnd_fanin,
+          "fanin ... - display the fanin (driver) of a wire",
+          "fanin ... - display the fanin (driver) of a wire\n\t\t"
+          "fanin expr - fanin specified from the current frame\n\t\t"
+          "fanin instance : expr - fanin from the specified frame"},
+     { "fanout", "fano", cmnd_fanout,
+          "fanout ... - display fanout actions of a wire",
+          "fanout ... - display fanout actions of a wire\n\t\t"
+          "fanout expr - fanout specified from the current frame\n\t\t"
+          "fanout instance : expr - fanout from the specified frame"},
+     { "critical", "cr", cmnd_critical, "! - list critical transitions", 0 },
+     { "where", "wh", cmnd_where, "- show call stack", 0 },
      { "up", "u", cmnd_up,
-                "\tup [int] - move up the call stack (towards the caller)" },
-     { "down", "d", cmnd_down, "down [int] - move down the call stack" },
+          "\tup [int] - move up the call stack (towards the caller)", 0 },
+     { "down", "d", cmnd_down, "down [int] - move down the call stack", 0 },
      { "view", "v", cmnd_view,
-                "view [instance] - change current process (a.k.a. 'focus')" },
-     { "focus", "f", cmnd_view, "!- same as view" },
+          "view [instance] - change current process", 0 },
+     { "focus", "f", cmnd_view, "!- same as view", 0 },
      { "source", "so", cmnd_source,
-                 "source \"filename\" - execute commands from file" },
-     { "batch", "bat", cmnd_batch, "- continue without interaction" },
-     { "quit", "q", cmnd_quit, "- quit the program (a.k.a. 'exit')" },
-     { "exit", "ex", cmnd_quit, "!- same as quit" },
-     { "x", 0, cmnd_quit, "!\t- same as quit" },
-     { "help", "h", cmnd_help, "!help [command] - command summary" }
+           "source \"filename\" - execute commands from file", 0 },
+     { "batch", "bat", cmnd_batch, "- continue without interaction", 0 },
+     { "quit", "q", cmnd_quit, "- quit the program", 0 },
+     { "exit", "ex", cmnd_quit, "!- same as quit", 0 },
+     { "x", 0, cmnd_quit, "!\t- same as quit", 0 },
+     { "help", "h", cmnd_help, "!help [command] - command summary", 0 }
    };
 
 #define NR_CMND CONST_ARRAY_SIZE(cmnd_list)
@@ -1787,7 +1830,8 @@ static int cmnd_help(user_info *f)
      { e = find_cmnd(f->L->prev->t.val.s);
        if (e)
          { report(f, "  %s: \t%s\n", e->cmnd,
-                   (*e->help != '!')? e->help : e->help+1);
+                   e->longhelp? e->longhelp :
+                                (*e->help != '!')? e->help : e->help+1);
            return 1;
          }
      }
@@ -1920,7 +1964,6 @@ extern void interact(exec_info *g, const str *deflt)
         if (setjmp(err_jmp))
           { parse_cleanup(f->L);
             RESET_FLAG(f->L->flags, LEX_cmnd_kw | LEX_filename);
-            RESET_FLAG(f->flags, USER_global);
             e = 0;
             continue;
           }

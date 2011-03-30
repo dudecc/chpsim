@@ -3,10 +3,13 @@
 (cmnd?) --- CHP execution ----------------------
 (cmnd?) --- error ------------------------------
 Error: deadlock
-(cmnd?)   /b is an instance of disconn01.chp[8:0] B
+(cmnd?)   /b is an instance of disconn01.chp[9:0] B
   O --> /a:I
-(suspended) /b at disconn01.chp[8:28]
-(cmnd?) (view) /b at disconn01.chp[8:28]
+(suspended) /b at disconn01.chp[9:28]
+(cmnd?) (view) /b at disconn01.chp[9:28]
 	O!0
 (cmnd?)   O = port --> /a:I, # = false
+(cmnd?)   /a is an instance of disconn01.chp[8:0] A
+  I --> /b:O
+  Process instance /a has terminated
 (cmnd?) 

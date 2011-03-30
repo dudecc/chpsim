@@ -70,7 +70,6 @@ FLAGS(user_flags)
      NEXT_FLAG(USER_random), /* use random timing */
      NEXT_FLAG(USER_nohide), /* do not hide wired decomposition processes */
      NEXT_FLAG(USER_critical), /* track critical cycles */
-     NEXT_FLAG(USER_global), /* use global context for debug prompt exprs */
      NEXT_FLAG(USER_clear) /* brkp() clears breakpoints instead of setting them */
    };
 

@@ -3,6 +3,7 @@
 //p /b
 //v /b
 //p O
+//p /a
 
 process A()(I? : int) chp { }
 process B()(O! : int) chp { O!0 }

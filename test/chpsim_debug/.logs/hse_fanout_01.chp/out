@@ -3,9 +3,12 @@
 (cmnd?) --- CHP execution ----------------------
 (cmnd?) --- error ------------------------------
 Error: deadlock
-(cmnd?) (view) /a at hse_fanout_01.chp[6:33]
+(cmnd?) (view) /a at hse_fanout_01.chp[7:33]
 	[I.d]
 (cmnd?) 1 fanouts:
-fanout to /b at hse_fanout_01.chp[7:33]:
+fanout to /b at hse_fanout_01.chp[8:33]:
 	[O.e]
+(cmnd?) 1 fanouts:
+fanout to /a at hse_fanout_01.chp[7:33]:
+	[I.d]
 (cmnd?) 

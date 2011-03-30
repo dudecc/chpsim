@@ -1,0 +1,11 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /b is an instance of pterm2.chp[11:0] BB
+  I (wired) {(0), [(0), (0)]}
+  Process instance /b has terminated
+(cmnd?)   Wire is driven by output I.wire.e of process /b/b
+(cmnd?) /b/b> done
+--- error ------------------------------
+Error: deadlock
+No threads left.

@@ -240,9 +240,6 @@ CLASS(field_of_union)
      union_field *d; /* assigned by sem() */
    };
 
-/* Debug field of union is only used when parsing from the debug prompt */
-CLASS_COPY(debug_field_of_union, field_of_union);
-
 CLASS(array_constructor)
    { EXPR_OBJ;
      llist l; /* llist(expr) */

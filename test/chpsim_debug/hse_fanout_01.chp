@@ -2,6 +2,7 @@
 //r
 //v /a
 //fanout I.e
+//fanout /b:O.d
 
 process A()(I? : (e-; d-)) hse { [I.d] }
 process B()(O! : (e-; d-)) hse { [O.e] }

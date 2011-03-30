@@ -653,8 +653,6 @@ static void *try_union(field_of_record *x, sem_info *f)
      { sem_error(f, x, "Union fields can only be accessed through ports"); }
    if (!IS_SET(f->flags, SEM_connect | SEM_debug))
      { sem_error(f, x, "Cannot access a union field except with 'connect'"); }
-   if (IS_SET(f->flags, SEM_debug))
-     { uf->class = CLASS_debug_field_of_union; }
    if (uf->tp.kind == TP_wire)
      { SET_FLAG(uf->flags, EXPR_wire); }
    return uf;
@@ -2802,24 +2800,49 @@ extern void wu_proc_remove(value_tp *v, int dir, exec_info *f)
    // Maybe some other cleanup stuff here...
  }
 
-static void eval_debug_field_of_union(debug_field_of_union *x, exec_info *f)
+static void eval_field_of_union(field_of_union *x, exec_info *f)
 /* Only called from the debug prompt - doesn't modify any connections */
  { value_tp xv, v, *ve;
    value_union *vu;
    var_decl *d;
-   int dir;
+   port_value *p;
    eval_expr(x->x, f);
    pop_value(&xv, f);
    if (x->d->up.p->class == CLASS_process_def)
-     { if (!xv.rep || (xv.rep == REP_port && !xv.v.p->p))
+     { while (xv.rep == REP_port && !xv.v.p->p && xv.v.p->nv)
+         { ve = xv.v.p->nv;
+           assert(ve->rep != REP_port || ve->v.p != xv.v.p);
+           clear_value_tp(&xv, f);
+           alias_value_tp(&xv, ve, f);
+         }
+       if (!xv.rep || (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec))
          { exec_error(f, x, "Port %v is not connected", vstr_obj, x->x); }
-       if (xv.rep != REP_port || xv.v.p->p->dec != x->d)
+       if (xv.rep != REP_port || (!xv.v.p->p && xv.v.p->dec != x->d))
          { exec_error(f, x, "Port %v is not decomposed via field %s",
                       vstr_obj, x->x, x->id);
          }
-       dir = !IS_SET(x->flags, EXPR_inport);
-       d = llist_idx(&xv.v.p->p->ps->p->pl, dir? 1 : 0);
-       alias_value_tp(&v, &xv.v.p->p->ps->var[d->var_idx], f);
+       if (!xv.v.p->p)
+         { assert(xv.v.p->v.rep);
+           ve = &xv.v.p->v;
+         }
+       else
+         { if (!is_visible(xv.v.p->ps)) p = xv.v.p;
+           else if (!is_visible(xv.v.p->p->ps)) p = xv.v.p->p;
+           else p = 0;
+           if (!p || p->dec != x->d)
+             { exec_error(f, x, "Port %v is not decomposed via field %s",
+                          vstr_obj, x->x, x->id);
+             }
+           d = llist_idx(&p->ps->p->pl, 0);
+           ve = &p->ps->var[d->var_idx];
+           if (ve->v.p == p)
+             { d = llist_idx(&p->ps->p->pl, 1);
+               ve = &p->ps->var[d->var_idx];
+             }
+           f->meta_ps = p->ps;
+         }
+       clear_value_tp(&xv, f);
+       alias_value_tp(&v, ve, f);
      }
    else
      { if (!xv.rep)
@@ -3329,7 +3352,6 @@ extern void init_expr(void)
    set_print(field_of_record);
    set_print_cp(field_of_process, field_of_record);
    set_print(field_of_union);
-   set_print_cp(debug_field_of_union, field_of_union);
    set_print(array_constructor);
    set_print(record_constructor);
    set_print(call);
@@ -3374,7 +3396,7 @@ extern void init_expr(void)
    set_connect(field_of_record);
    set_connect(field_of_process);
    set_connect(field_of_union);
-   set_eval(debug_field_of_union);
+   set_eval(field_of_union);
    set_eval(array_constructor);
    /* eval_record_constructor = eval_array_constructor */
    set_eval_cp(record_constructor, array_constructor);

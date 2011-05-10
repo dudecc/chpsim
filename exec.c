@@ -549,7 +549,9 @@ extern void exec_run(exec_info *f)
          { llist_free(&f->curr->dep, (llist_func*)clear_action_dep, f); }
        RESET_FLAG(a->flags, ACTION_sched | ACTION_susp);
        if (IS_SET(a->flags, ACTION_is_pr))
-         { if (IS_SET(a->flags, ACTION_pr_up | ACTION_pr_dn))
+         { if (IS_SET(ps->flags, DBG_step|DBG_next) || exec_interrupted)
+             { interact_report(f); }
+           if (IS_SET(a->flags, ACTION_pr_up | ACTION_pr_dn))
              { write_wire(IS_SET(a->flags, ACTION_pr_up), a->target.w, f); }
          }
        else if (IS_SET(a->flags, ACTION_is_cr))

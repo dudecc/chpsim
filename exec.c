@@ -85,6 +85,7 @@ extern void exec_info_init(exec_info *f, exec_info *orig)
    f->err_obj = 0;
    var_str_init(&f->scratch, 0);
    var_str_init(&f->err, 0);
+   f->ecount = 0;
    if (orig)
      { f->user = orig->user;
        f->parent = orig;
@@ -353,7 +354,13 @@ extern void action_sched(action *a, exec_info *f)
  /* Pre: a is not scheduled. Schedule a. */
  { hash_entry *q;
    mpz_set(a->time, f->time);
-   if (IS_SET(a->flags, ACTION_atomic))
+   if (IS_SET(f->user->flags, USER_rrandom))
+     { if (IS_SET(a->flags, ACTION_atomic))
+         { mpz_set_ui(a->time, 0); }
+       else
+         { mpz_set_ui(a->time, (int)lrand48()); }
+     }
+   else if (IS_SET(a->flags, ACTION_atomic))
      { mpz_clrbit(a->time, 0); }
    else if (IS_SET(f->user->flags, USER_random))
      { mpz_add_ui(a->time, a->time, rand_delay() << 1); }

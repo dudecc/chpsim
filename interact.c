@@ -1241,6 +1241,7 @@ static int wire_cmnd(wire_func_tp *F, const str *cmd, user_info *f)
        else
          { f->cxt = ps->p->cxt; }
      }
+   f->ps = ps? ps : f->curr->ps;
    e = parse_expr_interact(f);
    if (!lex_have(f->L, TOK_nl))
      { report(f, "  Usage: %s [instance : ] expression\n", cmd); }
@@ -1256,7 +1257,7 @@ static int wire_cmnd(wire_func_tp *F, const str *cmd, user_info *f)
            cs->nr_var = ps->nr_var;
            cs->var = ps->var;
            /* Other fields of cs should not matter here */
-           eval_interact(&val, e, f->curr, f);
+           eval_interact(&val, e, cs, f);
            free(cs);
          }
        if (val.rep == REP_wire)
@@ -1396,7 +1397,7 @@ static void wire_fanout(wire_value *w, user_info *f)
          }
        else /* fanout to PR */
          { g.pos = 0;
-           print_pr(pr, &emap, f->curr->ps, &g);
+           print_pr(pr, &emap, f->ps, &g);
            VAR_STR_X(g.s, g.pos) = 0;
            if (pr->u.act->cs->ps == f->curr->ps)
              { report(f, "%s -> %V%c", f->scratch.s,
@@ -1722,6 +1723,12 @@ static int cmnd_meta(user_info *f)
    return 1;
  }
 
+/* cmnd_func_tp */
+static int cmnd_energy(user_info *f)
+ { report(f, "Energy estimate: %ld", f->global->ecount);
+   return 1;
+ }
+
 /********** commands *********************************************************/
 
 typedef struct cmnd_entry
@@ -1788,6 +1795,7 @@ static cmnd_entry cmnd_list[] =
           "fanout expr - fanout specified from the current frame\n\t\t"
           "fanout instance : expr - fanout from the specified frame"},
      { "critical", "cr", cmnd_critical, "! - list critical transitions", 0 },
+     { "energy", "en", cmnd_energy, "! - display current energy estimate", 0 },
      { "where", "wh", cmnd_where, "- show call stack", 0 },
      { "up", "u", cmnd_up,
           "\tup [int] - move up the call stack (towards the caller)", 0 },

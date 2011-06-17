@@ -980,6 +980,7 @@ extern void write_wire(int val, wire_value *w, exec_info *f)
          { e = llist_head(&m);
            update_wire_expr(old, e, f);
            m = llist_alias_tail(&m);
+           f->ecount++;
          }
        run_checks(w, f);
      }

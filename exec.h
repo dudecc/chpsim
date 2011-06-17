@@ -209,6 +209,7 @@ struct exec_info
      int nr_susp; /* number of suspended processes */
      hash_table delays; /* stores custom delay information */
      hash_table *crit_map; /* used for tracking critical cycles */
+     long ecount; /* Used for energy estimates */
    };
      
 typedef enum exec_return

@@ -68,6 +68,7 @@ FLAGS(user_flags)
      NEXT_FLAG(USER_debug), /* Evaluating from the debug prompt */
      NEXT_FLAG(USER_strict), /* do strict checks */
      NEXT_FLAG(USER_random), /* use random timing */
+     NEXT_FLAG(USER_rrandom), /* use non accumulative random execution */
      NEXT_FLAG(USER_nohide), /* do not hide wired decomposition processes */
      NEXT_FLAG(USER_critical), /* track critical cycles */
      NEXT_FLAG(USER_clear) /* brkp() clears breakpoints instead of setting them */

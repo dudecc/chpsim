@@ -420,6 +420,34 @@ extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps)
    return 0;
  }
 
+/* var_str_func2_tp: use as first arg for %V */
+extern int vstr_wire_context_short(var_string *s, int pos, void *w, void *ps)
+ /* Same as above, but use shorthand ':' notation */
+ { exec_info g;
+   var_decl *d;
+   port_value *pv;
+   char *ext;
+   exec_info_init(&g, 0);
+   g.meta_ps = ps;
+   print_wire_exec(w, &g);
+   if (is_visible(ps))
+     { var_str_printf(s, pos, "%s:%s", g.meta_ps->nm, g.scratch.s); }
+   else
+     { ext = strchr(g.scratch.s, '.'); /* "Remove" local port name */
+       assert(ext);
+       d = llist_idx(&g.meta_ps->p->pl, 0);
+       if (g.meta_ps->var[d->var_idx].rep != REP_port)
+         { d = llist_idx(&g.meta_ps->p->pl, 1); }
+       assert(g.meta_ps->var[d->var_idx].rep == REP_port);
+       pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
+       assert(pv->dec);
+       var_str_printf(s, pos, "%s:%v.%s%s", pv->p->ps->nm, vstr_port, pv->p,
+                      pv->dec->id, ext);
+     }
+   exec_info_term(&g);
+   return 0;
+ }
+
 static void print_port_exec(port_value *p, exec_info *f)
  /* Pre: f->meta_ps == p->ps: print the name of port p to f->scratch */
  { llist l = p->ps->p->pl;
@@ -964,11 +992,10 @@ extern void write_wire(int val, wire_value *w, exec_info *f)
      }
    if (IS_SET(w->flags, WIRE_watch) || (IS_SET(f->user->flags, USER_watchall)
                                         && !IS_SET(w->flags, WIRE_is_probe)))
-     { print_wire_exec(w, f);
-       mpz_init(time);
+     { mpz_init(time);
        mpz_fdiv_q_2exp(time, f->time, 1);
-       report(f->user, "(watch) %s:%s %s at time %v",
-              f->meta_ps->nm, f->scratch.s,
+       report(f->user, "(watch) %V %s at time %v",
+              vstr_wire_context_short, w, f->meta_ps,
               IS_SET(w->flags, WIRE_value)? "up" : "down", vstr_mpz, time);
        mpz_clear(time);
      }

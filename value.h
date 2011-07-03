@@ -253,6 +253,10 @@ extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps);
   * This also handles the case when the real reference frame is hidden
   */
 
+/* var_str_func2_tp: use as first arg for %V */
+extern int vstr_wire_context_short(var_string *s, int pos, void *w, void *ps);
+ /* Same as above, but use shorthand ':' notation */
+
 extern void print_port_value(port_value *p, print_info *f);
  /* print the name of port p to f */
 

@@ -2809,7 +2809,7 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
    eval_expr(x->x, f);
    pop_value(&xv, f);
    if (x->d->up.p->class == CLASS_process_def)
-     { while (xv.rep == REP_port && !xv.v.p->p && xv.v.p->nv)
+     { while (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec && xv.v.p->nv)
          { ve = xv.v.p->nv;
            assert(ve->rep != REP_port || ve->v.p != xv.v.p);
            clear_value_tp(&xv, f);
@@ -2822,8 +2822,12 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
                       vstr_obj, x->x, x->id);
          }
        if (!xv.v.p->p)
-         { assert(xv.v.p->v.rep);
-           ve = &xv.v.p->v;
+         { if (xv.v.p->nv)
+             { ve = xv.v.p->nv; }
+           else
+             { assert(xv.v.p->v.rep);
+               ve = &xv.v.p->v;
+             }
          }
        else
          { if (!is_visible(xv.v.p->ps)) p = xv.v.p;

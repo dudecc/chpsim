@@ -1,12 +1,12 @@
-Command line: ../../chpsim -batch hse_02.chp
+Command line: ../../chpsim -batch nowire2.chp
 
 --- global constants -------------------
 --- instantiation ----------------------
 --- error ------------------------------
-Error: /z at hse_02.chp[9:0]
-	In process /z, wire I.e has no writer
+Error: /b at nowire2.chp[7:0]
+	In process /b, wire I.wire.e has no writer
 Error occurred: cannot continue
 (cmnd) where
-/z at hse_02.chp[9:0]
-	process Z()(I?: e1of2; ...)
+/b at nowire2.chp[7:0]
+	process B()(I?: bit)
 (cmnd) quit

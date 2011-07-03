@@ -343,10 +343,9 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
          if (tp->kind == TP_wire)
            { wtps = (wired_type*)tp->tps;
              l = wtps->li;
-             pos += var_str_printf(&f->scratch, pos, ", wire ");
              for (i = 0; i < v->v.l->size; i++)
                { wd = (wire_decl*)llist_head(&l);
-                 var_str_printf(&f->scratch, pos, "%s", wd->id);
+                 var_str_printf(&f->scratch, pos, ".%s", wd->id);
                  check_new_ports(&v->v.l->vl[i], &wd->tps->tp, f);
                  l = llist_alias_tail(&l);
                  if (llist_is_empty(&l)) l = wtps->lo;
@@ -389,10 +388,13 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
          wire_fix(&v->v.w, f);
          w = v->v.w;
          if (!IS_SET(w->flags, WIRE_has_writer))
-           { exec_error(f, f->curr->obj, "%s has no writer", f->scratch.s); }
+           { var_str_printf(&f->scratch, pos, " has no writer");
+             exec_error(f, f->curr->obj, f->scratch.s, "wire");
+           }
        return;
        default:
-         exec_error(f, f->curr->obj, "%s is not connected", f->scratch.s);
+         var_str_printf(&f->scratch, pos, " is not connected");
+         exec_error(f, f->curr->obj, f->scratch.s, "port");
        return;
      }
  }
@@ -420,7 +422,9 @@ static void check_old_wires(value_tp *v, type *tp, exec_info *f)
        wire_fix(&v->v.w, f);
        w = v->v.w;
        if (w->wframe->cs->ps == f->curr->ps)
-         { exec_error(f, f->curr->obj, "%s)", f->scratch.s); }
+         { var_str_printf(&f->scratch, pos, " has no writer");
+           exec_error(f, f->curr->obj, f->scratch.s, "wire");
+         }
      }
  }
 
@@ -455,8 +459,6 @@ static void check_old_ports(value_tp *v, type *tp, exec_info *f)
      { case REP_record:
          if (tp->kind == TP_wire)
            { wtps = (wired_type*)tp->tps;
-             pos += var_str_printf(&f->scratch, pos, " not connected\n"
-                                   "(No process writes to wire ");
              if (LI_IS_WRITE(f->curr->i, wtps->type))
                { l = wtps->li; /* only check output wires */
                  i = 0;
@@ -467,7 +469,7 @@ static void check_old_ports(value_tp *v, type *tp, exec_info *f)
                }
              while (!llist_is_empty(&l))
                { wd = (wire_decl*)llist_head(&l);
-                 var_str_printf(&f->scratch, pos, "%s", wd->id);
+                 var_str_printf(&f->scratch, pos, ".%s", wd->id);
                  check_old_wires(&v->v.l->vl[i], &wd->tps->tp, f);
                  l = llist_alias_tail(&l);
                  i++;
@@ -492,7 +494,25 @@ static void check_old_ports(value_tp *v, type *tp, exec_info *f)
        case REP_port:
          p = v->v.p;
          if (p->p)
-           { exec_error(f, f->curr->obj, "%s not connected", f->scratch.s); }
+           { var_str_printf(&f->scratch, pos, " is not connected");
+             exec_error(f, f->curr->obj, f->scratch.s, "port");
+           }
+         else if (p->dec)
+           { var_str_printf(&f->scratch, pos, ".%s", p->dec->id);
+             // p->dec means that p was connected through wired decomposition to
+             // one or more subprocesses.  If p->nv is set then a new wired
+             // decomposition process was created.  Otherwise, the port was
+             // already connected externally through the same decompositon, so
+             // the external wired decomposition process was removed.  The value
+             // from the other side had its ownership transfered to the current
+             // process, and was placed in p->v
+             if (p->nv && !IS_SET(f->user->flags, USER_nohide))
+               // If wired decompositions are hidden, we get a better error
+               // message by running this check now...
+               { check_new_ports(p->nv, &p->dec->tp, f); }
+             else if (p->v.rep)
+               { check_old_ports(&p->v, &p->dec->tp, f); }
+           }
        return;
        case REP_array:
          if (tp->kind == TP_array)
@@ -543,7 +563,7 @@ static void sched_instance_all(value_tp *v, exec_info *f)
        f->meta_ps = ps;
        while (!llist_is_empty(&l))
          { d = llist_head(&l);
-           var_str_printf(&f->scratch, 0, "In process %s, port %s",
+           var_str_printf(&f->scratch, 0, "In process %s, %%s %s",
                           ps->nm, d->id);
            check_new_ports(&ps->var[d->var_idx], &d->tp, f);
            l = llist_alias_tail(&l);
@@ -599,7 +619,7 @@ static int pop_process_def(process_def *x, exec_info *f)
        m = x->pl;
        while (!llist_is_empty(&m))
          { d = llist_head(&m);
-           var_str_printf(&f->scratch, 0, "In process %s, port %s",
+           var_str_printf(&f->scratch, 0, "In process %s, %%s %s",
                           ps->nm, d->id);
            f->curr->i = d->flags;
            check_old_ports(&f->curr->var[d->var_idx], &d->tp, f);

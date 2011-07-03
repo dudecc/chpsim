@@ -1,0 +1,18 @@
+requires "channel.chp";
+
+export process inv_hi()((i; o+))
+prs { i -> o- ~i -> o+ }
+
+process A()(O! : bit) chp { O!false }
+process B()(I? : bit)
+meta {
+  instance d_[0..1] : inv_hi;
+  connect all i : 0..1 : I.wire.d[i], d_[i].i;
+}
+
+process main()()
+meta {
+  instance a : A;
+  instance b : B;
+  connect a.O.wire, b.I.wire;
+}

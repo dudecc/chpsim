@@ -118,7 +118,7 @@ extern process_def *find_main
 	        dp->src, dp->lnr, dp->lpos, main_id);
        return 0;
      }
-   if (llist_size(&dp->pl))
+   if (!port && llist_size(&dp->pl))
      { report(f, "%s[%d:%d] main process '%s' has port parameters\n",
 	      dp->src, dp->lnr, dp->lpos, main_id);
        return 0;

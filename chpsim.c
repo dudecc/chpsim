@@ -266,7 +266,7 @@ extern int main(int argc, char *argv[])
 	 { U->log = stderr; }
      }
    read_source(U, fin_nm, &src_md);
-   dp = find_main(src_md, main_id, U, &err);
+   dp = find_main(src_md, main_id, U, &err, 0);
    srand48(seed);
    if (showseed)
      { report(U, "PRNG seed is %ld\n", seed); }

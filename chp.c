@@ -90,10 +90,11 @@ extern void read_source(user_info *f, const char *fin_nm, module_def **src_md)
 /********** execution ********************************************************/
 
 extern process_def *find_main
- (module_def *src_md, const char *main_id, user_info *f, int *err)
+ (module_def *src_md, const char *main_id, user_info *f, int *err, int port)
  /* Find the main routine ("main" if !main_id), looking first in src_md, then
-    in f->ml.
-    Return is 0 if not found. If found but not valid, return is 0 and *err
+    in f->ml.  Return is 0 if not found.  If port is false and the process
+    contains ports, then the process is not considered valid.
+    If the routine is found but not valid, return is 0 and *err
     is set to 1. Warning messages are printed using report(f, ...).
     Warnings are printed if main_id is specified but not found, or routine
     is found but invalid.

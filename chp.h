@@ -65,7 +65,7 @@
 
    parsing and semantic analysis:
       read_source(U, fin_nm, &src_md);
-      dp = find_main(src_md, main_id, U, &err);
+      dp = find_main(src_md, main_id, U, &err, 0);
       if (!dp) { ... }
 
    instantiation & execution:
@@ -122,7 +122,7 @@ extern void read_source(user_info *f, const char *fin_nm, module_def **src_md);
  */
 
 extern process_def *find_main
- (module_def *src_md, const char *main_id, user_info *f, int *err);
+ (module_def *src_md, const char *main_id, user_info *f, int *err, int port);
  /* Find the main routine ("main" if !main_id), looking first in src_md, then
     in f->ml.
     Return is 0 if not found. If found but not valid, return is 0 and *err

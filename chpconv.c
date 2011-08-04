@@ -87,14 +87,45 @@ static void open_meta_name(process_state *p, print_info *f);
 static int declare_new(process_state *p);
 /* Return 1 if this process has already been declared */
 
+static void init_port_fix(process_state *ps, exec_info *f)
+/* Pre: ps->p->pl contains ports
+ * Create a ghost process to connect all of the ports of
+ * ps to.
+ */
+ { llist pl;
+   var_decl *d;
+   process_state *ghost;
+   value_tp *v, *gv;
+   int i;
+   ghost = new_process_state(f, make_str("ghost"));
+   ghost->p = ps->p;
+   ghost->nr_meta = ps->nr_meta;
+   ghost->meta = ps->meta;
+   ghost->nr_var = ps->nr_var;
+   NEW_ARRAY(ghost->var, ps->nr_var);
+   v = ghost->var;
+   for (i = 0; i < ps->nr_var; i++)
+     { v[i].rep = REP_none; }
+   pl = ps->p->pl;
+   while (!llist_is_empty(&pl))
+     { d = llist_head(&pl);
+       v = &ps->var[d->var_idx];
+       gv = &ghost->var[d->var_idx];
+       v->rep = gv->rep = REP_port;
+       v->v.p = new_port_value(ps, f);
+       gv->v.p = new_port_value(ghost, f);
+       v->v.p->p = gv->v.p;
+       gv->v.p->p = v->v.p;
+       pl = llist_alias_tail(&pl);
+     }
+ }
+
 static void prepare_convert(user_info *U, process_def *dp)
  /* Instantiate the program, starting with an instance of dp. */
  { exec_info *f;
-   print_info g;
-   llist m;
-   char *s;
-   process_state *ps;
    f = prepare_exec(U, dp);
+   if (!llist_is_empty(&dp->pl))
+     { init_port_fix(f->curr->ps, f); }
    interact_instantiate(f);
    prepare_chp(f);
  }

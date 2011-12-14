@@ -279,6 +279,9 @@ extern int vstr_port_connect(var_string *s, int pos, void *p);
 extern void eval_expr(void *obj, struct exec_info *f);
  /* Evaluate expr *obj */
 
+extern void *reval_expr(void *obj, struct exec_info *f);
+ /* Evaluate lvslue expr *obj, return pointer to stored value */
+
 extern void push_value(value_tp *v, struct exec_info *f);
  /* push *v on stack (direct copy: top = *v) */
 
@@ -337,6 +340,12 @@ extern int app_eval;
 #define set_eval_cp(C,D) set_app(CLASS_ ## C, app_eval, (obj_func*)eval_ ## D)
  /* Used if C is a copy of D, and uses the same eval function */
 
+extern int app_reval;
+#define set_reval(C) set_app(CLASS_ ## C, app_reval, (obj_func*)reval_ ## C)
+ /* To set reval_abc as reval function for class abc */
+#define set_reval_cp(C,D) set_app(CLASS_ ## C, app_reval, (obj_func*)reval_ ## D)
+ /* Used if C is a copy of D, and uses the same reval function */
+
 
 /********** range checks *****************************************************/
 
@@ -350,7 +359,7 @@ extern int app_range;
     range_abc should verify that f->val is a valid value for type abc.
     If not, then give an error messag with f->err_obj.
  */
-#define set_range_cp(C,D) set_app(CLASS_ ## C, app_range, (obj_func*)range_ ## D)
+#define set_range_cp(C,D) set_app(CLASS_##C, app_range, (obj_func*)range_##D)
  /* Used if C is a copy of D, and uses the same range function */
 
 
@@ -386,6 +395,9 @@ extern int app_assign;
 
 extern int app_conn;
 #define set_connect(C) set_app(CLASS_ ## C, app_conn, (obj_func*)connect_ ## C)
+ /* To set connect_abc as connect function for class abc */
+#define set_connect_from_reval(C) set_app(CLASS_ ## C, app_conn, \
+                                          (obj_func*)reval_ ## C)
  /* To set connect_abc as connect function for class abc */
 #define set_connect_cp(C,D) set_app(CLASS_##C, app_conn, (obj_func*)connect_##D)
  /* Used if C is a copy of D, and uses the same connect function */
@@ -424,10 +436,16 @@ extern void strict_check_read(value_tp *v, struct exec_info *f);
 extern void strict_check_read_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be read */
 
+extern void strict_check_read_bit(value_tp *v, int n, struct exec_info *f);
+/* To be called when reading bit n of integer v */
+
 extern void strict_check_write(value_tp *v, struct exec_info *f);
 
 extern void strict_check_write_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be written */
+
+extern void strict_check_write_bit(value_tp *v, int n, struct exec_info *f);
+/* To be called when writing bit n of integer v */
 
 extern void strict_check_delete(value_tp *v, struct exec_info *f);
 /* Upon ending a function/routine call, use this to remove
@@ -458,7 +476,7 @@ extern void crit_node_step(action *a, wire_value *w, struct exec_info *f);
 
 /*****************************************************************************/
 
-extern void init_value(int app1, int app2, int app3, int app4);
+extern void init_value(int app1, int app2, int app3, int app4, int app5);
  /* call at startup; pass unused object app indices */
 
 #endif /* VALUE_H */

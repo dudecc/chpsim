@@ -1,0 +1,4 @@
+process A(N:int)(I?, O! : array [1..N] of int)
+chp { }
+process main()()
+meta { instance a : A(1); connect a.I[1], a.O[1]; }

@@ -197,14 +197,7 @@ static void print_array_subscript(array_subscript *x, print_info *f)
  }
 
 static void print_array_subrange(array_subrange *x, print_info *f)
- { if (x->x->class == CLASS_binary_expr || x->x->class == CLASS_prefix_expr)
-     { /* can happen if x->x is an integer */
-       print_char('(', f);
-       print_obj(x->x, f);
-       print_char(')', f);
-     }
-   else
-     { print_obj(x->x, f); }
+ { print_obj(x->x, f);
    print_char('[', f);
    print_obj(x->l, f);
    print_string("..", f);
@@ -212,15 +205,27 @@ static void print_array_subrange(array_subrange *x, print_info *f)
    print_char(']', f);
  }
 
-static void print_field_of_record(field_of_record *x, print_info *f)
+static void print_int_subrange(int_subrange *x, print_info *f)
  { if (x->x->class == CLASS_binary_expr || x->x->class == CLASS_prefix_expr)
-     { /* can happen if x->x is an integer */
-       print_char('(', f);
+     { print_char('(', f);
        print_obj(x->x, f);
        print_char(')', f);
      }
    else
      { print_obj(x->x, f); }
+   if (x->field)
+     { f->pos += var_str_printf(f->s, f->pos, ".%s", x->field->id); }
+   else
+     { print_char('[', f);
+       print_obj(x->l, f);
+       print_string("..", f);
+       print_obj(x->h, f);
+       print_char(']', f);
+     }
+ }
+
+static void print_field_of_record(field_of_record *x, print_info *f)
+ { print_obj(x->x, f);
    if (IS_SET(f->flags, PR_simple_var) && x->x->tp.kind != TP_process)
      { f->pos += var_str_printf(f->s, f->pos, "_%s", x->id); }
    else
@@ -354,7 +359,7 @@ static void *sem_wire_fix(void *x, sem_info *f)
        w->flags = e->flags;
        w->tp = e->tp;
        w->x = e;
-       RESET_FLAG(w->flags, EXPR_wire);
+       RESET_FLAG(w->flags, EXPR_wire | EXPR_lvalue);
        return w;
      }
    return x;
@@ -564,9 +569,13 @@ static void *sem_array_subscript(array_subscript *x, sem_info *f)
    else if (tp->kind == TP_int)
      { x->tp.kind = TP_bool;
        if (!IS_SET(x->flags, EXPR_port))
-         { x->class = CLASS_int_subscript; }
+         { x->class = CLASS_int_subscript;
+           RESET_FLAG(x->flags, EXPR_lvalue);
+         }
        else if (!IS_SET(f->flags, SEM_connect))
          { sem_error(f, x, "Cannot slice integer port in chp body"); }
+       else
+         { x->class = CLASS_int_port_subscript; }
      }
    else
      { sem_error(f, x, "Subscript applied to something that is not an array"); }
@@ -576,6 +585,7 @@ static void *sem_array_subscript(array_subscript *x, sem_info *f)
 static void *sem_array_subrange(array_subrange *x, sem_info *f)
  { type *tp;
    parse_obj_flags fl;
+   int_subrange *ix;
    x->x = sem(x->x, f);
    x->l = sem(x->l, f);
    x->h = sem(x->h, f);
@@ -587,6 +597,7 @@ static void *sem_array_subrange(array_subrange *x, sem_info *f)
        x->x = mk_const_expr(x->x, f);
      }
    SET_IF_SET(x->flags, x->x->flags, EXPR_inherit);
+   RESET_FLAG(x->flags, EXPR_lvalue);
    if (x->l->tp.kind != TP_int)
      { sem_error(f, x, "Lower index is not an integer"); }
    if (x->h->tp.kind != TP_int)
@@ -612,6 +623,11 @@ static void *sem_array_subrange(array_subrange *x, sem_info *f)
      { x->tp = generic_int.tp;
        if (IS_SET(x->flags, EXPR_port))
          { sem_error(f, x, "Cannot slice integer port in chp body"); }
+       ix = new_parse(f->L, 0, x, int_subrange);
+       ix->flags = x->flags; ix->tp = x->tp;
+       ix->x = x->x; ix->l = x->l; ix->h = x->h;
+       sem_free_obj(f, x);
+       return ix;
      }
    else
      { sem_error(f, x, "Subrange of something that is not an array"); }
@@ -636,6 +652,7 @@ static void *try_union(field_of_record *x, sem_info *f)
      { return 0; }
    uf = new_parse(f->L, 0, x, field_of_union);
    uf->flags = x->flags; uf->x = x->x;
+   RESET_FLAG(uf->flags, EXPR_lvalue);
    utp = (union_type*)uf->x->tp.utps;
    m = utp->l;
    while (!llist_is_empty(&m))
@@ -665,6 +682,8 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
    record_field *r = NO_INIT;
    wire_decl *w = NO_INIT;
    var_decl *d = NO_INIT;
+   int_subrange *ix;
+   field_def *field;
    type *tp;
    void *z;
    int i, j;
@@ -687,7 +706,7 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
        SET_FLAG(x->flags, EXPR_port_ext | EXPR_unconst);
        SET_IF_SET(x->flags, d->flags, EXPR_port | EXPR_wire | EXPR_writable);
        SET_IF_SET(x->flags, x->tp.tps->flags, EXPR_inherit);
-       if (IS_SET(d->tps->flags, EXPR_generic)); /* TODO: Wait, what goes here? */
+       if (IS_SET(d->tps->flags, EXPR_generic)); /* TODO: What goes here? */
        x->class = CLASS_field_of_process;
        return x;
      }
@@ -695,17 +714,23 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
    SET_IF_SET(x->flags, x->x->flags, EXPR_inherit);
    if (tp->kind == TP_int)
      { if ((z = try_union(x, f))) return z;
-       x->field = find_id(f, x->id, x);
-       if (x->field->class != CLASS_field_def)
+       field = find_id(f, x->id, x);
+       if (field->class != CLASS_field_def)
          { sem_error(f, x, "'%s' is not an integer field", x->id); }
        x->tp = generic_int.tp;
+       RESET_FLAG(x->flags, EXPR_lvalue);
        if (IS_SET(x->flags, EXPR_port) && !IS_SET(f->flags, SEM_connect))
          { sem_error(f, x, "Cannot slice integer port in chp body"); }
        else if (IS_SET(x->flags, EXPR_port))
          { sem_error(f, x, "Cannot use integer field in connection"
                            " - use 'connect all' instead");
          }
-       return x;
+       ix = new_parse(f->L, 0, x, int_subrange);
+       ix->flags = x->flags; ix->tp = x->tp;
+       ix->x = x->x; ix->field = field;
+       ix->l = field->l; ix->h = field->h;
+       sem_free_obj(f, x);
+       return ix;
      }
    else if (tp->kind == TP_wire)
      { wtps = (wired_type*)tp->tps;
@@ -982,6 +1007,7 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
      { sem_error(f, x, "Improper use of '%s'", x->t.val.s); dv = NO_INIT; }
    SET_IF_SET(y->flags, dv->tp.tps->flags, EXPR_inherit);
    SET_IF_SET(y->flags, df->flags, EXPR_port | EXPR_wire);
+   SET_FLAG(y->flags, EXPR_lvalue);
    y->d = dv;
    y->var_idx = dv->var_idx;
    if (IS_SET(f->flags, SEM_value_probe))
@@ -1802,45 +1828,47 @@ static void eval_probe(probe *x, exec_info *f)
  }
 
 static void eval_value_probe(value_probe *x, exec_info *f)
- { value_tp xval, pval, pvval;
+ { value_tp xval, **pv, *pval, pvval;
    llist m;
    expr *p;
-   llist pv; /* llist(expr) (reverse of x->p) */
-   int curri = f->curr->i;
+   int i, n, curri = f->curr->i;
    m = x->p;
+   n = llist_size(&m);
+   STACK_ARRAY(pv, n);
+   STACK_ARRAY(pval, n);
    xval.rep = REP_bool;
    xval.v.i = 1;
-   llist_init(&pv);
-   /* strategy: replace port values with their contained values,
-    * using receive_value. Put them back when done.
-    */
    f->curr->i = 0; /* make receive_value do a peek */
    SET_FLAG(f->flags, EVAL_probe);
    f->e = 0; /* vacuous unless EVAL_probe_wait is set */
-   while (!llist_is_empty(&m))
+   /* strategy: replace port values with their contained values,
+    * using receive_value. Put them back when done.
+    */
+   for (i = 0; i < n; i++)
      { p = llist_head(&m);
        m = llist_alias_tail(&m);
-       eval_expr(p, f);
-       pop_value(&pval, f);
-       if (!get_probe(&pval, f) || !xval.v.i)
+       pv[i] = reval_expr(p, f);
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = p;
+           strict_check_read(pv[i], f);
+         }
+       if (!get_probe(pv[i], f) || !xval.v.i)
          { xval.v.i = 0;
-           clear_value_tp(&pval, f);
+           pv[i] = 0;
            if (IS_SET(f->flags, EVAL_probe_wait)) continue;
            else break;
          }
-       pvval = receive_value(&pval, &p->tp, f);
-       assign(p, &pvval, f); /* replace port value with token value */
-       llist_prepend(&pv, p);
-       push_value(&pval, f);
+       pval[i] = *pv[i];
+       pvval = receive_value(pv[i], &p->tp, f);
+       *pv[i] = pvval; /* replace port value with token value */
      }
    if (xval.v.i)
      { eval_expr(x->b, f);
        pop_value(&xval, f);
      }
-   while (!llist_is_empty(&pv))
-     { p = llist_idx_extract(&pv, 0);
-       pop_value(&pval, f);
-       assign(p, &pval, f); /* replace token value with port value */
+   for (i = 0; i < n; i++)
+     { if (!pv[i]) break;
+       *pv[i] = pval[i];
      }
    RESET_FLAG(f->flags, EVAL_probe);
    push_value(&xval, f);
@@ -1971,64 +1999,147 @@ extern void port_to_array(value_tp *v, expr *x, exec_info *f)
    alias_value_tp(v, ve, f);
  }
 
-static void strict_check_eval(void *obj, value_tp *v, exec_info *f)
-/* Pre: x has been evaluated as v, the location of x's stored value
- *      If EVAL_lvalue is set, v is an array/record that we are writing to
- *      one or more elements of.  Otherwise if EVAL_sub_elem is set, v is an
- *      array/record that we are read some elements of.  Otherwise it is
- *      assumed we are reading the entirety of x.
+static void strict_check_elem(void *obj, value_tp *v, exec_info *f)
+/* Pre: obj has been evaluated as v, the location of obj's stored value,
+ * but we are only evaluating one or more elements of the array/record v.
+ * v should not be cleared until this is called.
  */
  { parse_obj *x = obj;
    f->err_obj = x;
    if (IS_SET(x->flags, EXPR_port))
      { if (IS_SET(f->flags, EVAL_probe))
-         { if (IS_SET(f->flags, EVAL_sub_elem))
-             { strict_check_read_elem(v, f); }
-           else if (!IS_SET(f->flags, EVAL_lvalue))
-             { strict_check_read(v, f); }
-         }
-       else
-         { if (IS_SET(f->flags, EVAL_sub_elem))
-             { strict_check_write_elem(v, f); }
-           else if (!IS_SET(f->flags, EVAL_lvalue))
-             { strict_check_write(v, f); }
-         }
-     }
-   else
-     { if (IS_SET(f->flags, EVAL_lvalue))
-         { if (v->rep == REP_array || v->rep == REP_record)
-             { strict_check_write_elem(v, f); }
-         }
-       else if (IS_SET(f->flags, EVAL_sub_elem))
          { strict_check_read_elem(v, f); }
        else
-         { strict_check_read(v, f); }
+         { strict_check_write_elem(v, f); }
+     }
+   else
+     { if (IS_SET(f->flags, EVAL_assign))
+         { strict_check_write_elem(v, f); }
+       else
+         { strict_check_read_elem(v, f); }
      }
  }
 
-static void strict_check_assign(void *obj, value_tp *v, exec_info *f)
-/* Pre: x has been evaluated as v, the location of x's stored value
- * This should not be called from assign int subscript/subrange, or any
- * other functions which call assign recursively
- * Also, v should not be cleared until this is called.
- */
- { parse_obj *x = obj;
-   f->err_obj = x;
-   if (!IS_SET(x->flags, EXPR_port))
-     { strict_check_write(v, f); }
+INLINE_STATIC long bound_array_index
+(value_tp *idxv, expr *idx, value_tp *lv, value_tp *hv, exec_info *f)
+ /* Pre: The array bounds have already been computed as lv and hv.
+  * Verify that idxv is in range, and return its offset from lv.
+  */
+ { value_tp lval;
+   if (!idxv->rep)
+     { exec_error(f, idx, "Unknown index [%v]", vstr_obj, idx); }
+   if (int_cmp(idxv, lv, f) < 0 || int_cmp(hv, idxv, f) < 0)
+     { exec_error(f, idx,"Index [%v] = %v is outside of range [%v..%#v]",
+                  vstr_obj, idx, vstr_val, idxv, vstr_val, lv, hv);
+     }
+   alias_value_tp(&lval, lv, f);
+   *idxv = int_sub(idxv, &lval, f);
+   int_simplify(idxv, f);
+   assert(idxv->rep == REP_int);
+   return idxv->v.i;
+ }
+
+INLINE_STATIC long eval_array_index
+(expr *idx, value_tp *lv, value_tp *hv, exec_info *f)
+ /* Pre: The array bounds have already been computed as lv and hv.
+  * Evaluate idx, verify that it is in range, and return its offset from lv.
+  */
+ { value_tp idxval;
+   eval_expr(idx, f);
+   pop_value(&idxval, f);
+   return bound_array_index(&idxval, idx, lv, hv, f);
+ }
+
+INLINE_STATIC void eval_array_bounds
+(expr *xx, value_tp *lval, value_tp *hval, exec_info *f)
+ /* Pre: xx has array type.
+  * Evaluate the bounds of xx into lval and hval
+  */
+ { array_type *atps;
+   atps = (array_type*)xx->tp.tps;
+   assert(atps->class == CLASS_array_type);
+   eval_expr(atps->h, f);
+   pop_value(hval, f);
+   eval_expr(atps->l, f);
+   pop_value(lval, f);
  }
 
 static void eval_array_subscript(array_subscript *x, exec_info *f)
-/* Also used for int_subscript when the integer is a port */
- { value_tp xval, xxval, idxval, lval, hval, *ve;
-   array_type *atps;
+ { value_tp xval, xxval, lval, hval, *ve;
+   long idx;
+   eval_array_bounds(x->x, &lval, &hval, f);
+   idx = eval_array_index(x->idx, &lval, &hval, f);
+   clear_value_tp(&lval, f);
+   clear_value_tp(&hval, f);
+   eval_expr(x->x, f);
+   pop_value(&xxval, f);
+   if (!xxval.rep)
+     { push_value(&xxval, f);
+       return;
+     }
+   else if (xxval.rep == REP_port)
+     { port_to_array(&xxval, x->x, f); }
+   assert(xxval.rep == REP_array);
+   ve = &xxval.v.l->vl[idx];
+   if (xxval.v.l->refcnt == 1)
+     { copy_and_clear(&xval, ve, f); }
+   else
+     { alias_value_tp(&xval, ve, f); }
+   clear_value_tp(&xxval, f);
+   push_value(&xval, f);
+ }
+
+static void *reval_array_subscript(array_subscript *x, exec_info *f)
+ { value_tp xval, *xxval, lval, hval;
+   long idx;
+   eval_array_bounds(x->x, &lval, &hval, f);
+   idx = eval_array_index(x->idx, &lval, &hval, f);
+   clear_value_tp(&lval, f);
+   clear_value_tp(&hval, f);
+   xxval = reval_expr(x->x, f);
+   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
+   else if (xxval->rep == REP_port)
+     { if (!xxval->v.p->p) /* TODO: What to do here? */
+         { return xxval; }
+       port_to_array(xxval, x->x, f);
+     }
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(xxval->rep == REP_array);
+   if (IS_SET(f->flags, EXEC_strict))
+     { strict_check_elem(x->x, xxval, f); }
+   return &xxval->v.l->vl[idx];
+ }
+
+static void *connect_array_subscript(array_subscript *x, exec_info *f)
+ { value_tp xval, *xxval, lval, hval, idxval;
+   long idx;
+   /* The order of evaluations here is important: */
+   eval_expr(x->idx, f);                         /* 1: Use current meta_ps */
+   pop_value(&idxval, f);
+   xxval = connect_expr(x->x, f);                /* 2: Might switch meta_ps */
+   eval_array_bounds(x->x, &lval, &hval, f);     /* 3: Use the new meta_ps */
+   idx = bound_array_index(&idxval, x->idx, &lval, &hval, f);
+   clear_value_tp(&lval, f);
+   clear_value_tp(&hval, f);
+   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
+   else if (xxval->rep == REP_port)
+     { if (!xxval->v.p->p) /* double connection error */
+         { return xxval; }
+       port_to_array(xxval, x->x, f);
+     }
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(xxval->rep == REP_array);
+   return &xxval->v.l->vl[idx];
+ }
+
+static void eval_int_port_subscript(int_port_subscript *x, exec_info *f)
+ { value_tp xval, xxval, idxval, *ve;
    value_list *l;
    exec_flags flags = f->flags;
-   RESET_FLAG(f->flags, EVAL_sub_elem);
    eval_expr(x->idx, f);
-   SET_FLAG(f->flags, EVAL_sub_elem);
    eval_expr(x->x, f);
-   ASSIGN_FLAG(f->flags, flags, EVAL_sub_elem);
    pop_value(&xxval, f);
    pop_value(&idxval, f);
    if (!xxval.rep || !idxval.rep)
@@ -2042,87 +2153,55 @@ static void eval_array_subscript(array_subscript *x, exec_info *f)
      { port_to_array(&xxval, x->x, f); }
    assert(xxval.rep == REP_array);
    l = xxval.v.l;
-   atps = (array_type*)x->x->tp.tps;
-   if (atps->class == CLASS_array_type)
-     { eval_expr(atps->h, f);
-       eval_expr(atps->l, f);
-       pop_value(&lval, f);
-       pop_value(&hval, f);
-       if (int_cmp(&idxval, &lval, f) < 0 || int_cmp(&hval, &idxval, f) < 0)
-         { clear_value_tp(&xxval, f);
-           exec_error(f, x->idx, "Index [%v] = %v is outside array "
-                      "%v[%v..%#v]", vstr_obj, x->idx, vstr_val, &idxval,
-                      vstr_obj, x->x, vstr_val, &lval, &hval);
-         }
-       idxval = int_sub(&idxval, &lval, f);
-       clear_value_tp(&hval, f);
-     }
-   else
-     { assert(x->x->tp.kind == TP_int);
-       hval.rep = lval.rep = REP_int;
-       lval.v.i = 0; hval.v.i = l->size - 1;
-       if (int_cmp(&idxval, &lval, f) < 0 || int_cmp(&hval, &idxval, f) < 0)
-         { clear_value_tp(&xxval, f);
-           exec_error(f, x->idx, "Integer index [%v] = %v is outside array "
-                      "%v[%v..%#v]", vstr_obj, x->idx, vstr_val, &idxval,
-                      vstr_obj, x->x, vstr_val, &lval, &hval);
-         }
-     }
+   assert(x->x->tp.kind == TP_int);
    int_simplify(&idxval, f);
-   assert(idxval.rep == REP_int);
+   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
+     { clear_value_tp(&xxval, f);
+       exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
+                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
+     }
    ve = &l->vl[idxval.v.i];
-   if (!ve->rep && IS_SET(f->flags, EVAL_lvalue))
-     { force_value(ve, (expr*)x, f); }
    if (l->refcnt == 1)
      { copy_and_clear(&xval, ve, f); }
    else
      { alias_value_tp(&xval, ve, f); }
    clear_value_tp(&xxval, f);
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_eval(x, ve, f);
    push_value(&xval, f);
  }
 
-static void assign_array_subscript(array_subscript *x, exec_info *f)
- { value_tp xxval, idxval, lval, hval, *ve;
-   array_type *atps;
-   eval_expr(x->idx, f);
+static void *reval_int_port_subscript(int_port_subscript *x, exec_info *f)
+ { value_tp xval, *xxval, idxval;
+   value_list *l;
+   eval_expr(x->idx, f); /* For connections, this has to come first */
    pop_value(&idxval, f);
-   SET_FLAG(f->flags, EVAL_lvalue);
-   eval_expr(x->x, f);
-   RESET_FLAG(f->flags, EVAL_lvalue);
-   pop_value(&xxval, f);
-   assert(xxval.rep == REP_array);
    if (!idxval.rep)
      { exec_error(f, x->idx, "Unknown index [%v]", vstr_obj, x->idx); }
-   atps = (array_type*)x->x->tp.tps;
-   if (atps->class == CLASS_array_type)
-     { eval_expr(atps->h, f);
-       eval_expr(atps->l, f);
-       pop_value(&lval, f);
-       pop_value(&hval, f);
-       if (int_cmp(&idxval, &lval, f) < 0 || int_cmp(&hval, &idxval, f) < 0)
-         { exec_error(f, x->idx,"Index [%v] = %v is outside array "
-                      "%v[%v..%#v]", vstr_obj, x->idx, vstr_val, &idxval,
-                      vstr_obj, x->x, vstr_val, &lval, &hval);
+   xxval = reval_expr(x->x, f);
+   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
+   else if (xxval->rep == REP_port)
+     { if (!xxval->v.p->p) /* double connection error */
+         { clear_value_tp(&idxval, f);
+           return xxval;
          }
-       idxval = int_sub(&idxval, &lval, f);
-       clear_value_tp(&hval, f);
+       port_to_array(xxval, x->x, f);
      }
-   /* Skip integer type bounds checking - already done by eval */
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(xxval->rep == REP_array);
+   l = xxval->v.l;
+   assert(x->x->tp.kind == TP_int);
    int_simplify(&idxval, f);
-   assert(idxval.rep == REP_int);
-   ve = &xxval.v.l->vl[idxval.v.i];
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_assign(x, ve, f);
-   if (ve->rep)
-     { clear_value_tp(ve, f); }
-   copy_and_clear(ve, f->val, f);
-   clear_value_tp(&xxval, f);
+   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
+     { exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
+                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
+     }
+   if (IS_SET(f->flags, EXEC_strict))
+     { strict_check_elem(x->x, xxval, f); }
+   return &l->vl[idxval.v.i];
  }
 
-static void *connect_array_subscript(array_subscript *x, exec_info *f)
-/* Also used for int_subscript when the integer is a port */
- { value_tp xval, *xxval, idxval, lval, hval, *ve;
-   array_type *atps;
+static void *connect_int_port_subscript(int_port_subscript *x, exec_info *f)
+ { value_tp xval, *xxval, idxval;
    value_list *l;
    eval_expr(x->idx, f); /* For connections, this has to come first */
    pop_value(&idxval, f);
@@ -2141,195 +2220,177 @@ static void *connect_array_subscript(array_subscript *x, exec_info *f)
      { exec_error(f, x, "Use of conflicting decompositions"); }
    assert(xxval->rep == REP_array);
    l = xxval->v.l;
-   atps = (array_type*)x->x->tp.tps;
-   if (atps->class == CLASS_array_type)
-     { eval_expr(atps->h, f);
-       eval_expr(atps->l, f);
-       pop_value(&lval, f);
-       pop_value(&hval, f);
-     }
-   else
-     { assert(x->x->tp.kind == TP_int);
-       hval.rep = lval.rep = REP_int;
-       lval.v.i = 0; hval.v.i = l->size - 1;
-     }
-   if (int_cmp(&idxval, &lval, f) < 0 || int_cmp(&hval, &idxval, f) < 0)
-     { exec_error(f, x->idx, "Index [%v] = %v is outside array "
-                  "%v[%v..%#v]", vstr_obj, x->idx, vstr_val, &idxval,
-                  vstr_obj, x->x, vstr_val, &lval, &hval);
-     }
-   idxval = int_sub(&idxval, &lval, f);
-   clear_value_tp(&hval, f);
+   assert(x->x->tp.kind == TP_int);
    int_simplify(&idxval, f);
-   assert(idxval.rep == REP_int);
+   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
+     { exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
+                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
+     }
    return &l->vl[idxval.v.i];
+ }
+
+static long eval_bit_index(expr *idx, exec_info *f)
+ /* Verify that idx evaluates to a positive integer smaller than
+  * INT_REP_MAXBITS, and return the evaluated value
+  */
+ { value_tp idxval;
+   eval_expr(idx, f);
+   pop_value(&idxval, f);
+   if (!idxval.rep)
+     { exec_error(f, idx, "Unknown index [%v]", vstr_obj, idx); }
+   int_simplify(&idxval, f);
+   if ((idxval.rep == REP_int && idxval.v.i < 0) ||
+       (idxval.rep == REP_z && mpz_sgn(idxval.v.z->z) < 0))
+     { exec_error(f, idx, "Selecting bit [%v] = %v < 0", vstr_obj,
+                  idx, vstr_val, &idxval);
+     }
+   if ((idxval.rep == REP_int && idxval.v.i > INT_REP_MAXBITS) ||
+        idxval.rep == REP_z)
+     { exec_error(f, idx, "Index [%v] = %v is a bit too large",
+                  vstr_obj, idx, vstr_val, &idxval);
+     }
+   return idxval.v.i;
  }
 
 static void eval_int_subscript(int_subscript *x, exec_info *f)
  /* Not used  when x is a port */
- { value_tp xval, xxval, idxval, tmpval, *mrkv;
+ { value_tp xval, *xxv, xxval;
    long idx, size, i, nr_bit;
    value_list *xxl, *tmpl;
-   eval_expr(x->idx, f);
-   eval_expr(x->x, f);
-   pop_value(&xxval, f);
-   pop_value(&idxval, f);
-   if (!idxval.rep || !xxval.rep)
-     { clear_value_tp(&idxval, f);
-       clear_value_tp(&idxval, f);
-       xval.rep = REP_none;
-       push_value(&xval, f);
-       return;
-     }
-   int_simplify(&idxval, f);
-   if ((idxval.rep == REP_int && idxval.v.i < 0) ||
-       (idxval.rep == REP_z && mpz_sgn(idxval.v.z->z) < 0))
-     { exec_error(f, x->idx, "Selecting bit [%v] = %v < 0", vstr_obj,
-                  x->idx, vstr_val, &idxval);
-     }
-   if ((idxval.rep == REP_int && idxval.v.i > INT_REP_MAXBITS) ||
-        idxval.rep == REP_z)
-     { exec_error(f, x->idx, "Index [%v] = %v is a bit too large",
-                  vstr_obj, x->idx, vstr_val, &idxval);
-     }
+   idx = eval_bit_index(x->idx, f);
    if (x->x->tp.tps->class == CLASS_integer_type)
      { nr_bit = integer_nr_bits(x->x->tp.tps, f);
-       if (idxval.v.i >= nr_bit)
+       if (idx >= nr_bit)
          { exec_error(f, x->idx, "Index [%v] = %ld is out of range (%#v has "
-                 "only %ld bits)", vstr_obj, x->idx, idxval.v.i, x->x, nr_bit);
+                 "only %ld bits)", vstr_obj, x->idx, idx, x->x, nr_bit);
          }
      }
    xval.rep = REP_bool;
-   assert(!IS_SET(x->flags, EXPR_port));
-   if (xxval.rep == REP_int)
-     { if (idxval.v.i >= INT_REP_NRBITS)
-         { idx = INT_REP_NRBITS - 1; }
-       else
-         { idx = idxval.v.i; }
-       xval.v.i = ((xxval.v.i & (1UL << idx)) != 0);
+   if (IS_SET(x->x->flags, EXPR_lvalue))
+     { xxv = reval_expr(x->x, f);
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = x;
+           strict_check_read_bit(xxv, idx, f);
+         }
      }
-   else if (xxval.rep == REP_z)
-     { xval.v.i = mpz_tstbit(xxval.v.z->z, idxval.v.i); }
+   else
+     { eval_expr(x->x, f);
+       pop_value(&xxval, f);
+       xxv = &xxval;
+     }
+   if (!xxv->rep)
+     { push_value(xxv, f);
+       return;
+     }
+   if (xxv->rep == REP_int)
+     { if (idx >= INT_REP_NRBITS)
+         { idx = INT_REP_NRBITS - 1; }
+       xval.v.i = ((xxv->v.i & (1UL << idx)) != 0);
+     }
+   else if (xxv->rep == REP_z)
+     { xval.v.i = mpz_tstbit(xxv->v.z->z, idx); }
    else
      { xval.rep = REP_none; }
-   clear_value_tp(&xxval, f);
-   clear_value_tp(&idxval, f);
+   if (!IS_SET(x->x->flags, EXPR_lvalue))
+     { clear_value_tp(xxv, f); }
    push_value(&xval, f);
  }
 
 static void assign_int_subscript(int_subscript *x, exec_info *f)
- { value_tp xxval, idxval, *ve;
+ { value_tp *xxv, idxval;
    int neg = 0;
-   long nr_bit, tmp;
-   eval_expr(x->idx, f);
-   SET_FLAG(f->flags, EVAL_lvalue);
-   eval_expr(x->x, f);
-   RESET_FLAG(f->flags, EVAL_lvalue);
-   pop_value(&xxval, f);
-   pop_value(&idxval, f);
-   if (!idxval.rep)
-     { exec_error(f, x->idx, "Unknown index [%v]", vstr_obj, x->idx); }
-   int_simplify(&idxval, f);
-   if ((idxval.rep == REP_int && idxval.v.i < 0) ||
-       (idxval.rep == REP_z && mpz_sgn(idxval.v.z->z) < 0))
-     { exec_error(f, x->idx, "Selecting bit [%v] = %v < 0", vstr_obj,
-                  x->idx, vstr_val, &idxval);
-     }
-   if ((idxval.rep == REP_int && idxval.v.i > INT_REP_MAXBITS) ||
-        idxval.rep == REP_z)
-     { exec_error(f, x->idx, "Index [%v] = %v is a bit too large",
-                  vstr_obj, x->idx, vstr_val, &idxval);
-     }
+   long idx, nr_bit, tmp;
+   idx = eval_bit_index(x->idx, f);
    if (x->x->tp.tps->class == CLASS_integer_type)
      { nr_bit = integer_nr_bits(x->x->tp.tps, f);
-       if (idxval.v.i >= nr_bit)
+       if (idx >= nr_bit)
          { exec_error(f, x->idx, "Index [%v] = %ld is out of range (%#v has "
-                 "only %ld bits)", vstr_obj, x->idx, idxval.v.i, x->x, nr_bit);
+                 "only %ld bits)", vstr_obj, x->idx, idx, x->x, nr_bit);
          }
        SET_FLAG(f->flags, EVAL_bit);
      }
-   if (xxval.rep == REP_int && idxval.v.i < INT_REP_NRBITS-1)
+   assert(IS_SET(x->x->flags, EXPR_lvalue));
+   xxv = reval_expr(x->x, f);
+   if (IS_SET(f->flags, EXEC_strict))
+     { f->err_obj = x;
+       strict_check_read_bit(xxv, idx, f);
+     }
+   if (!xxv->rep)
+     { xxv->rep = REP_int; xxv->v.i = 0; }
+   if (xxv->rep == REP_int && idxval.v.i < INT_REP_NRBITS-1)
      { if (f->val->v.i)
-         { xxval.v.i = (xxval.v.i | (1UL << idxval.v.i)); }
+         { xxv->v.i = (xxv->v.i | (1UL << idx)); }
        else
-         { xxval.v.i = (xxval.v.i & ~(1UL << idxval.v.i)); }
-       range_check(x->x->tp.tps, &xxval, f, x);
-       assign(x->x, &xxval, f);
+         { xxv->v.i = (xxv->v.i & ~(1UL << idx)); }
      }
    else
-     { if (xxval.rep == REP_int)
-         { tmp = xxval.v.i;
-           xxval.rep = REP_z;
-           xxval.v.z = new_z_value(f);
-           mpz_set_si(xxval.v.z->z, tmp);
+     { if (xxv->rep == REP_int)
+         { tmp = xxv->v.i;
+           xxv->rep = REP_z;
+           xxv->v.z = new_z_value(f);
+           mpz_set_si(xxv->v.z->z, tmp);
          }
        if (f->val->v.i)
-         { mpz_setbit(xxval.v.z->z, idxval.v.i); }
+         { mpz_setbit(xxv->v.z->z, idx); }
        else
-         { mpz_clrbit(xxval.v.z->z, idxval.v.i); }
-       range_check(x->x->tp.tps, &xxval, f, x);
-       assign(x->x, &xxval, f);
+         { mpz_clrbit(xxv->v.z->z, idx); }
      }
+   range_check(x->x->tp.tps, xxv, f, x);
    RESET_FLAG(f->flags, EVAL_bit);
  }
 
-static void eval_int_subrange(expr *x, expr *xl, expr *xh, exec_info *f)
- /* Evaluate x[xl..xh] for integer xxval. */
- { value_tp xxval, lidxval, hidxval, xval, tmpval;
+static void eval_int_subrange(int_subrange *x, exec_info *f)
+ { value_tp *xxv, xxval, xval;
    void *y;
    int rev = 0;
-   long lidx, hidx, n, nr_bit;
+   long lidx, hidx, tmp, n, i, nr_bit;
    mpz_t mask;
-   eval_expr(x, f);
-   pop_value(&xxval, f);
-   eval_expr(xl, f);
-   pop_value(&lidxval, f);
-   eval_expr(xh, f);
-   pop_value(&hidxval, f);
-   if (!xxval.rep || !lidxval.rep || !hidxval.rep)
-     { xval.rep = REP_none;
-       push_value(&xval, f);
-       return;
-     }
-   int_simplify(&lidxval, f);
-   int_simplify(&hidxval, f);
-   if (int_cmp(&lidxval, &hidxval, f) > 0)
-     { tmpval = lidxval; lidxval = hidxval; hidxval = tmpval;
+   void (*cp)(value_tp *, value_tp *, exec_info *);
+   lidx = eval_bit_index(x->l, f);
+   hidx = eval_bit_index(x->h, f);
+   if (lidx > hidx)
+     { tmp = lidx; lidx = hidx; hidx = tmp;
        rev = 1;
      }
-   if ((lidxval.rep == REP_int && lidxval.v.i < 0) ||
-       (lidxval.rep == REP_z && mpz_sgn(lidxval.v.z->z) < 0))
-     { y = rev? xh : xl;
-       exec_error(f, y, "Selecting bit [%v] = %v < 0", vstr_obj, y,
-                  vstr_val, &lidxval);
-     }
-   if ((hidxval.rep == REP_int && hidxval.v.i > INT_REP_MAXBITS) ||
-       hidxval.rep == REP_z)
-     { y = rev? xl : xh;
-       exec_error(f, y, "Index [%v] = %v is a bit too large", vstr_obj, y,
-                  vstr_val, &hidxval);
-     }
-   if (x->tp.tps->class == CLASS_integer_type)
-     { nr_bit = integer_nr_bits(x->tp.tps, f);
-       if (hidxval.v.i >= nr_bit)
-         { y = rev? xl : xh;
+   if (x->x->tp.tps->class == CLASS_integer_type)
+     { nr_bit = integer_nr_bits(x->x->tp.tps, f);
+       if (hidx >= nr_bit)
+         { y = rev? x->l : x->h;
            exec_error(f, y, "Index [%v] = %ld is out of range (%#v has "
-                 "only %ld bits)", vstr_obj, y, hidxval.v.i, x, nr_bit);
+                 "only %ld bits)", vstr_obj, y, hidx, x->x, nr_bit);
          }
      }
-   lidx = lidxval.v.i; hidx = hidxval.v.i;
    n = hidx - lidx + 1;
-   if (xxval.rep == REP_int && hidx < INT_REP_NRBITS && n < INT_REP_NRBITS)
-     { xval.rep = REP_int;
-       xval.v.i = (long)((((ulong)xxval.v.i) >> lidx) & ((1UL << n) - 1));
+   if (IS_SET(x->x->flags, EXPR_lvalue))
+     { xxv = reval_expr(x->x, f);
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = x;
+           for (i = lidx; i <= hidx; i++)
+             { strict_check_read_bit(xxv, i, f); }
+         }
+       cp = copy_value_tp;
      }
    else
-     { if (xxval.rep == REP_z)
-         { copy_and_clear(&xval, &xxval, f); }
+     { eval_expr(x->x, f);
+       pop_value(&xxval, f);
+       xxv = &xxval;
+       cp = copy_and_clear;
+     }
+   if (!xxv->rep)
+     { push_value(xxv, f);
+       return;
+     }
+   if (xxv->rep == REP_int && hidx < INT_REP_NRBITS && n < INT_REP_NRBITS)
+     { xval.rep = REP_int;
+       xval.v.i = (long)((((ulong)xxv->v.i) >> lidx) & ((1UL << n) - 1));
+     }
+   else
+     { if (xxv->rep == REP_z)
+         { cp(&xval, xxv, f); }
        else
          { xval.rep = REP_z;
            xval.v.z = new_z_value(f);
-           mpz_set_si(xval.v.z->z, xxval.v.i);
+           mpz_set_si(xval.v.z->z, xxv->v.i);
          }
        mpz_init_set_ui(mask, 1);
        mpz_mul_2exp(mask, mask, n);
@@ -2342,119 +2403,71 @@ static void eval_int_subrange(expr *x, expr *xl, expr *xh, exec_info *f)
  }
 
 static void eval_array_subrange(array_subrange *x, exec_info *f)
- { value_tp xval, xxval, lidxval, hidxval, lval, hval, tmpval;
-   int4 i, j, n;
-   exec_flags flags = f->flags;
-   array_type *atps;
+ { value_tp xval, *xxv, xxval, lval, hval;
+   long lidx, hidx, i, j;
    value_list *l, *xl;
    void (*cp)(value_tp *, value_tp *, exec_info *);
-   if (x->x->tp.kind == TP_int)
-     { eval_int_subrange(x->x, x->l, x->h, f);
-       return;
-     }
-   SET_FLAG(f->flags, EVAL_sub_elem);
-   eval_expr(x->x, f);
-   ASSIGN_FLAG(f->flags, flags, EVAL_sub_elem);
-   pop_value(&xxval, f);
-   eval_expr(x->l, f);
-   pop_value(&lidxval, f);
-   eval_expr(x->h, f);
-   pop_value(&hidxval, f);
-   if (!xxval.rep || !lidxval.rep || !hidxval.rep)
-     { xval.rep = REP_none;
-       push_value(&xval, f);
-       return;
-     }
-   atps = (array_type*)x->x->tp.tps;
-   assert(atps->class == CLASS_array_type);
-   if (int_cmp(&lidxval, &hidxval, f) > 0)
-     { exec_error(f, x,
-             "Slice [%v..%#v] = [%v..%#v]: indices out of order",
-             vstr_obj, x->l, x->h, vstr_val, &lidxval, &hidxval);
-     }
-   eval_expr(atps->l, f);
-   pop_value(&lval, f);
-   eval_expr(atps->h, f);
-   pop_value(&hval, f);
-   if (int_cmp(&lidxval, &lval, f) < 0 || int_cmp(&hval, &hidxval, f) < 0)
-     { exec_error(f, x,
-            "Slice [%v..%#v] = [%v..%#v] is outside array %v[%v..%#v]",
-            vstr_obj, x->l, x->h, vstr_val, &lidxval, &hidxval,
-            vstr_obj, x->x, vstr_val, &lval, &hval);
-     }
-   l = xxval.v.l;
-   alias_value_tp(&tmpval, &lidxval, f);
-   hidxval = int_sub(&hidxval, &tmpval, f);
-   int_simplify(&hidxval, f);
-   assert(hidxval.rep == REP_int);
-   n = hidxval.v.i + 1; /* n = hidx - lidx + 1 */
-   xval.rep = REP_array;
-   xval.v.l = xl = new_value_list(n, f);
-   if (l->refcnt == 1)
-     { cp = copy_and_clear; }
-   else
-     { cp = alias_value_tp; }
-   j = 0;
-   lidxval = int_sub(&lidxval, &lval, f);
+   eval_array_bounds(x->x, &lval, &hval, f);
+   lidx = eval_array_index(x->l, &lval, &hval, f);
+   hidx = eval_array_index(x->h, &lval, &hval, f);
+   clear_value_tp(&lval, f);
    clear_value_tp(&hval, f);
-   int_simplify(&lidxval, f);
-   assert(lidxval.rep == REP_int);
-   i = lidxval.v.i; /* i = lidx - lval */
-   while (n)
-     { cp(&xl->vl[j], &l->vl[i], f);
-       if (IS_SET(f->flags, EXEC_strict)) strict_check_eval(x, &l->vl[j], f);
-       j++; i++;
-       n--;
+   if (lidx > hidx)
+     { exec_error(f, x, "Slice [%v..%#v]: indices out of order",
+                  vstr_obj, x->l, x->h);
      }
-   clear_value_tp(&xxval, f);
+   if (IS_SET(x->x->flags, EXPR_lvalue))
+     { xxv = reval_expr(x->x, f);
+       if (!xxv->rep)
+         { force_value(xxv, x->x, f); }
+       l = xxv->v.l;
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = x;
+           strict_check_read_elem(xxv, f);
+           for (i = lidx; i <= hidx; i++)
+             { strict_check_read(&l->vl[i], f); }
+         }
+       cp = copy_value_tp;
+     }
+   else
+     { eval_expr(x->x, f);
+       pop_value(&xxval, f);
+       xxv = &xxval;
+       if (!xxv->rep)
+         { push_value(xxv, f); return; }
+       l = xxv->v.l;
+       if (l->refcnt == 1)
+         { cp = copy_and_clear; }
+       else
+         { cp = alias_value_tp; }
+     }
+   xval.rep = REP_array;
+   xval.v.l = xl = new_value_list(hidx - lidx + 1, f);
+   for (i = lidx, j = 0; i <= hidx; i++, j++)
+     { cp(&xl->vl[j], &l->vl[i], f); }
+   if (!IS_SET(x->flags, EXPR_lvalue))
+     { clear_value_tp(&xxval, f); }
    push_value(&xval, f);
  }
 
-static void assign_int_subrange(expr *x, expr *xl, expr *xh, exec_info *f)
- /* assign f->val to x[xl..xh] for integer x */
- { value_tp xxval, lidxval, hidxval, tmpval;
-   long lidx, hidx, n, tmp, nr_bit;
+static void assign_int_subrange(int_subrange *x, exec_info *f)
+ { value_tp *xxv;
+   long lidx, hidx, n, i, tmp, nr_bit;
    int rev = 0;
    mpz_t mask;
    void *y;
-   SET_FLAG(f->flags, EVAL_lvalue);
-   eval_expr(x, f);
-   RESET_FLAG(f->flags, EVAL_lvalue);
-   pop_value(&xxval, f);
-   eval_expr(xl, f);
-   pop_value(&lidxval, f);
-   eval_expr(xh, f);
-   pop_value(&hidxval, f);
-   if (!lidxval.rep)
-     { exec_error(f, xl, "Unknown index [%v.. ] in slice", vstr_obj, xl); }
-   if (!hidxval.rep)
-     { exec_error(f, xh, "Unknown index [ ..%v] in slice", vstr_obj, xh); }
-   if (xxval.rep != REP_int && xxval.rep != REP_z)
-     { exec_error(f, x, "Integer subrange of improper value"); }
-   int_simplify(&lidxval, f);
-   int_simplify(&hidxval, f);
-   if (int_cmp(&lidxval, &hidxval, f) > 0)
-     { tmpval = lidxval; lidxval = hidxval; hidxval = tmpval;
+   lidx = eval_bit_index(x->l, f);
+   hidx = eval_bit_index(x->h, f);
+   if (lidx > hidx)
+     { tmp = lidx; lidx = hidx; hidx = tmp;
        rev = 1;
      }
-   if ((lidxval.rep == REP_int && lidxval.v.i < 0) ||
-       (lidxval.rep == REP_z && mpz_sgn(lidxval.v.z->z) < 0))
-     { y = rev? xh : xl;
-       exec_error(f, y, "Selecting bit [%v] = %v < 0", vstr_obj, y,
-                  vstr_val, &lidxval);
-     }
-   if ((hidxval.rep == REP_int && hidxval.v.i > INT_REP_MAXBITS) ||
-       hidxval.rep == REP_z)
-     { y = rev? xl : xh;
-       exec_error(f, y, "Index [%v] = %v is a bit too large", vstr_obj, y,
-                  vstr_val, &hidxval);
-     }
-   if (x->tp.tps->class == CLASS_integer_type)
-     { nr_bit = integer_nr_bits(x->tp.tps, f);
-       if (hidxval.v.i >= nr_bit)
-         { y = rev? xl : xh;
+   if (x->x->tp.tps->class == CLASS_integer_type)
+     { nr_bit = integer_nr_bits(x->x->tp.tps, f);
+       if (hidx >= nr_bit)
+         { y = rev? x->l : x->h;
            exec_error(f, y, "Index [%v] = %ld is out of range (%#v has "
-                 "only %ld bits)", vstr_obj, y, hidxval.v.i, x, nr_bit);
+                 "only %ld bits)", vstr_obj, y, hidx, x->x, nr_bit);
          }
        SET_FLAG(f->flags, EVAL_bit);
      }
@@ -2463,27 +2476,36 @@ static void assign_int_subrange(expr *x, expr *xl, expr *xh, exec_info *f)
      { exec_error(f, x, "You cannot assign a negative value (%v) to an "
                  "integer slice", vstr_val, f->val);
      }
-   lidx = lidxval.v.i; hidx = hidxval.v.i;
    n = hidx - lidx + 1;
-   if (xxval.rep == REP_int && f->val->rep == REP_int &&
+   assert(IS_SET(x->x->flags, EXPR_lvalue));
+   xxv = reval_expr(x->x, f);
+   if (IS_SET(f->flags, EXEC_strict))
+     { f->err_obj = x;
+       for (i = lidx; i <= hidx; i++)
+         { strict_check_read_bit(xxv, i, f); }
+     }
+   if (!xxv->rep)
+     { xxv->rep = REP_int; xxv->v.i = 0; }
+   if (xxv->rep == REP_int && f->val->rep == REP_int &&
        hidx < INT_REP_NRBITS - 1)
      { if (f->val->v.i > (1UL << n) - 1)
          { exec_error(f, x,
                      "Value %v is too large for integer slice %v[%d..%d]",
                       vstr_val, f->val, vstr_obj, x, lidx, hidx);
          }
-       xxval.v.i = xxval.v.i & ~(((1UL << n) - 1) << lidx);
-       xxval.v.i = xxval.v.i | (f->val->v.i << lidx);
-       range_check(x->tp.tps, &xxval, f, x);
-       assign(x, &xxval, f);
+       xxv->v.i = xxv->v.i & ~(((1UL << n) - 1) << lidx);
+       xxv->v.i = xxv->v.i | (f->val->v.i << lidx);
+       range_check(x->tp.tps, xxv, f, x);
      }
    else
-     { if (xxval.rep == REP_int)
-         { tmp = xxval.v.i;
-           xxval.rep = REP_z;
-           xxval.v.z = new_z_value(f);
-           mpz_set_si(xxval.v.z->z, tmp);
+     { if (xxv->rep == REP_int)
+         { tmp = xxv->v.i;
+           xxv->rep = REP_z;
+           xxv->v.z = new_z_value(f);
+           mpz_set_si(xxv->v.z->z, tmp);
          }
+       else
+         { assert(xxv->v.z->refcnt == 1); }
        mpz_init_set_ui(mask, 1);
        mpz_mul_2exp(mask, mask, n);
        mpz_sub_ui(mask, mask, 1);
@@ -2498,96 +2520,62 @@ static void assign_int_subrange(expr *x, expr *xl, expr *xh, exec_info *f)
          }
        mpz_mul_2exp(mask, mask, lidx);
        mpz_com(mask, mask);
-       mpz_and(xxval.v.z->z, xxval.v.z->z, mask);
+       mpz_and(xxv->v.z->z, xxv->v.z->z, mask);
        if (f->val->rep == REP_int)
          { mpz_set_ui(mask, f->val->v.i); }
        else
          { mpz_set(mask, f->val->v.z->z); }
        mpz_mul_2exp(mask, mask, lidx);
-       mpz_ior(xxval.v.z->z, xxval.v.z->z, mask);
+       mpz_ior(xxv->v.z->z, xxv->v.z->z, mask);
        mpz_clear(mask);
        clear_value_tp(f->val, f);
-       range_check(x->tp.tps, &xxval, f, x);
-       assign(x, &xxval, f);
+       range_check(x->tp.tps, xxv, f, x);
      }
-   clear_value_tp(&xxval, f);
    RESET_FLAG(f->flags, EVAL_bit);
  }
 
 static void assign_array_subrange(array_subrange *x, exec_info *f)
- { value_tp xxval, lidxval, hidxval, lval, hval, tmpval;
-   int4 i, j, n;
-   array_type *atps;
+ { value_tp *xxv, xxval, lval, hval;
+   long lidx, hidx, i, j, n;
    value_list *l, *xl;
    void (*cp)(value_tp *, value_tp *, exec_info *);
-   if (x->x->tp.kind == TP_int)
-     { assign_int_subrange(x->x, x->l, x->h, f);
-       return;
+   eval_array_bounds(x->x, &lval, &hval, f);
+   lidx = eval_array_index(x->l, &lval, &hval, f);
+   hidx = eval_array_index(x->h, &lval, &hval, f);
+   clear_value_tp(&lval, f);
+   clear_value_tp(&hval, f);
+   if (lidx > hidx)
+     { exec_error(f, x, "Slice [%v..%#v]: indices out of order",
+                  vstr_obj, x->l, x->h);
      }
-   SET_FLAG(f->flags, EVAL_lvalue);
-   eval_expr(x->x, f);
-   RESET_FLAG(f->flags, EVAL_lvalue);
-   pop_value(&xxval, f);
-   assert(xxval.rep == REP_array);
-   eval_expr(x->l, f);
-   pop_value(&lidxval, f);
-   eval_expr(x->h, f);
-   pop_value(&hidxval, f);
-   if (!lidxval.rep)
-     { exec_error(f, x->l, "Unknown index [%v.. ] in slice", vstr_obj, x->l); }
-   if (!hidxval.rep)
-     { exec_error(f, x->l, "Unknown index [ ..%v] in slice", vstr_obj, x->h); }
-   atps = (array_type*)x->x->tp.tps;
-   assert(atps->class == CLASS_array_type);
-   if (int_cmp(&lidxval, &hidxval, f) > 0)
-     { exec_error(f, x,
-             "Slice [%v..%#v] = [%v..%#v]: indices out of order",
-             vstr_obj, x->l, x->h, vstr_val, &lidxval, &hidxval);
-     }
-   eval_expr(atps->l, f);
-   pop_value(&lval, f);
-   eval_expr(atps->h, f);
-   pop_value(&hval, f);
-   if (int_cmp(&lidxval, &lval, f) < 0 || int_cmp(&hval, &hidxval, f) < 0)
-     { exec_error(f, x,
-            "Slice [%v..%#v] = [%v..%#v] is outside array %v[%v..%#v]",
-            vstr_obj, x->l, x->h, vstr_val, &lidxval, &hidxval,
-            vstr_obj, x->x, vstr_val, &lval, &hval);
+   assert(IS_SET(x->x->flags, EXPR_lvalue));
+   xxv = reval_expr(x->x, f);
+   if (!xxv->rep)
+     { force_value(xxv, x->x, f); }
+   l = xxv->v.l;
+   if (IS_SET(f->flags, EXEC_strict))
+     { f->err_obj = x;
+       strict_check_write_elem(xxv, f);
+       for (i = lidx; i <= hidx; i++)
+         { strict_check_write(&l->vl[i], f); }
      }
    l = f->val->v.l;
-   alias_value_tp(&tmpval, &lidxval, f);
-   hidxval = int_sub(&hidxval, &tmpval, f);
-   int_simplify(&hidxval, f);
-   assert(hidxval.rep == REP_int);
-   n = hidxval.v.i + 1; /* n = hidx - lidx + 1 */
+   n = hidx - lidx + 1;
    if (n != l->size)
-     { eval_expr(x->h, f);
-       pop_value(&hidxval, f);
-       exec_error(f, x, "Assignment of %ld values to slice %v[%v..%#v] "
-                 "with %ld values", l->size, vstr_obj, x->x,
-                 vstr_val, &lidxval, &hidxval, n);
+     { exec_error(f, x, "Assignment of %ld values to slice %v[%ld..%ld] "
+                 "with %ld values", l->size, vstr_obj, x->x, lidx, hidx, n);
      }
-   xl = xxval.v.l;
+   xl = xxv->v.l;
    if (l->refcnt == 1)
      { cp = copy_and_clear; }
    else
      { cp = alias_value_tp; }
-   j = 0;
-   lidxval = int_sub(&lidxval, &lval, f);
-   clear_value_tp(&hval, f);
-   int_simplify(&lidxval, f);
-   assert(lidxval.rep == REP_int);
-   i = lidxval.v.i; /* i = lidx - lval */
-   while (n)
-     { if (IS_SET(f->flags, EXEC_strict)) strict_check_assign(x, &xl->vl[i], f);
-       if (xl->vl[i].rep)
+   for (i = lidx, j = 0; i <= hidx; i++, j++)
+     { if (xl->vl[i].rep)
          { clear_value_tp(&xl->vl[i], f); }
        cp(&xl->vl[i], &l->vl[j], f);
-       j++; i++;
-       n--;
      }
    clear_value_tp(f->val, f);
-   clear_value_tp(&xxval, f);
  }
 
 static void eval_array_constructor(array_constructor *x, exec_info *f)
@@ -2617,13 +2605,7 @@ static void eval_array_constructor(array_constructor *x, exec_info *f)
 static void eval_field_of_record(field_of_record *x, exec_info *f)
  { value_tp xval, v, *ve;
    exec_flags flags = f->flags;
-   if (x->field)
-     { eval_int_subrange(x->x, x->field->l, x->field->h, f);
-       return;
-     }
-   SET_FLAG(f->flags, EVAL_sub_elem);
    eval_expr(x->x, f);
-   ASSIGN_FLAG(f->flags, flags, EVAL_sub_elem);
    pop_value(&v, f);
    if (!v.rep)
      { xval.rep = REP_none;
@@ -2638,34 +2620,30 @@ static void eval_field_of_record(field_of_record *x, exec_info *f)
      { assert(v.rep == REP_record);
        ve = &v.v.l->vl[x->idx];
      }
-   if (!ve->rep && IS_SET(f->flags, EVAL_lvalue))
-     { force_value(ve, (expr*)x, f); }
    if (v.rep == REP_record && v.v.l->refcnt == 1)
      { copy_and_clear(&xval, ve, f); }
    else
      { alias_value_tp(&xval, ve, f); }
    clear_value_tp(&v, f);
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_eval(x, ve, f);
    push_value(&xval, f);
  }
 
-static void assign_field_of_record(field_of_record *x, exec_info *f)
- { value_tp v, *ve;
-   if (x->field)
-     { assign_int_subrange(x->x, x->field->l, x->field->h, f);
-       return;
-     }
-   SET_FLAG(f->flags, EVAL_lvalue);
-   eval_expr(x->x, f);
-   RESET_FLAG(f->flags, EVAL_lvalue);
-   pop_value(&v, f);
-   assert(v.rep == REP_record);
-   ve = &v.v.l->vl[x->idx];
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_assign(x, ve, f);
-   if (ve->rep)
-     { clear_value_tp(ve, f); }
-   copy_and_clear(ve, f->val, f);
-   clear_value_tp(&v, f);
+static void *reval_field_of_record(field_of_record *x, exec_info *f)
+ { value_tp xval, *v;
+   v = reval_expr(x->x, f);
+   if (!v->rep)
+     { force_value(v, x->x, f); }
+   else if (v->rep == REP_port)
+     { if (!v->v.p->p) /* double connection error */
+         { return v; }
+       port_to_array(v, x->x, f);
+     } 
+   else if (v->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(v->rep == REP_record);
+   if (IS_SET(f->flags, EXEC_strict))
+     { strict_check_elem(x->x, v, f); }
+   return &v->v.l->vl[x->idx];
  }
 
 static void *connect_field_of_record(field_of_record *x, exec_info *f)
@@ -2797,6 +2775,7 @@ extern void wu_proc_remove(value_tp *v, int dir, exec_info *f)
    v->v.p->p = 0; v->v.p->wprobe.refcnt--;
    wu_wire_fix(&v->v.p->v, ps, f);
    llist_find_extract(&f->chp, 0, ps->cs);
+   llist_find_extract(&f->user->procs, 0, ps);
    // Maybe some other cleanup stuff here...
  }
 
@@ -3209,30 +3188,12 @@ static void eval_var_ref(var_ref *x, exec_info *f)
    val = &f->curr->var[x->var_idx];
    alias_value_tp(&xval, val, f);
    if (!xval.rep)
-     { if (IS_SET(f->flags, EVAL_lvalue))
-         { force_value(val, (expr*)x, f);
-           alias_value_tp(&xval, val, f);
-         }
-       else
-         { exec_warning(f, x, "Variable %s has no value", x->d->id); }
-     }
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_eval(x, val, f);
+     { exec_warning(f, x, "Variable %s has no value", x->d->id); }
    push_value(&xval, f);
  }
 
-static void assign_var_ref(var_ref *x, exec_info *f)
- { value_tp *val;
-   assert(x->var_idx < f->curr->nr_var);
-   val = &f->curr->var[x->var_idx];
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_assign(x, val, f);
-   if (val->rep)
-     { clear_value_tp(val, f); }
-   copy_and_clear(val, f->val, f);
- }
-
-static void *connect_var_ref(var_ref *x, exec_info *f)
- { value_tp *val;
-   assert(x->var_idx < f->curr->nr_var);
+static void *reval_var_ref(var_ref *x, exec_info *f)
+ { assert(x->var_idx < f->curr->nr_var);
    return &f->curr->var[x->var_idx];
  }
 
@@ -3352,7 +3313,9 @@ extern void init_expr(void)
    set_print(value_probe);
    set_print(array_subscript);
    set_print_cp(int_subscript, array_subscript);
+   set_print_cp(int_port_subscript, array_subscript);
    set_print(array_subrange);
+   set_print(int_subrange);
    set_print(field_of_record);
    set_print_cp(field_of_process, field_of_record);
    set_print(field_of_union);
@@ -3375,6 +3338,7 @@ extern void init_expr(void)
    set_sem(value_probe);
    set_sem(array_subscript);
    set_sem_cp(int_subscript, array_subscript);
+   set_sem_cp(int_port_subscript, array_subscript);
    set_sem(array_subrange);
    set_sem(field_of_record);
    set_sem_cp(field_of_process, field_of_record);
@@ -3389,14 +3353,19 @@ extern void init_expr(void)
    set_eval(prefix_expr);
    set_eval(value_probe);
    set_eval(array_subscript);
-   set_assign(array_subscript);
+   set_reval(array_subscript);
    set_connect(array_subscript);
+   set_eval(int_port_subscript);
+   set_reval(int_port_subscript);
+   set_connect(int_port_subscript);
    set_eval(int_subscript);
    set_assign(int_subscript);
    set_eval(array_subrange);
    set_assign(array_subrange);
+   set_eval(int_subrange);
+   set_assign(int_subrange);
    set_eval(field_of_record);
-   set_assign(field_of_record);
+   set_reval(field_of_record);
    set_connect(field_of_record);
    set_connect(field_of_process);
    set_connect(field_of_union);
@@ -3409,8 +3378,8 @@ extern void init_expr(void)
    set_pop(call);
    set_eval(token_expr);
    set_eval(var_ref);
-   set_assign(var_ref);
-   set_connect(var_ref);
+   set_reval(var_ref);
+   set_connect_from_reval(var_ref);
    set_eval(rep_var_ref);
    set_eval(const_ref);
    set_eval(meta_ref);

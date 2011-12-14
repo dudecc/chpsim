@@ -57,6 +57,7 @@
 #include "types.h"
 
 /*extern*/ int app_eval = -1;
+/*extern*/ int app_reval = -1;
 /*extern*/ int app_range = -1;
 /*extern*/ int app_assign = -1;
 /*extern*/ int app_conn = -1;
@@ -111,7 +112,34 @@ static void no_eval(expr *x, exec_info *f)
 
 extern void eval_expr(void *obj, exec_info *f)
  /* Evaluate expr *obj */
- { APP_OBJ_VFZ(app_eval, obj, f, no_eval); }
+ { expr *x = obj;
+   value_tp *xv, xval;
+   if (IS_SET(x->flags, EXPR_lvalue))
+     { xv = reval_expr(x, f);
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = x;
+           if (IS_SET(x->flags, EXPR_port) && !IS_SET(f->flags, EVAL_probe))
+             { strict_check_write(xv, f); }
+           else
+             { strict_check_read(xv, f); }
+         }
+       alias_value_tp(&xval, xv, f);
+       push_value(&xval, f);
+     }
+   else
+     { APP_OBJ_VFZ(app_eval, obj, f, no_eval); }
+ }
+
+static void *no_reval(expr *x, exec_info *f)
+ /* called when x has no eval function */
+ { error("Internal error: "
+         "Object class %s has no reval method", x->class->nm);
+   return 0;
+ }
+
+extern void *reval_expr(void *obj, exec_info *f)
+ /* Evaluate expr *obj */
+ { APP_OBJ_PFZ(app_reval, obj, f, no_reval); }
 
 /* var_str_func_tp: use as first arg for %v */
 extern int vstr_mpz(var_string *s, int pos, void *z)
@@ -1110,12 +1138,25 @@ extern void assign(expr *x, value_tp *val, exec_info *f)
  /* Assign x := val where x is an lvalue.
     Note: you should do a range_check() first.
  */
- { value_tp *w = f->val;
+ { value_tp *xv, *w = f->val;
    if (!val->rep)
      { exec_error(f, x, "Unknown value in assignment to %v", vstr_obj, x); }
-   f->val = val;
-   APP_OBJ_VFZ(app_assign, x, f, no_assign);
-   f->val = w;
+   SET_FLAG(f->flags, EVAL_assign);
+   if (IS_SET(x->flags, EXPR_lvalue))
+     { xv = reval_expr(x, f);
+       if (IS_SET(f->flags, EXEC_strict))
+         { f->err_obj = x;
+           strict_check_write(xv, f);
+         }
+       clear_value_tp(xv, f);
+       copy_and_clear(xv, val, f);
+     }
+   else
+     { f->val = val;
+       APP_OBJ_VFZ(app_assign, x, f, no_assign);
+       f->val = w;
+     }
+   RESET_FLAG(f->flags, EVAL_assign);
  }
 
 static void *no_connect(expr *x, exec_info *f)
@@ -1292,18 +1333,49 @@ extern void add_wire_dep(wire_value *w, exec_info *f)
 FLAGS(scr_flags)
    { FIRST_FLAG(SCR_read_ok), /* set if this variable can possibly be read */
      NEXT_FLAG(SCR_write_ok), /* set if this variable can possibly be written */
-     NEXT_FLAG(SCR_sub_elem)
+     NEXT_FLAG(SCR_sub_elem),
      /* When set, variable has elements that must also be checked */
+     NEXT_FLAG(SCR_int_elem)
+     /* When set, variable has bit slice elements */
    };
 
-typedef struct strict_check_record
+typedef struct strict_check_record strict_check_record;
+struct strict_check_record
    { ctrl_state *read_frame, *write_frame;
+     strict_check_record *bits;
+     int nr_bits;
      scr_flags flags;
-   } strict_check_record;
+   };
 
 static int scr_delete(hash_entry *e, void *dummy)
- { free(e->data.p);
+ { strict_check_record *r = e->data.p;
+   if (IS_SET(r->flags, SCR_int_elem))
+     { free(r->bits); }
+   free(r);
    return 0;
+ }
+
+static strict_check_record *scr_access_bit(strict_check_record *r, int n)
+ /* This function ensures that r has the flag SCR_int_elem set, and that
+  * r->bits contains enough elements to include bit n, then returns
+  * a reference to r->bits[n].  If r->bits[n] is being accessed for the
+  * first time, it will not have SCR_int_elem set, and will be otherwise
+  * uninitialized.
+  */
+ { int i, k;
+   k = IS_SET(r->flags, SCR_int_elem)? r->nr_bits : 1;
+   while (k <= n) k *= 2;
+   if (!IS_SET(r->flags, SCR_int_elem))
+     { NEW_ARRAY(r->bits, k);
+       SET_FLAG(r->flags, SCR_int_elem);
+       r->nr_bits = 0;
+     }
+   else if (k > r->nr_bits)
+     { REALLOC_ARRAY(r->bits, k); }
+   for (i = r->nr_bits; i < k; i++)
+     { r->bits[i].flags = 0; }
+   r->nr_bits = k;
+   return &r->bits[n];
  }
 
 extern void strict_check_init(process_state *ps, exec_info *f)
@@ -1380,6 +1452,7 @@ extern void strict_check_read(value_tp *v, exec_info *f)
    hash_entry *e;
    strict_check_record *r;
    ctrl_state *frame;
+   int i;
    h = f->curr->ps->accesses;
    frame = get_proper_frame(f->curr, f);
    if (!hash_insert(h, (char*)v, &e))
@@ -1394,6 +1467,12 @@ extern void strict_check_read(value_tp *v, exec_info *f)
    strict_check_read_real(r, frame, f);
    if (IS_SET(r->flags, SCR_sub_elem))
      { strict_check_read_sub(v, frame, h, f); }
+   if (IS_SET(r->flags, SCR_int_elem))
+     { for (i = 0; i < r->nr_bits; i++)
+         { if (IS_SET(r->flags, SCR_int_elem))
+             { strict_check_read_real(&r->bits[i], frame, f); }
+         }
+     }
  }
 
 extern void strict_check_read_elem(value_tp *v, exec_info *f)
@@ -1412,11 +1491,44 @@ extern void strict_check_read_elem(value_tp *v, exec_info *f)
        return;
      }
    r = e->data.p;
-   if (!is_parent_frame(r->write_frame, frame, f))
+   if (!IS_SET(r->flags, SCR_read_ok) ||
+       !is_parent_frame(r->write_frame, frame, f))
      { exec_error(f, f->err_obj,
-              "Reading from a variable that was written in parallel");
+                  "Reading from a variable that was written in parallel");
      }
    SET_FLAG(r->flags, SCR_sub_elem);
+ }
+
+extern void strict_check_read_bit(value_tp *v, int n, exec_info *f)
+ { hash_table *h;
+   hash_entry *e;
+   strict_check_record *r;
+   ctrl_state *frame;
+   h = f->curr->ps->accesses;
+   frame = get_proper_frame(f->curr, f);
+   if (!hash_insert(h, (char*)v, &e))
+     { NEW(r);
+       r->read_frame = 0;
+       r->write_frame = 0;
+       r->flags = SCR_read_ok | SCR_write_ok;
+       e->data.p = r;
+     }
+   else
+     { r = e->data.p;
+       if (!IS_SET(r->flags, SCR_read_ok) ||
+           !is_parent_frame(r->write_frame, frame, f))
+         { exec_error(f, f->err_obj,
+                      "Reading from a variable that was written in parallel");
+         }
+     }
+   r = scr_access_bit(r, n);
+   if (!IS_SET(r->flags, SCR_int_elem))
+     { r->read_frame = frame;
+       r->write_frame = 0;
+       r->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
+     }
+   else
+     { strict_check_read_real(r, frame, f); }
  }
 
 static void strict_check_write_real
@@ -1456,6 +1568,7 @@ extern void strict_check_write(value_tp *v, exec_info *f)
    hash_entry *e;
    strict_check_record *r;
    ctrl_state *frame;
+   int i;
    h = f->curr->ps->accesses;
    frame = get_proper_frame(f->curr, f);
    if (!hash_insert(h, (char*)v, &e))
@@ -1472,6 +1585,14 @@ extern void strict_check_write(value_tp *v, exec_info *f)
    if (IS_SET(r->flags, SCR_sub_elem))
      { strict_check_write_sub(v, frame, h, f);
        RESET_FLAG(r->flags, SCR_sub_elem);
+     }
+   if (IS_SET(r->flags, SCR_int_elem))
+     { for (i = 0; i < r->nr_bits; i++)
+         { if (IS_SET(r->flags, SCR_int_elem))
+             { strict_check_write_real(&r->bits[i], frame, f); }
+         }
+       free(r->bits);
+       RESET_FLAG(r->flags, SCR_int_elem);
      }
  }
 
@@ -1493,6 +1614,36 @@ extern void strict_check_write_elem(value_tp *v, exec_info *f)
    r = e->data.p;
    strict_check_write_real(r, frame, f);
    SET_FLAG(r->flags, SCR_sub_elem);
+ }
+
+extern void strict_check_write_bit(value_tp *v, int n,  exec_info *f)
+ { hash_table *h;
+   hash_entry *e;
+   strict_check_record *r;
+   ctrl_state *frame;
+   h = f->curr->ps->accesses;
+   frame = get_proper_frame(f->curr, f);
+   if (!hash_insert(h, (char*)v, &e))
+     { NEW(r);
+       r->read_frame = 0;
+       r->write_frame = 0;
+       r->flags = SCR_read_ok | SCR_write_ok;
+       e->data.p = r;
+     }
+   else
+     { r = e->data.p;
+       strict_check_write_real(r, frame, f);
+     }
+   r = scr_access_bit(r, n);
+   if (!IS_SET(r->flags, SCR_int_elem))
+     { r->read_frame = frame;
+       r->write_frame = 0;
+       r->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
+     }
+   else
+     { strict_check_write_real(r, frame, f);
+       r->write_frame = frame;
+     }
  }
 
 static void strict_check_delete_sub(value_tp *v, hash_table *h, exec_info *f)
@@ -1524,13 +1675,30 @@ extern void strict_check_delete(value_tp *v, exec_info *f)
  }
 
 static int _sc_frame_end(strict_check_record *r, exec_info *f)
- { if (r->read_frame == f->prev)
+ { int i;
+   strict_check_record *rr;
+   if (r->read_frame == f->prev)
      { r->read_frame = f->curr;
        RESET_FLAG(r->flags, SCR_write_ok);
      }
    if (r->write_frame == f->prev)
      { r->write_frame = f->curr;
        RESET_FLAG(r->flags, SCR_read_ok);
+     }
+   if (IS_SET(r->flags, SCR_int_elem))
+     { for (i = 0; i < r->nr_bits; i++)
+         { rr = &r->bits[i];
+           if (IS_SET(rr->flags, SCR_int_elem))
+             { if (rr->read_frame == f->prev)
+                 { rr->read_frame = f->curr;
+                   RESET_FLAG(rr->flags, SCR_write_ok);
+                 }
+               if (rr->write_frame == f->prev)
+                 { rr->write_frame = f->curr;
+                   RESET_FLAG(rr->flags, SCR_read_ok);
+                 }
+             }
+         }
      }
    return 0;
  }
@@ -1543,10 +1711,23 @@ extern void strict_check_frame_end(exec_info *f)
  }
 
 static int _sc_update(strict_check_record *r, ctrl_state *cs)
- { if (r->read_frame == cs)
+ { int i;
+   strict_check_record *rr;
+   if (r->read_frame == cs)
      { SET_FLAG(r->flags, SCR_write_ok); }
    if (r->write_frame == cs)
      { SET_FLAG(r->flags, SCR_read_ok); }
+   if (IS_SET(r->flags, SCR_int_elem))
+     { for (i = 0; i < r->nr_bits; i++)
+         { rr = &r->bits[i];
+           if (IS_SET(rr->flags, SCR_int_elem))
+             { if (rr->read_frame == cs)
+                 { SET_FLAG(rr->flags, SCR_write_ok); }
+               if (rr->write_frame == cs)
+                 { SET_FLAG(rr->flags, SCR_read_ok); }
+             }
+         }
+     }
    return 0;
  }
 
@@ -1612,10 +1793,11 @@ extern void crit_node_step(action *a, wire_value *w, exec_info *f)
 
 /*****************************************************************************/
 
-extern void init_value(int app1, int app2, int app3, int app4)
+extern void init_value(int app1, int app2, int app3, int app4, int app5)
  /* call at startup; pass unused object app indices */
  { app_eval = app1;
-   app_range = app2;
-   app_assign = app3;
-   app_conn = app4;
+   app_reval = app2;
+   app_range = app3;
+   app_assign = app4;
+   app_conn = app5;
  }

@@ -80,6 +80,7 @@ FLAGS(parse_obj_flags)
      NEXT_FLAG(EXPR_metax), /* depends on meta parameters */
      NEXT_FLAG(EXPR_cparam), /* depends on a const parameter */
      NEXT_FLAG(EXPR_rep), /* depends on replication parameter */
+     NEXT_FLAG(EXPR_lvalue), /* evaluates to a stored value */
      NEXT_FLAG(EXPR_writable), /* can be target of assignment */
      NEXT_FLAG(EXPR_inport), /* is an input port */
      NEXT_FLAG(EXPR_outport), /* is an output port */
@@ -96,17 +97,17 @@ FLAGS(parse_obj_flags)
      EXPR_all_constx = EXPR_nocexpr | EXPR_metax,
                                 /* All flags relating to constant status */
      EXPR_port = EXPR_inport | EXPR_outport, /* is a port */
-     EXPR_inherit = EXPR_wire | EXPR_port_ext | EXPR_generic |
-	            EXPR_port | EXPR_writable | EXPR_counter
+     EXPR_inherit = EXPR_wire | EXPR_port_ext | EXPR_generic | EXPR_port |
+                    EXPR_writable | EXPR_lvalue | EXPR_counter
    };
 
 #define IS_A_PORT(X) (IS_SET((X)->flags, EXPR_port) \
-		  && !IS_SET((X)->flags, EXPR_wire))
+                  && !IS_SET((X)->flags, EXPR_wire))
 
 #define PARSE_OBJ \
-	OBJ_FIELDS; \
-	int lpos /* position in line */; \
-	parse_obj_flags flags
+        OBJ_FIELDS; \
+        int lpos /* position in line */; \
+        parse_obj_flags flags
 
 /* generic parse object */
 CLASS(parse_obj)
@@ -133,8 +134,8 @@ typedef struct type type;
 struct type
    { type_kind kind;
      union { type *tp; /* kind = TP_array, TP_generic */
-	     llist l;  /* kind = TP_record; llist(type) */
-	     process_def *p; /* kind = TP_process */
+             llist l;  /* kind = TP_record; llist(type) */
+             process_def *p; /* kind = TP_process */
      } elem;
      type_spec *tps; /* 0 if reduced type */
      type_spec *utps; /* 0 unless type is union */
@@ -147,8 +148,8 @@ struct type
 /********** expressions ******************************************************/
 
 #define EXPR_OBJ \
-	PARSE_OBJ; \
-	type tp
+        PARSE_OBJ; \
+        type tp
 
 /* generic expression */
 CLASS(expr)
@@ -169,10 +170,10 @@ struct rep_common
 CLASS(rep_expr)
    { EXPR_OBJ;
      token_tp rep_sym;
-	/* int -> int: +, *, &, |, xor
-	   array -> array: ++
-	   bool -> bool: &, |, xor
-	*/
+        /* int -> int: +, *, &, |, xor
+           array -> array: ++
+           bool -> bool: &, |, xor
+        */
      rep_common r;
      expr *v;
      struct sem_context *cxt;
@@ -181,12 +182,12 @@ CLASS(rep_expr)
 CLASS(binary_expr)
    { EXPR_OBJ;
      token_tp op_sym;
-	/* int, int -> int: +, -, *, /, %, mod, ^, &, |, xor
-	   array, array -> array: ++
-	   any, any -> bool: =, !=
-	   int, int -> bool: <, >, <=, >=
-	   bool, bool -> bool: <, >, <=, >=, &, |, xor
-	*/
+        /* int, int -> int: +, -, *, /, %, mod, ^, &, |, xor
+           array, array -> array: ++
+           any, any -> bool: =, !=
+           int, int -> bool: <, >, <=, >=
+           bool, bool -> bool: <, >, <=, >=, &, |, xor
+        */
      expr *l, *r;
    };
 
@@ -212,22 +213,30 @@ CLASS(array_subscript)
 
 CLASS_COPY(int_subscript, array_subscript);
 
+CLASS_COPY(int_port_subscript, array_subscript);
+
 CLASS(array_subrange)
    { EXPR_OBJ;
-     expr *x; /* TP_array or TP_int */
+     expr *x;
      expr *l, *h;
    };
 
 CLASS_1(field_def);
+CLASS(int_subrange)
+   { EXPR_OBJ;
+     expr *x;
+     expr *l, *h;
+     field_def *field; /* set if this is actually an integer field */
+   };
+
 CLASS(field_of_record)
    { EXPR_OBJ;
      expr *x;
      const str *id;
      int idx; /* assigned by sem(); index of field in record.
-		 If x is a process instance, id a port, then idx is
-		 the port_parameter's var_idx.
-	       */
-     field_def *field; /* assigned by sem() if x is an integer */
+                 For field_of_process, id is a port, and idx is
+                 the port_parameter's var_idx.
+               */
    };
 
 CLASS_COPY(field_of_process, field_of_record);
@@ -263,8 +272,8 @@ CLASS(call)
 CLASS(token_expr) /* id or literal */
    { EXPR_OBJ;
      token_value t; /* after sem(): TOK_int/TP_int, TOK_z/TP_int,
-	TOK_char/TP_int, TOK_string/TP_array, TOK_id/TP_symbol,
-	KW_true/KW_false/TP_bool */
+        TOK_char/TP_int, TOK_string/TP_array, TOK_id/TP_symbol,
+        KW_true/KW_false/TP_bool */
    };
 
 CLASS_1(var_decl);
@@ -344,7 +353,7 @@ CLASS(compound_stmt)
 CLASS_2(rep_stmt)
    { PARSE_OBJ;
      token_tp rep_sym;
-	/* ',', ';', SYM_bar, SYM_arb */
+        /* ',', ';', SYM_bar, SYM_arb */
      rep_common r;
      llist sl; /* llist(statement) */
      struct sem_context *cxt;
@@ -380,9 +389,9 @@ CLASS(loop_stmt)
 CLASS(select_stmt)
    { PARSE_OBJ;
      llist gl, glr; /* llist(guarded_cmnd)
-		       glr has the same elements (as aliases) but is reversed
-		       (by sem()). glr is used for execution, gl for printing.
-		     */
+                       glr has the same elements (as aliases) but is reversed
+                       (by sem()). glr is used for execution, gl for printing.
+                     */
      int mutex; /* if true, guards must be mutex */
      expr *w; /* or 0. Used if wait instead of select */
    };
@@ -438,8 +447,8 @@ CLASS(delay_hold)
 /********** types ************************************************************/
 
 #define TYPE_SPEC_OBJ \
-	PARSE_OBJ; \
-	type tp
+        PARSE_OBJ; \
+        type tp
 
 /* generic */
 CLASS_2(type_spec)
@@ -586,7 +595,7 @@ CLASS(wire_decl)
 CLASS(chp_body)
    { PARSE_OBJ;
      llist dl; /* definitions and var decls:
-	   type_def, const_def, function_def, process_def, var_decl */
+           type_def, const_def, function_def, process_def, var_decl */
      llist sl; /* statements */
      struct sem_context *cxt;
    };

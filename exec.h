@@ -166,8 +166,7 @@ struct process_state
    };
 
 FLAGS(exec_flags)
-   { FIRST_FLAG(EVAL_lvalue), /* computing an lvalue: if no value, create one */
-     NEXT_FLAG(EVAL_sub_elem), /* evaluating an array/record */
+   { FIRST_FLAG(EVAL_assign), /* evaluating for the purpose of assignment */
      NEXT_FLAG(EVAL_probe), /* evaluating a probe */
      NEXT_FLAG(EVAL_probe_zero), /* checking for all probes equal to zero */
      NEXT_FLAG(EVAL_probe_wait), /* set if we might want to suspend */

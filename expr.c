@@ -2270,7 +2270,7 @@ static void eval_int_subscript(int_subscript *x, exec_info *f)
      { xxv = reval_expr(x->x, f);
        if (IS_SET(f->flags, EXEC_strict))
          { f->err_obj = x;
-           strict_check_read_bit(xxv, idx, f);
+           strict_check_read_bits(xxv, idx, idx, f);
          }
      }
    else
@@ -2313,7 +2313,7 @@ static void assign_int_subscript(int_subscript *x, exec_info *f)
    xxv = reval_expr(x->x, f);
    if (IS_SET(f->flags, EXEC_strict))
      { f->err_obj = x;
-       strict_check_read_bit(xxv, idx, f);
+       strict_check_write_bits(xxv, idx, idx, f);
      }
    if (!xxv->rep)
      { xxv->rep = REP_int; xxv->v.i = 0; }
@@ -2365,8 +2365,7 @@ static void eval_int_subrange(int_subrange *x, exec_info *f)
      { xxv = reval_expr(x->x, f);
        if (IS_SET(f->flags, EXEC_strict))
          { f->err_obj = x;
-           for (i = lidx; i <= hidx; i++)
-             { strict_check_read_bit(xxv, i, f); }
+           strict_check_read_bits(xxv, lidx, hidx, f);
          }
        cp = copy_value_tp;
      }
@@ -2481,8 +2480,7 @@ static void assign_int_subrange(int_subrange *x, exec_info *f)
    xxv = reval_expr(x->x, f);
    if (IS_SET(f->flags, EXEC_strict))
      { f->err_obj = x;
-       for (i = lidx; i <= hidx; i++)
-         { strict_check_read_bit(xxv, i, f); }
+       strict_check_write_bits(xxv, lidx, hidx, f);
      }
    if (!xxv->rep)
      { xxv->rep = REP_int; xxv->v.i = 0; }

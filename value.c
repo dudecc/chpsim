@@ -114,8 +114,12 @@ extern void eval_expr(void *obj, exec_info *f)
  /* Evaluate expr *obj */
  { expr *x = obj;
    value_tp *xv, xval;
+   exec_flags flags;
    if (IS_SET(x->flags, EXPR_lvalue))
-     { xv = reval_expr(x, f);
+     { flags = f->flags;
+       RESET_FLAG(f->flags, EVAL_assign);
+       xv = reval_expr(x, f);
+       ASSIGN_FLAG(f->flags, flags, EVAL_assign);
        if (IS_SET(f->flags, EXEC_strict))
          { f->err_obj = x;
            if (IS_SET(x->flags, EXPR_port) && !IS_SET(f->flags, EVAL_probe))
@@ -1469,7 +1473,7 @@ extern void strict_check_read(value_tp *v, exec_info *f)
      { strict_check_read_sub(v, frame, h, f); }
    if (IS_SET(r->flags, SCR_int_elem))
      { for (i = 0; i < r->nr_bits; i++)
-         { if (IS_SET(r->flags, SCR_int_elem))
+         { if (IS_SET(r->bits[i].flags, SCR_int_elem))
              { strict_check_read_real(&r->bits[i], frame, f); }
          }
      }
@@ -1499,14 +1503,15 @@ extern void strict_check_read_elem(value_tp *v, exec_info *f)
    SET_FLAG(r->flags, SCR_sub_elem);
  }
 
-extern void strict_check_read_bit(value_tp *v, int n, exec_info *f)
- { hash_table *h;
+extern void strict_check_read_bits(value_tp *v, int l, int h, exec_info *f)
+ { hash_table *ht;
    hash_entry *e;
-   strict_check_record *r;
+   strict_check_record *r, *ri;
    ctrl_state *frame;
-   h = f->curr->ps->accesses;
+   int i;
+   ht = f->curr->ps->accesses;
    frame = get_proper_frame(f->curr, f);
-   if (!hash_insert(h, (char*)v, &e))
+   if (!hash_insert(ht, (char*)v, &e))
      { NEW(r);
        r->read_frame = 0;
        r->write_frame = 0;
@@ -1521,14 +1526,16 @@ extern void strict_check_read_bit(value_tp *v, int n, exec_info *f)
                       "Reading from a variable that was written in parallel");
          }
      }
-   r = scr_access_bit(r, n);
-   if (!IS_SET(r->flags, SCR_int_elem))
-     { r->read_frame = frame;
-       r->write_frame = 0;
-       r->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
+   for (i = h; i >= l; i--)
+     { ri = scr_access_bit(r, i);
+       if (!IS_SET(ri->flags, SCR_int_elem))
+         { ri->read_frame = frame;
+           ri->write_frame = 0;
+           ri->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
+         }
+       else
+         { strict_check_read_real(ri, frame, f); }
      }
-   else
-     { strict_check_read_real(r, frame, f); }
  }
 
 static void strict_check_write_real
@@ -1588,7 +1595,7 @@ extern void strict_check_write(value_tp *v, exec_info *f)
      }
    if (IS_SET(r->flags, SCR_int_elem))
      { for (i = 0; i < r->nr_bits; i++)
-         { if (IS_SET(r->flags, SCR_int_elem))
+         { if (IS_SET(r->bits[i].flags, SCR_int_elem))
              { strict_check_write_real(&r->bits[i], frame, f); }
          }
        free(r->bits);
@@ -1616,14 +1623,15 @@ extern void strict_check_write_elem(value_tp *v, exec_info *f)
    SET_FLAG(r->flags, SCR_sub_elem);
  }
 
-extern void strict_check_write_bit(value_tp *v, int n,  exec_info *f)
- { hash_table *h;
+extern void strict_check_write_bits(value_tp *v, int l, int h, exec_info *f)
+ { hash_table *ht;
    hash_entry *e;
-   strict_check_record *r;
+   strict_check_record *r, *ri;
    ctrl_state *frame;
-   h = f->curr->ps->accesses;
+   int i;
+   ht = f->curr->ps->accesses;
    frame = get_proper_frame(f->curr, f);
-   if (!hash_insert(h, (char*)v, &e))
+   if (!hash_insert(ht, (char*)v, &e))
      { NEW(r);
        r->read_frame = 0;
        r->write_frame = 0;
@@ -1634,15 +1642,17 @@ extern void strict_check_write_bit(value_tp *v, int n,  exec_info *f)
      { r = e->data.p;
        strict_check_write_real(r, frame, f);
      }
-   r = scr_access_bit(r, n);
-   if (!IS_SET(r->flags, SCR_int_elem))
-     { r->read_frame = frame;
-       r->write_frame = 0;
-       r->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
-     }
-   else
-     { strict_check_write_real(r, frame, f);
-       r->write_frame = frame;
+   for (i = h; i >= l; i--)
+     { ri = scr_access_bit(r, i);
+       if (!IS_SET(ri->flags, SCR_int_elem))
+         { ri->read_frame = frame;
+           ri->write_frame = 0;
+           ri->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
+         }
+       else
+         { strict_check_write_real(ri, frame, f);
+           ri->write_frame = frame;
+         }
      }
  }
 

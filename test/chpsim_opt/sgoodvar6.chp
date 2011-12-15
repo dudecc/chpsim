@@ -1,0 +1,6 @@
+//-strict
+process main()()
+chp { var x[0..0], y[0..9] : int = 0;
+      <<; i : 0..9 : y[x[0]] := 3, print(x); x[0] := 9-i >>
+}
+

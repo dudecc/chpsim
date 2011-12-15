@@ -436,16 +436,16 @@ extern void strict_check_read(value_tp *v, struct exec_info *f);
 extern void strict_check_read_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be read */
 
-extern void strict_check_read_bit(value_tp *v, int n, struct exec_info *f);
-/* To be called when reading bit n of integer v */
+extern void strict_check_read_bits(value_tp *v, int l, int h, struct exec_info *f);
+/* To be called when reading bits l through h of integer v */
 
 extern void strict_check_write(value_tp *v, struct exec_info *f);
 
 extern void strict_check_write_elem(value_tp *v, struct exec_info *f);
 /* To be called when one or more elements of v will be written */
 
-extern void strict_check_write_bit(value_tp *v, int n, struct exec_info *f);
-/* To be called when writing bit n of integer v */
+extern void strict_check_write_bits(value_tp *v, int l, int h, struct exec_info *f);
+/* To be called when writing bits l through h of integer v */
 
 extern void strict_check_delete(value_tp *v, struct exec_info *f);
 /* Upon ending a function/routine call, use this to remove

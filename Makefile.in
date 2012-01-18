@@ -51,19 +51,19 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_chpconv_OBJECTS = chpconv.$(OBJEXT) builtin_io.$(OBJEXT) \
 	chp.$(OBJEXT) exec.$(OBJEXT) expr.$(OBJEXT) interact.$(OBJEXT) \
-	lex.$(OBJEXT) modules.$(OBJEXT) parse.$(OBJEXT) \
-	parse_obj.$(OBJEXT) print.$(OBJEXT) routines.$(OBJEXT) \
-	sem_analysis.$(OBJEXT) statement.$(OBJEXT) types.$(OBJEXT) \
-	value.$(OBJEXT) variables.$(OBJEXT)
+	ifrchk.$(OBJEXT) lex.$(OBJEXT) modules.$(OBJEXT) \
+	parse.$(OBJEXT) parse_obj.$(OBJEXT) print.$(OBJEXT) \
+	routines.$(OBJEXT) sem_analysis.$(OBJEXT) statement.$(OBJEXT) \
+	types.$(OBJEXT) value.$(OBJEXT) variables.$(OBJEXT)
 chpconv_OBJECTS = $(am_chpconv_OBJECTS)
 chpconv_LDADD = $(LDADD)
 chpconv_DEPENDENCIES = $(CLIBDIR)/libalways.a
 am_chpsim_OBJECTS = chpsim.$(OBJEXT) builtin_io.$(OBJEXT) \
 	chp.$(OBJEXT) exec.$(OBJEXT) expr.$(OBJEXT) interact.$(OBJEXT) \
-	lex.$(OBJEXT) modules.$(OBJEXT) parse.$(OBJEXT) \
-	parse_obj.$(OBJEXT) print.$(OBJEXT) routines.$(OBJEXT) \
-	sem_analysis.$(OBJEXT) statement.$(OBJEXT) types.$(OBJEXT) \
-	value.$(OBJEXT) variables.$(OBJEXT)
+	ifrchk.$(OBJEXT) lex.$(OBJEXT) modules.$(OBJEXT) \
+	parse.$(OBJEXT) parse_obj.$(OBJEXT) print.$(OBJEXT) \
+	routines.$(OBJEXT) sem_analysis.$(OBJEXT) statement.$(OBJEXT) \
+	types.$(OBJEXT) value.$(OBJEXT) variables.$(OBJEXT)
 chpsim_OBJECTS = $(am_chpsim_OBJECTS)
 chpsim_LDADD = $(LDADD)
 chpsim_DEPENDENCIES = $(CLIBDIR)/libalways.a
@@ -202,20 +202,20 @@ AM_CFLAGS = -I$(CLIBDIR) -DPKGDATADIR='"$(pkgdatadir)"'
 
 # Include readline, GMP and math
 LDADD = $(CLIBDIR)/libalways.a -lreadline -lgmp -lm
-chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
-                 modules.c parse.c parse_obj.c print.c routines.c \
+chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c ifrchk.c \
+                 lex.c modules.c parse.c parse_obj.c print.c routines.c \
                  sem_analysis.c statement.c types.c value.c variables.c \
-                 lex.h parse_obj.h print.h value.h builtin_io.h chp.h \
+                 lex.h parse_obj.h print.h value.h ifrchk.h builtin_io.h chp.h \
                  exec.h expr.h modules.h parse.h routines.h interact.h \
                  sem_analysis.h statement.h types.h variables.h \
                  path.def symbol.def
 
-chpconv_SOURCES = chpconv.c builtin_io.c chp.c exec.c expr.c interact.c lex.c \
-                  modules.c parse.c parse_obj.c print.c routines.c \
-                  sem_analysis.c statement.c types.c value.c variables.c \
-                  lex.h parse_obj.h print.h value.h builtin_io.h chp.h \
-                  exec.h expr.h modules.h parse.h routines.h interact.h \
-                  sem_analysis.h statement.h types.h variables.h \
+chpconv_SOURCES = chpconv.c builtin_io.c chp.c exec.c expr.c interact.c \
+                  ifrchk.c lex.c modules.c parse.c parse_obj.c print.c \
+                  routines.c sem_analysis.c statement.c types.c value.c \
+                  variables.c lex.h parse_obj.h print.h value.h ifrchk.h \
+                  builtin_io.h chp.h exec.h expr.h modules.h parse.h routines.h \
+                  interact.h sem_analysis.h statement.h types.h variables.h \
                   path.def symbol.def
 
 
@@ -318,6 +318,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chpsim.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exec.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expr.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ifrchk.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/interact.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modules.Po@am__quote@

@@ -51,6 +51,7 @@
 #include "parse.h"
 #include "value.h"
 #include "exec.h"
+#include "ifrchk.h"
 #include "chp.h"
 #include "builtin_io.h"
 #include "expr.h"
@@ -84,6 +85,7 @@ extern void read_source(user_info *f, const char *fin_nm, module_def **src_md)
    lex_tp_term(L);
    *src_md = x;
    llist_concat(&f->ml, &S->ml);
+   ifrchk_setup(f); 
  }
 
 
@@ -195,6 +197,7 @@ extern void init_chp(int app0, FILE *user_stdout)
    init_lex();
    init_print(app0 + App_print);
    init_sem_analysis(app0 + App_sem, app0 + App_import);
+   init_ifrchk(app0 + App_ifrchk);
    init_value(app0 + App_eval, app0 + App_reval, app0 + App_range,
               app0 + App_assign, app0 + App_conn);
    init_exec(app0 + App_exec, app0 + App_pop);

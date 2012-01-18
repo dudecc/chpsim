@@ -50,6 +50,8 @@
 #include <standard.h>
 #include "print.h"
 #include "parse_obj.h"
+#include "value.h"
+#include "ifrchk.h"
 #include "expr.h"
 #include "statement.h"
 #include "sem_analysis.h"
@@ -1848,7 +1850,7 @@ static void eval_value_probe(value_probe *x, exec_info *f)
      { p = llist_head(&m);
        m = llist_alias_tail(&m);
        pv[i] = reval_expr(p, f);
-       if (IS_SET(f->flags, EXEC_strict))
+       if (IS_SET(p->flags, EXPR_ifrchk))
          { f->err_obj = p;
            strict_check_read(pv[i], f);
          }
@@ -2106,7 +2108,7 @@ static void *reval_array_subscript(array_subscript *x, exec_info *f)
    else if (xxval->rep == REP_union)
      { exec_error(f, x, "Use of conflicting decompositions"); }
    assert(xxval->rep == REP_array);
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { strict_check_elem(x->x, xxval, f); }
    return &xxval->v.l->vl[idx];
  }
@@ -2195,7 +2197,7 @@ static void *reval_int_port_subscript(int_port_subscript *x, exec_info *f)
      { exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
                   vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
      }
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { strict_check_elem(x->x, xxval, f); }
    return &l->vl[idxval.v.i];
  }
@@ -2268,7 +2270,7 @@ static void eval_int_subscript(int_subscript *x, exec_info *f)
    xval.rep = REP_bool;
    if (IS_SET(x->x->flags, EXPR_lvalue))
      { xxv = reval_expr(x->x, f);
-       if (IS_SET(f->flags, EXEC_strict))
+       if (IS_SET(x->flags, EXPR_ifrchk))
          { f->err_obj = x;
            strict_check_read_bits(xxv, idx, idx, f);
          }
@@ -2311,7 +2313,7 @@ static void assign_int_subscript(int_subscript *x, exec_info *f)
      }
    assert(IS_SET(x->x->flags, EXPR_lvalue));
    xxv = reval_expr(x->x, f);
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { f->err_obj = x;
        strict_check_write_bits(xxv, idx, idx, f);
      }
@@ -2363,7 +2365,7 @@ static void eval_int_subrange(int_subrange *x, exec_info *f)
    n = hidx - lidx + 1;
    if (IS_SET(x->x->flags, EXPR_lvalue))
      { xxv = reval_expr(x->x, f);
-       if (IS_SET(f->flags, EXEC_strict))
+       if (IS_SET(x->flags, EXPR_ifrchk))
          { f->err_obj = x;
            strict_check_read_bits(xxv, lidx, hidx, f);
          }
@@ -2420,7 +2422,7 @@ static void eval_array_subrange(array_subrange *x, exec_info *f)
        if (!xxv->rep)
          { force_value(xxv, x->x, f); }
        l = xxv->v.l;
-       if (IS_SET(f->flags, EXEC_strict))
+       if (IS_SET(x->flags, EXPR_ifrchk))
          { f->err_obj = x;
            strict_check_read_elem(xxv, f);
            for (i = lidx; i <= hidx; i++)
@@ -2478,7 +2480,7 @@ static void assign_int_subrange(int_subrange *x, exec_info *f)
    n = hidx - lidx + 1;
    assert(IS_SET(x->x->flags, EXPR_lvalue));
    xxv = reval_expr(x->x, f);
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { f->err_obj = x;
        strict_check_write_bits(xxv, lidx, hidx, f);
      }
@@ -2551,7 +2553,7 @@ static void assign_array_subrange(array_subrange *x, exec_info *f)
    if (!xxv->rep)
      { force_value(xxv, x->x, f); }
    l = xxv->v.l;
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { f->err_obj = x;
        strict_check_write_elem(xxv, f);
        for (i = lidx; i <= hidx; i++)
@@ -2639,7 +2641,7 @@ static void *reval_field_of_record(field_of_record *x, exec_info *f)
    else if (v->rep == REP_union)
      { exec_error(f, x, "Use of conflicting decompositions"); }
    assert(v->rep == REP_record);
-   if (IS_SET(f->flags, EXEC_strict))
+   if (IS_SET(x->flags, EXPR_ifrchk))
      { strict_check_elem(x->x, v, f); }
    return &v->v.l->vl[x->idx];
  }
@@ -2969,7 +2971,7 @@ static void eval_call(call *x, exec_info *f)
    if (IS_SET(x->d->flags, DEF_varargs))
      { exec_error(f, x, "Cannot evaluate procedure %s", x->id); }
    exec_info_init(&sub, f);
-   SET_IF_SET(sub.flags, f->flags, EXEC_instantiation | EXEC_strict);
+   SET_IF_SET(sub.flags, f->flags, EXEC_instantiation);
    s = new_ctrl_state(&sub);
    s->obj = (parse_obj*)x->d;
    s->nr_var = x->d->nr_var;
@@ -3008,10 +3010,6 @@ static void eval_call(call *x, exec_info *f)
      }
    insert_sched(s, &sub);
    exec_run(&sub);
-   if (IS_SET(f->flags, EXEC_strict))
-     { for (i = 0; i < s->nr_var; i++)
-         { strict_check_delete(&var[i], f); }
-     }
    if (x->d->ret) copy_and_clear(&xval, &var[x->d->ret->var_idx], f);
    else xval.rep = REP_none;
    SET_FLAG(f->curr->ps->flags, IS_SET(ps_flags, DBG_next));
@@ -3088,10 +3086,6 @@ static int pop_call(call *x, exec_info *f)
    value_tp *var, *pval;
    int i, argc;
    var = f->prev->var;
-   if (IS_SET(f->flags, EXEC_strict))
-     { for (i = 0; i < x->d->nr_var; i++)
-         { strict_check_delete(&var[i], f); }
-     }
    ma = x->a;
    mp = x->d->pl;
    while (!llist_is_empty(&mp))

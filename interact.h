@@ -66,7 +66,6 @@ FLAGS(user_flags)
      NEXT_FLAG(USER_traceall), /* trace all processes */
      NEXT_FLAG(USER_watchall), /* watch all wires */
      NEXT_FLAG(USER_debug), /* Evaluating from the debug prompt */
-     NEXT_FLAG(USER_strict), /* do strict checks */
      NEXT_FLAG(USER_random), /* use random timing */
      NEXT_FLAG(USER_rrandom), /* use non accumulative random execution */
      NEXT_FLAG(USER_nohide), /* do not hide wired decomposition processes */

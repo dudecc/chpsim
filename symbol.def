@@ -117,6 +117,7 @@ KW(union)
 KW(val)
 KW(valres)
 KW(var)
+KW(volatile)
 KW(xor)
 
 #undef SYM

@@ -82,6 +82,8 @@ FLAGS(parse_obj_flags)
      NEXT_FLAG(EXPR_rep), /* depends on replication parameter */
      NEXT_FLAG(EXPR_lvalue), /* evaluates to a stored value */
      NEXT_FLAG(EXPR_writable), /* can be target of assignment */
+     NEXT_FLAG(EXPR_ifrchk), /* needs interference checking */
+     NEXT_FLAG(EXPR_volatile), /* local interference is allowed */
      NEXT_FLAG(EXPR_inport), /* is an input port */
      NEXT_FLAG(EXPR_outport), /* is an output port */
      NEXT_FLAG(EXPR_port_ext), /* is a port of another process */
@@ -569,7 +571,7 @@ CLASS_2(const_def)
 
 CLASS(parameter)
    { PARSE_OBJ;
-     token_tp par_sym; /* val, res, valres */
+     token_tp par_sym; /* val, res, valres, const */
      var_decl *d;
    };
 

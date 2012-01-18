@@ -179,7 +179,6 @@ FLAGS(exec_flags)
      NEXT_FLAG(EXEC_error), /* error occurred */
      NEXT_FLAG(EXEC_warning), /* warning occurred */
      NEXT_FLAG(EXEC_deadlock), /* f->curr is deadlocked */
-     NEXT_FLAG(EXEC_strict), /* do strict checks */
      NEXT_FLAG(EXEC_print) /* print while executing */
    };
 

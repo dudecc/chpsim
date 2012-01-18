@@ -121,7 +121,6 @@ static void usage(const char *fmt, ...)
 	"\t-timeseed      - use system clock as seed for PRNG\n"
 	"\t-critical      - track critical timing paths\n"
 	"\t-nohide        - name and track value-union processes\n"
-	"\t-strict        - run with strict checking for variable sharing\n"
 	"\n"
    );
    if (fmt)
@@ -232,7 +231,9 @@ extern int main(int argc, char *argv[])
            RESET_FLAG(U->flags, USER_random);
          }
        else if (!strcmp(argv[i], "-strict"))
-         { SET_FLAG(U->flags, USER_strict); }
+         { fprintf(stderr, "Warning: -strict is depreciated because strict\n"
+                           "interference checking is always on.\n");
+         }
        else if (!strcmp(argv[i], "-timed"))
          { RESET_FLAG(U->flags, USER_random); }
        else if (!strcmp(argv[i], "-rrand"))

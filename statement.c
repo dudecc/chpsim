@@ -50,6 +50,8 @@
 #include <standard.h>
 #include "print.h"
 #include "parse_obj.h"
+#include "value.h"
+#include "ifrchk.h"
 #include "statement.h"
 #include "sem_analysis.h"
 #include "types.h"
@@ -685,12 +687,12 @@ static int exec_parallel_stmt(parallel_stmt *x, exec_info *f)
 
 static int pop_parallel_stmt(parallel_stmt *x, exec_info *f)
  { f->curr->i--;
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_frame_end(f);
+   if (IS_SET(x->flags, EXPR_ifrchk)) strict_check_frame_end(f);
    if (f->curr->i) /* not all children are finished */
      { f->curr->ps->nr_thread--;
        return EXEC_none;
      }
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_update(f->curr, f);
+   if (IS_SET(x->flags, EXPR_ifrchk)) strict_check_update(f->curr, f);
    return EXEC_next;
  }
 
@@ -756,7 +758,7 @@ static int pop_rep_stmt(rep_stmt *x, exec_info *f)
  { eval_stack *w;
    if (x->rep_sym == ',')
      { f->curr->i--;
-       if (IS_SET(f->flags, EXEC_strict)) strict_check_frame_end(f);
+       if (IS_SET(x->flags, EXPR_ifrchk)) strict_check_frame_end(f);
        /* in this case, all the parallel rep_vals are allocated
           as a block so we override the automatic freeing in
           exec_next and free the block only when we are done
@@ -772,7 +774,7 @@ static int pop_rep_stmt(rep_stmt *x, exec_info *f)
        free(f->curr->rep_vals);
        f->prev->rep_vals = f->curr->rep_vals = w;
        /* ^^^^ No automatic freeing */
-       if (IS_SET(f->flags, EXEC_strict)) strict_check_update(f->curr, f);
+       if (IS_SET(x->flags, EXPR_ifrchk)) strict_check_update(f->curr, f);
      }
    else
      { assert(x->rep_sym == ';');
@@ -1013,7 +1015,7 @@ static value_tp eval_fn(value_tp *v, function_def *x, exec_info *f)
    int i;
    dbg_flags ps_flags = f->curr->ps->flags;
    exec_info_init(&sub, f);
-   SET_IF_SET(sub.flags, f->flags, EXEC_instantiation | EXEC_strict);
+   SET_IF_SET(sub.flags, f->flags, EXEC_instantiation);
    s = new_ctrl_state(&sub);
    s->obj = (parse_obj*)x;
    s->nr_var = x->nr_var;
@@ -1029,10 +1031,6 @@ static value_tp eval_fn(value_tp *v, function_def *x, exec_info *f)
    range_check(p->d->tp.tps, &var[p->d->var_idx], f, f->curr->obj);
    insert_sched(s, &sub);
    exec_run(&sub);
-   if (IS_SET(f->flags, EXEC_strict))
-     { for (i = 0; i < s->nr_var; i++)
-         { strict_check_delete(&var[i], f); }
-     }
    copy_and_clear(&xval, &var[x->ret->var_idx], f);
    SET_FLAG(f->curr->ps->flags, IS_SET(ps_flags, DBG_next));
    for (i = 0; i < x->nr_var; i++)

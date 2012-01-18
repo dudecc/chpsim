@@ -190,8 +190,7 @@ extern process_state *new_process_state(exec_info *f, const str *nm)
        else
          { ps->flags = 0; }
        llist_prepend(&f->user->procs, ps);
-       if (IS_SET(f->user->flags, USER_strict))
-         { strict_check_init(ps, f); }
+       strict_check_init(ps, f); /* TODO: Only when EXPR_ifrchk is set */
      }
    ps->refcnt++;
    return ps;
@@ -216,7 +215,7 @@ extern void free_process_state(process_state *ps, exec_info *f)
          { free(v); ps->meta = 0; ps->nr_meta = 0; }
        free(ps);
      }
-   if (IS_SET(f->flags, EXEC_strict)) strict_check_term(ps, f);
+   strict_check_term(ps, f); /* TODO: Only when EXPR_ifrchk is set */
  }
 
 /* llist_func */
@@ -627,8 +626,6 @@ extern void prepare_chp(exec_info *f)
  { ctrl_state *s;
    mpz_set_ui(f->time, 1);
    RESET_FLAG(f->flags, EXEC_instantiation);
-   if (IS_SET(f->user->flags, USER_strict))
-     { SET_FLAG(f->flags, EXEC_strict); }
    while (!llist_is_empty(&f->chp))
      { s = llist_idx_extract(&f->chp, 0);
        f->curr = s;

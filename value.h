@@ -421,47 +421,6 @@ extern void clear_wire_expr(wire_expr *e, struct exec_info *f);
 extern void add_wire_dep(wire_value *w, struct exec_info *f);
  /* set up w to reschedule f->curr upon the changing of w's value */
 
-/********** strict checks ***************************************************/
-
-#define IS_PARALLEL_STMT(S) \
-    ((S)->class == CLASS_parallel_stmt \
-    || ((S)->class == CLASS_rep_stmt && ((rep_stmt*)(S))->rep_sym == ','))
-
-extern void strict_check_init(process_state *ps, struct exec_info *f);
-
-extern void strict_check_term(process_state *ps, struct exec_info *f);
-
-extern void strict_check_read(value_tp *v, struct exec_info *f);
-
-extern void strict_check_read_elem(value_tp *v, struct exec_info *f);
-/* To be called when one or more elements of v will be read */
-
-extern void strict_check_read_bits(value_tp *v, int l, int h, struct exec_info *f);
-/* To be called when reading bits l through h of integer v */
-
-extern void strict_check_write(value_tp *v, struct exec_info *f);
-
-extern void strict_check_write_elem(value_tp *v, struct exec_info *f);
-/* To be called when one or more elements of v will be written */
-
-extern void strict_check_write_bits(value_tp *v, int l, int h, struct exec_info *f);
-/* To be called when writing bits l through h of integer v */
-
-extern void strict_check_delete(value_tp *v, struct exec_info *f);
-/* Upon ending a function/routine call, use this to remove
- * all f->prev->var[i] for all i
- */
-
-extern void strict_check_frame_end(struct exec_info *f);
-/* Pre: f->prev has ended sequential operations and popped the
- * parallel statement f->curr
- */
-
-extern void strict_check_update(ctrl_state *cs, struct exec_info *f);
-/* This should be called after cs has completed a parallel statement
- * (i.e. all children of cs have terminated)
- */
-
 /********** critical cycles *************************************************/
 
 typedef struct crit_node crit_node;

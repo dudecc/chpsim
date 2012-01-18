@@ -201,7 +201,7 @@ INLINE_STATIC int starts_delay_body(lex_tp *L)
  { return lex_have(L, KW_delay); }
 
 INLINE_STATIC int starts_var_declaration(lex_tp *L)
- { return lex_have(L, KW_var); }
+ { return lex_have(L, KW_var) || lex_have(L, KW_volatile); }
 
 INLINE_STATIC int starts_instance_stmt(lex_tp *L)
  { return lex_have(L, KW_instance); }
@@ -997,11 +997,14 @@ static void parse_var_declaration(lex_tp *L, llist *l)
    llist m, old = *l;
    void *z = 0;
    dummy_type *end = new_parse(L, L->prev, 0, dummy_type);
+   int volatl = 0;
+   if (lex_have_next(L, KW_volatile)) volatl = 1;
    lex_must_be(L, KW_var);
    /* var x, y: t; is parsed as var x: t; var y: t; */
    do { lex_must_be(L, TOK_id);
         x = new_parse(L, L->prev, 0, var_decl);
         x->id = L->prev->t.val.s;
+        if (volatl) SET_FLAG(x->flags, EXPR_volatile);
         llist_prepend(l, x);
         if (lex_have_next(L, '['))
           { x->tps = parse_inline_array(L, end); }

@@ -93,6 +93,7 @@
 
 enum { App_print, /* these definitions are just to get App_nr_chp right */
        App_sem,
+       App_ifrchk,
        App_import,
        App_exec,
        App_pop,

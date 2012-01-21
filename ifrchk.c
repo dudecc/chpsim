@@ -662,8 +662,8 @@ extern void strict_check_write_bits(value_tp *v, int l, int h, exec_info *f)
    for (i = h; i >= l; i--)
      { ri = scr_access_bit(r, i);
        if (!IS_SET(ri->flags, SCR_int_elem))
-         { ri->read_frame = frame;
-           ri->write_frame = 0;
+         { ri->read_frame = 0;
+           ri->write_frame = frame;
            ri->flags = SCR_read_ok | SCR_write_ok | SCR_int_elem;
          }
        else

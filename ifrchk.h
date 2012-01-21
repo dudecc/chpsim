@@ -101,8 +101,12 @@ extern int app_ifrchk;
 /********** strict checks ***************************************************/
 
 #define IS_PARALLEL_STMT(S) \
-    ((S)->class == CLASS_parallel_stmt \
-    || ((S)->class == CLASS_rep_stmt && ((rep_stmt*)(S))->rep_sym == ','))
+    (((S)->class == CLASS_parallel_stmt \
+      || ((S)->class == CLASS_rep_stmt && ((rep_stmt*)(S))->rep_sym == ',')) \
+     && IS_SET((S)->flags, EXPR_ifrchk))
+  /* The above should match exactly the set of statements which call
+   * strict_check_frame_end/update as part of their pop method.
+   */
 
 extern void strict_check_init(process_state *ps, exec_info *f);
 

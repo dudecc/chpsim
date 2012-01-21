@@ -1,0 +1,6 @@
+//-strict
+process main()()
+meta { instance a : b; connect a.I, a.O; }
+
+process b()(I?, O! : int)
+chp { <<; i : 0..99 : { O!0, <<, j : 0..0 : I >>; skip }, skip; skip >> }

@@ -1,0 +1,9 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- error ------------------------------
+Error: / at rep2.chp[5:76]
+	Index [i - j] = -1 is outside of range [0..1]
+(cmnd?) (view) / at rep2.chp[5:74]
+	x[i - j]+
+(cmnd?)   j = 1
+(cmnd?) 

@@ -236,9 +236,7 @@ extern int routine_eq(void *obj, const str *id)
 extern void exec_error(exec_info *f, void *obj, const char *fmt, ...)
  /* print error msg related to execution/eval of obj by current process */
  { parse_obj *x = obj;
-   sem_context *cxt;
    int pos;
-   eval_stack *rvl;
    value_tp v;
    va_list a, b;
    va_start(a, fmt);
@@ -247,19 +245,6 @@ extern void exec_error(exec_info *f, void *obj, const char *fmt, ...)
    pos += var_str_vprintf(&f->err, pos, fmt, a);
    if (f->err.s[pos-1] != '\n')
      { f->err.s[pos++] = '\n';
-       VAR_STR_X(&f->err, pos) = 0;
-     }
-   rvl = f->curr? f->curr->rep_vals : 0;
-   if (rvl)
-     { pos += var_str_printf(&f->err, pos, "Replication values:");
-       cxt = f->curr->cxt;
-       while (!cxt->H)
-         { pos += var_str_printf(&f->err, pos, " %s = %v,", cxt->id,
-                                 vstr_val, &rvl->v);
-           cxt = cxt->parent;
-           rvl = rvl->next;
-         }
-       f->err.s[pos++] = '\n';
        VAR_STR_X(&f->err, pos) = 0;
      }
    va_end(a);

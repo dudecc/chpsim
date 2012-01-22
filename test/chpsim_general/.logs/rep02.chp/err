@@ -1,12 +1,12 @@
-Command line: ../../chpsim -batch badconn02.chp
+Command line: ../../chpsim -batch rep02.chp
 
 --- global constants -------------------
 --- instantiation ----------------------
 --- error ------------------------------
-Error: /y at badconn02.chp[25:46]
-	Use of conflicting decompositions
+Error: / at rep02.chp[2:41]
+	Guards x[i] (i=0) and x[i] (i=2) are both true
 Error occurred: cannot continue
 (cmnd) where
-/y at badconn02.chp[25:23]
-	connect I[i], y.I[i]
+/ at rep02.chp[2:24]
+	[  <<[] i : 0..3 : x[i] -> print(i)>>]
 (cmnd) quit

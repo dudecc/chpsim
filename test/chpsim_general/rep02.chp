@@ -1,0 +1,2 @@
+process main()()
+meta { var x : int = 5; [<<[] i : 0..3 : x[i] -> print(i) >>] }

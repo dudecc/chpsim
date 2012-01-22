@@ -817,6 +817,42 @@ static int exec_bool_set_stmt(bool_set_stmt *x, exec_info *f)
    return EXEC_next;
  }
 
+typedef struct guard_info
+   { guarded_cmnd *gc;
+     eval_stack *v;
+     sem_context *cxt, *bcxt;
+   } guard_info;
+
+/* var_str_func_tp: use as first arg for %v */
+extern int vstr_guard(var_string *s, int pos, guard_info *f)
+ { eval_stack *v = f->v;
+   sem_context *cxt = f->cxt;
+   if (cxt == f->bcxt)
+     { return vstr_obj(s, pos, f->gc->g); }
+   pos += var_str_printf(s, pos, "%v (", vstr_obj, f->gc->g);
+   while (cxt != f->bcxt)
+     { assert(cxt && !cxt->H);
+       pos += var_str_printf(s, pos, "%s=%v", cxt->id, vstr_val, &v->v);
+       cxt = cxt->parent; v = v->next;
+       if (cxt != f->bcxt)
+         { pos += var_str_printf(s, pos, ", "); }
+     }
+   var_str_printf(s, pos, ")");
+   return 0;
+ }
+
+static void true_guard_error(guarded_cmnd *gc, exec_info *f)
+ /* Print an error message for having found multiple true guards,
+  * including details of any replication values for the guards.
+  */
+ { guard_info gf1, gf2;
+   gf1.gc   = f->gc;     gf2.gc   = gc;
+   gf1.v    = f->gcrv;   gf2.v    = f->curr->rep_vals;
+   gf1.cxt  = f->gccxt;  gf2.cxt  = f->gcxt;
+   gf1.bcxt =            gf2.bcxt = f->curr->cxt;
+   exec_error(f, gc, "Guards %v and %#v are both true", vstr_guard, &gf1, &gf2);
+ }
+
 static int find_true_guard_llist(llist *l, exec_info *f);
 
 static int find_true_guard(void *stmt, exec_info *f)
@@ -824,6 +860,7 @@ static int find_true_guard(void *stmt, exec_info *f)
  { guarded_cmnd *gc = (guarded_cmnd*)stmt;
    rep_stmt *rs = (rep_stmt*)stmt;
    ctrl_state *s;
+   sem_context *gcxt = f->gcxt;
    value_tp ival, gval;
    long i, n;
    if (!f->curr->i && f->gc) return 0;
@@ -832,14 +869,13 @@ static int find_true_guard(void *stmt, exec_info *f)
        pop_value(&gval, f);
        if (gval.rep && gval.v.i)
          { if (f->gc)
-             { exec_error(f, gc, "Guards %v and %#v are both true",
-                             vstr_obj, gc->g, f->gc->g);
-               /* TODO: include rep_vals in error message */
-             }
+             { true_guard_error(gc, f); }
            f->gc = gc;
            f->gcrv = f->curr->rep_vals;
+           f->gccxt = f->gcxt;
            if (!IS_SET(f->flags, EXEC_immediate))
              { s = nested_seq(&gc->l, f);
+               s->cxt = f->gcxt;
                insert_sched(s, f);
              }
          }
@@ -847,6 +883,7 @@ static int find_true_guard(void *stmt, exec_info *f)
    else if (rs->class == CLASS_rep_stmt)
      { n = eval_rep_common(&rs->r, &ival, f);
        push_repval(&ival, f->curr, f);
+       f->gcxt = rs->cxt;
        for (i = 0; i < n; i++)
          { gc = f->gc;
            find_true_guard_llist(&rs->sl, f);
@@ -857,6 +894,7 @@ static int find_true_guard(void *stmt, exec_info *f)
              }
            int_inc(&f->curr->rep_vals->v, f);
          }
+       f->gcxt = gcxt;
        pop_repval(&ival, f->curr, f);
        clear_value_tp(&ival, f);
      }
@@ -887,6 +925,7 @@ static int exec_loop_stmt(loop_stmt *x, exec_info *f)
    if (!llist_is_empty(&x->glr))
      { while (1)
          { f->gc = 0;
+           f->gcxt = f->curr->cxt;
            f->curr->i = x->mutex;
            find_true_guard_llist(&x->glr, f);
            f->curr->i = 0;
@@ -907,6 +946,7 @@ static int exec_select_stmt(select_stmt *x, exec_info *f)
  { value_tp gval;
    if (!llist_is_empty(&x->glr))
      { f->gc = 0;
+       f->gcxt = f->curr->cxt;
        f->curr->i = x->mutex;
        find_true_guard_llist(&x->glr, f);
        f->curr->i = 0;

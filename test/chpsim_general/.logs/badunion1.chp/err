@@ -5,7 +5,6 @@ Command line: ../../chpsim -batch badunion1.chp
 --- error ------------------------------
 Error: / at badunion1.chp[13:54]
 	Return type of union function tobit4 for field q does not match
-Replication values: i = 0,
 Error occurred: cannot continue
 (cmnd) where
 / at badunion1.chp[13:23]

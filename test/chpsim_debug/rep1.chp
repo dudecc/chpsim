@@ -1,0 +1,5 @@
+//run
+//view
+//print i
+
+process main()() meta { var x[0..1] : bool; <<; i : 0..2 : x[i]+ >> }

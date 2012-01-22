@@ -201,6 +201,7 @@ struct exec_info
      wire_expr *e;
      guarded_cmnd *gc; /* for find_true_guard */
      eval_stack *gcrv; /* also for find_true_guard */
+     sem_context *gcxt, *gccxt; /* also for find_true_guard */
      var_string scratch, err; /* err is for error/warning msgs */
      exec_info *parent; /* parent of a function call */
      struct user_info *user; /* for user interaction */

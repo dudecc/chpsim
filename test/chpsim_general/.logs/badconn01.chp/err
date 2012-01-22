@@ -5,7 +5,6 @@ Command line: ../../chpsim -batch badconn01.chp
 --- error ------------------------------
 Error: /y at badconn01.chp[25:46]
 	Use of conflicting decompositions
-Replication values: i = 0,
 Error occurred: cannot continue
 (cmnd) where
 /y at badconn01.chp[25:23]

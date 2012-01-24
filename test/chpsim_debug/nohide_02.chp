@@ -1,0 +1,25 @@
+//-nohide
+//r
+//p
+//p /a/a/O/wire
+//v /a/a/O/wire
+//p /b/b/I/wire
+//v /b/b/I/wire
+
+requires "channel.chp";
+
+process A()(O!:e1of3)
+hse { [O.e];O.d[0]+;[~O.e];O.d[0]-;
+      [O.e];O.d[1]+;[~O.e];O.d[1]-;
+      [O.e];O.d[2]+;[~O.e];O.d[2]-
+}
+process AA()(O!:std1of3)
+meta { instance a : A; connect O.wire, a.O; }
+
+process B()(I?:e1of3)
+hse { *[I.e+;[I.d[0]|I.d[1]|I.d[2]];I.e-;[~(I.d[0]|I.d[1]|I.d[2])]] }
+process BB()(I?:std1of3)
+meta { instance b : B; connect I.wire, b.I; }
+
+process main()()
+meta { instance a:AA; instance b:BB; connect a.O, b.I; }

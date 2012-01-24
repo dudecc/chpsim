@@ -1502,6 +1502,8 @@ static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
                  connect_aux(&vala->v.p->v, &valb->v.p->v, f);
                  return;
                }
+             valb->v.p->dec = vala->v.p->p->dec;
+             vala->v.p->p->dec = 0;
            }
          set_ps(valb, vala->v.p->p->ps, f);
          vala->v.p->ps = (valb->rep == REP_port)? valb->v.p->p->ps : 0;

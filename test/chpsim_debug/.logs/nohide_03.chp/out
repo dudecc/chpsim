@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /k/d/id[3]: 1 active threads
+  /k/d/id[2]: 1 active threads
+  /k/d/id[1]: 1 active threads
+  /k/d/id[0]: 1 active threads
+  /k/d/ie: 1 active threads
+  /s/d/oe: 1 active threads
+  /s/d/od: 1 active threads
+(cmnd?) --- continuing in batch mode -----------
+(watch) /s/d/od:o up at time 572
+(watch) /k/d/id[0]:o down at time 37701
+--- done -------------------------------

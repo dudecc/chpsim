@@ -1,0 +1,52 @@
+//-nohide -watchall
+//r
+//p
+//batch
+
+requires "channel.chp";
+
+process inv_hi()((i; o+)) prs { i -> o- ~i -> o+ }
+process inv_lo()((i; o-)) prs { i -> o- ~i -> o+ }
+
+function qq(x : {0..3}) : {0..3} chp { qq := x }
+type word = union { default : {0..3}; q {qq, qq} : std1of4; };
+
+process main()()
+meta { instance k : SinkWord;
+       instance x : W2W;
+       instance s : SourceWord;
+       connect s.O, x.I;
+       connect      x.O, k.I;
+}
+
+process W2W()(I? : word; O! : word)
+//meta { connect I, O; }
+meta { connect I.q, O.q; }
+
+process SourceWord()(O! : word)
+meta { instance d : Source1of4();
+       connect O.q, d.O;
+}
+
+process Source1of4()(O! : std1of4)
+meta { instance od : inv_lo;
+       instance oe : inv_hi;
+       connect false, od.i;
+       connect O.wire.d[0], od.o;
+       connect all j : 1..3 : false, O.wire.d[j];
+       connect O.wire.e, oe.i;
+}
+
+process SinkWord()(I? : word)
+meta { instance d : Sink1of4();
+       connect I.q, d.I;
+}
+
+process Sink1of4()(I? : std1of4)
+meta { instance ie : inv_lo;
+       instance id[0..3] : inv_hi;
+       connect all j : 0..3 : I.wire.d[j], id[j].i;
+       connect I.wire.e, ie.o;
+       connect true,    ie.i;
+}
+

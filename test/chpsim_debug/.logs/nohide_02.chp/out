@@ -1,0 +1,16 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?)   /a/a: 1 active threads
+  /b/b: 1 active threads
+(cmnd?)   No such process instance: /a/a/O/wire
+(cmnd?)   No such process instance: /a/a/O/wire
+(cmnd?)   No such process instance: /b/b/I/wire
+(cmnd?)   No such process instance: /b/b/I/wire
+(cmnd?) --- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/b/b at nohide_02.chp[20:13]
+	[I.d[0] | I.d[1] | I.d[2]]
+(cmnd) quit

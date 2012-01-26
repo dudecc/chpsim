@@ -1,6 +1,7 @@
 //-nohide -watchall
 //r
 //p
+//v /s/d/od
 //batch
 
 requires "channel.chp";

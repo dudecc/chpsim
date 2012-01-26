@@ -1,6 +1,8 @@
 --- global constants -------------------
 --- instantiation ----------------------
 (cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /b/n at wterm1.chp[8:7]
+	process nor2_lo()(i[0..1]; ...)
 (cmnd?)   2 fanins:
 (~i[1] & ~i[0]) -> o+
 (i[1] | i[0]) -> o-

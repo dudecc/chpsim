@@ -66,18 +66,10 @@ static void print_name(name *x, print_info *f)
  { print_string(x->id, f); }
 
 static void print_named_type(named_type *x, print_info *f)
- { if (IS_SET(f->flags, PR_simple_var))
-     { if (x->tps && x->tps->class != CLASS_process_def)
-         { print_obj(x->tps, f); }
-     }
-   else
-     { print_string(x->id, f); }
- }
+ { print_string(x->id, f); }
 
 static void print_generic_type(generic_type *x, print_info *f)
- { if (!IS_SET(f->flags, PR_simple_var))
-     { print_string(token_str(0, x->sym), f); }
- }
+ { print_string(token_str(0, x->sym), f); }
 
 static void print_integer_type(integer_type *x, print_info *f)
  { print_char('{', f);
@@ -102,57 +94,16 @@ static void print_symbol_type(symbol_type *x, print_info *f)
  }
 
 static void print_array_type(array_type *x, print_info *f)
- { int i, len;
-   char *s;
-   value_tp vl, vh;
-   if (IS_SET(f->flags, PR_simple_var))
-     { assert(f->exec);
-       eval_expr(x->l, f->exec);
-       eval_expr(x->h, f->exec);
-       pop_value(&vh, f->exec);
-       pop_value(&vl, f->exec);
-       len = f->pos - f->rpos;
-       s = &f->s->s[f->rpos];
-       while (1)
-         { f->pos += var_str_printf(f->s, f->pos, "_%v", vstr_val, &vl);
-           print_obj(x->tps, f);
-           if (int_cmp(&vl, &vh, f->exec) == 0) break;
-           int_inc(&vl, f->exec);
-           print_string(f->rsep, f);
-           f->rpos = f->pos;
-           f->pos += var_str_slice_copy(f->s, f->pos, s, len);
-         }
-       clear_value_tp(&vl, f->exec);
-       clear_value_tp(&vh, f->exec);
-     }
-   else
-     { print_string("array [", f);
-       print_obj(x->l, f);
-       print_string("..", f);
-       print_obj(x->h, f);
-       print_string("] of ", f);
-       print_obj(x->tps, f);
-     }
+ { print_string("array [", f);
+   print_obj(x->l, f);
+   print_string("..", f);
+   print_obj(x->h, f);
+   print_string("] of ", f);
+   print_obj(x->tps, f);
  }
 
 static void print_record_type(record_type *x, print_info *f)
- { llist m;
-   int i, len;
-   char *s;
-   if (IS_SET(f->flags, PR_simple_var))
-     { m = x->l;
-       len = f->pos - f->rpos;
-       s = &f->s->s[f->rpos];
-       while (1)
-         { print_obj(llist_head(&m), f);
-           m = llist_alias_tail(&m);
-           if (llist_is_empty(&m)) break;
-           print_string(f->rsep, f);
-           f->rpos = f->pos;
-           f->pos += var_str_slice_copy(f->s, f->pos, s, len);
-         }
-     }
-   else if (IS_SET(f->flags, PR_short))
+ { if (IS_SET(f->flags, PR_short))
      { print_string("record { ", f);
        print_obj_list(&x->l, f, " ");
        print_string(" }", f);
@@ -165,15 +116,9 @@ static void print_record_type(record_type *x, print_info *f)
  }
 
 static void print_record_field(record_field *x, print_info *f)
- { if (IS_SET(f->flags, PR_simple_var))
-     { f->pos += var_str_printf(f->s, f->pos, "_%s", x->id);
-       print_obj(x->tps, f);
-     }
-   else
-     { f->pos += var_str_printf(f->s, f->pos, "%s: ", x->id);
-       print_obj(x->tps, f);
-       print_char(';', f);
-     }
+ { f->pos += var_str_printf(f->s, f->pos, "%s: ", x->id);
+   print_obj(x->tps, f);
+   print_char(';', f);
  }
 
 static void print_union_type(union_type *x, print_info *f)
@@ -193,31 +138,11 @@ static void print_union_type(union_type *x, print_info *f)
  }
 
 static void print_wired_type(wired_type *x, print_info *f)
- { llist m;
-   int i, j, len;
-   char *s;
-   if (IS_SET(f->flags, PR_simple_var))
-     { m = x->li;
-       j = 0;
-       len = f->pos - f->rpos;
-       s = &f->s->s[f->rpos];
-       while (1)
-         { print_obj(llist_head(&m), f);
-           m = llist_alias_tail(&m);
-           if (j == 0 && llist_is_empty(&m)) { m = x->lo; j++; }
-           if (j == 1 && llist_is_empty(&m)) break;
-           print_string(f->rsep, f);
-           f->rpos = f->pos;
-           f->pos += var_str_slice_copy(f->s, f->pos, s, len);
-         }
-     }
-   else
-     { print_char('(', f);
-       print_obj_list(&x->li, f, ", ");
-       print_string("; ", f);
-       print_obj_list(&x->lo, f, ", ");
-       print_char(')', f);
-     }
+ { print_char('(', f);
+   print_obj_list(&x->li, f, ", ");
+   print_string("; ", f);
+   print_obj_list(&x->lo, f, ", ");
+   print_char(')', f);
  }
 
 static void print_union_field(union_field *x, print_info *f)
@@ -228,13 +153,9 @@ static void print_union_field(union_field *x, print_info *f)
  }
 
 static void print_type_def(type_def *x, print_info *f)
- { if (IS_SET(f->flags, PR_simple_var))
-     { print_obj(x->tps, f); }
-   else
-     { f->pos += var_str_printf(f->s, f->pos, "type %s = ", x->id);
-       print_obj(x->tps, f);
-       print_char(';', f);
-     }
+ { f->pos += var_str_printf(f->s, f->pos, "type %s = ", x->id);
+   print_obj(x->tps, f);
+   print_char(';', f);
  }
 
 

@@ -1,0 +1,11 @@
+Command line: ../../chpsim -batch -timed hse_timed_04.chp
+
+--- global constants -------------------
+--- instantiation ----------------------
+--- CHP execution ----------------------
+--- error ------------------------------
+Error: deadlock
+(cmnd) where
+/r at hse_timed_04.chp[52:0]
+	process regarray()(axi6[0..3]+; ...)
+(cmnd) quit

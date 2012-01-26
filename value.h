@@ -237,6 +237,7 @@ extern int print_string_value(var_string *s, int pos, value_tp *val);
     Return is nr chars printed.
  */
 
+struct exec_info;
 extern void print_wire_exec(wire_value *w, struct exec_info *f);
  /* Print a name for w in the reference frame of f->meta_ps to f->scratch */
 

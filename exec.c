@@ -391,7 +391,7 @@ extern void run_checks(wire_value *w, exec_info *f)
            if ((a->flags & (ACTION_pr_dn | ACTION_dn_nxt)) == ACTION_dn_nxt)
              { action_sched(a, f); }
            ASSIGN_FLAG(a->flags, a->flags >> 2, ACTION_pr_up | ACTION_pr_dn);
-           return;
+           continue;
          }
        if (IS_ALLSET(a->flags, ACTION_up_nxt | ACTION_dn_nxt))
          { prs_error(f, a, w, "interference"); }

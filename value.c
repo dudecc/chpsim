@@ -925,6 +925,7 @@ static void update_rule(wire_expr_flags val, action *a, exec_info *f)
              action_sched(a, f);
              RESET_FLAG(a->flags, ACTION_atomic);
            }
+       return;
        case WIRE_hu:
          if (IS_SET(val, WIRE_value))
            { RESET_FLAG(hold->flags, WIRE_held_up);

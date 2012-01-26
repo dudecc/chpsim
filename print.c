@@ -64,7 +64,6 @@ extern void print_info_init(print_info *f)
    f->flags = 0;
    f->f = stdout;
    f->nl = 0;
-   f->exec = 0;
  }
 
 extern void print_info_init_new(print_info *f)
@@ -75,7 +74,6 @@ extern void print_info_init_new(print_info *f)
    f->flags = 0;
    f->f = stdout;
    f->nl = 0;
-   f->exec = 0;
  }
 
 extern void print_info_term(print_info *f)
@@ -168,7 +166,6 @@ extern int vstr_obj2(var_string *s, int pos, void *obj, void *f)
  { print_info g, *parent = f;
    g.s = s; g.pos = pos; g.f = stdout;
    g.flags = parent? parent->flags : 0;
-   g.exec = parent? parent->exec : 0;
    RESET_FLAG(g.flags, PR_flush);
    APP_OBJ_VFZ(app_print, obj, &g, no_print);
    VAR_STR_X(g.s, g.pos) = 0;

@@ -1,0 +1,149 @@
+//-timed
+
+type byte = {0..255};
+type word = {0..65535};
+
+process main()()
+meta {
+  instance r : regarray;
+  instance t : regtestr;
+
+  connect r.o8, t.o8;
+  connect r.iv6_, t.iv6_;
+  connect r.iv8_, t.iv8_;
+  connect r.ov8, t.ov8;
+  connect r.ack6, t.ack6;
+  connect r.ack8, t.ack8;
+  connect r.aiv6, t.aiv6;
+  connect r.aiv8, t.aiv8;
+  connect r.aov8, t.aov8;
+  connect r.axi6, t.axi6;
+  connect r.ayi6, t.ayi6;
+  connect r.axi8, t.axi8;
+  connect r.ayi8, t.ayi8;
+  connect r.axo8, t.axo8;
+  connect r.ayo8, t.ayo8;
+  connect r.i6, t.i6;
+  connect r.i8, t.i8;
+  connect r.o8e, t.o8e;
+}
+
+process regtestr()((o8[0..3,0..3]-, iv6_-, iv8_+, ov8-, ack6+, ack8-,
+                    aiv6[0..1]+, aiv8[0..1]-, aov8[0..1]-;
+                    axi6[0..3]+, ayi6[0..3]+,
+                    axi8[0..7]-, ayi8[0..3]-, axo8[0..7]-, ayo8[0..3]-,
+                    i6[0..15,0..1]=[true,false],
+                    i8[0..7,0..1]-, o8e[0..3]-))
+hse {
+  var x8 : byte;
+  <<; i : 0..15 : i6[i,0]- >>;
+  <<; i : 0..3 : axi6[i]-; ayi6[i]- >>;
+  <<; k : 0..25 :
+    axi8[1]+, ayi8[1]+, <<,i:0..7: i8[i,k[i..i]]+ >>; [~iv8_];[ack8]; [aiv8[0]];
+    axi8[1]-, ayi8[1]-, <<,i:0..7: i8[i,k[i..i]]- >>; [iv8_];[~ack8];[~aiv8[0]];
+    axo8[1]+, ayo8[1]+, <<,i:0..3: o8e[i]+ >>;
+    <<; i :0..3: [<<[] j :0..3: o8[i,j] -> x8[2*i..2*i+1] := j >>] >>;
+    print(x8); [aov8[0]]; [ov8];
+    axo8[1]-, ayo8[1]-, <<, i :0..3: o8e[i]- >>; [~aov8[0]]; [~ov8];
+    [<<& i : 0..15 : ~o8[i/4,i%4] >>]
+   >>
+}
+
+process regarray()((axi6[0..3]+, ayi6[0..3]+,
+                    axi8[0..7]-, ayi8[0..3]-, axo8[0..7]-, ayo8[0..3]-,
+                    i6[0..15,0..1]=[true,false],
+                    i8[0..7,0..1]-, o8e[0..3]-;
+                    o8[0..3,0..3]-, iv6_-, iv8_+, ov8-, ack6+, ack8-,
+                    aiv6[0..1]+, aiv8[0..1]-, aov8[0..1]-))
+hse {
+  volatile var reg[0..31] : byte = 0x0;
+  var ai6 : {0..15} = 0;
+  var ai8, ao8 : {0..31} = 0;
+  var x6 : word;
+  var x8 : byte;
+
+  { [<<& i : 0..31 : ~i6[i/2,i%2] >>]; iv6_+ },
+  { [<<& i : 0..3 : ~axi6[i] & ~ayi6[i] >>]; aiv6[0]-, aiv6[1]-, ack6- };
+
+ *[ [<<[]i:0..3: <<[]j:0..3: axi6[j] & ayi6[i] -> ai6:=4*j+i; aiv6[j/2]+ >>>>],
+    {<<, i :0..15: [<<[] j :0..1: i6[i,j] -> x6[i] := j[0] >>] >>; iv6_-};
+    reg[2*ai6] := x6[7..0]; reg[2*ai6+1] := x6[15..8]; ack6+;
+    { [~axi6[ai6/4] & ~ayi6[ai6%4]]; aiv6[ai6/8]-, ack6- },
+    { [<<& i : 0..31 : ~i6[i/2,i%2] >>]; iv6_+ }
+  ],
+ *[ [<<[]i:0..3: <<[]j:0..7: axi8[j] & ayi8[i] -> ai8:=4*j+i; aiv8[j/4]+ >>>>],
+    {<<, i :0..7: [<<[] j :0..1: i8[i,j] -> x8[i] := j[0] >>] >>; iv8_-};
+    reg[ai8] := x8; ack8+;
+    { [~axi8[ai8/4] & ~ayi8[ai8%4]]; aiv8[ai8/16]-, ack8- },
+    { [<<& i : 0..15 : ~i8[i/2,i%2] >>]; iv8_+ }
+  ],
+ *[ [<<[]i:0..3: <<[]j:0..7: axo8[j] & ayo8[i] -> ao8:=4*j+i; aov8[j/4]+ >>>>];
+    <<, i : 0..3 : [o8e[i]]; o8[i,reg[ao8][2*i..2*i+1]]+ >>; ov8+;
+    [~axo8[ao8/4] & ~ayo8[ao8%4]]; aov8[ao8/16]-,
+    <<, i : 0..3 : [~o8e[i]]; o8[i,reg[ao8][2*i..2*i+1]]- >>; ov8-
+  ]
+}
+delay {
+  counter o8c[0..5];
+  counter i8c[0..1], i6c[0..1], ai8c[0..3], ai6c[0..3];
+
+  after (1700) <<|i:0..7: axo8[i] >> & <<|i:0..3: ayo8[i] >> -> o8c[0]+
+  {aov8[0]+, aov8[1]+} requires {o8c[0]}
+  aov8[0] | aov8[1] -> o8c[0]-
+  after (1800) aov8[0] | aov8[1] -> o8c[1]+
+  << i : 0..3 : << j : 0..3 : {o8[i,j]+} requires {o8c[1]} >>>>
+  <<& i : 0..3 : <<| j : 0..3 : o8[i,j] >>>> -> o8c[1]-
+  after (1200) <<& i : 0..3 : <<| j : 0..3 : o8[i,j] >>>> -> o8c[2]+
+  {ov8+} requires {o8c[2]}
+  ov8 -> o8c[2]-
+  after (2400) <<&i:0..7: ~axo8[i] >> & <<&i:0..3: ~ayo8[i] >> -> o8c[3]+
+  {aov8[0]-, aov8[1]-} requires {o8c[3]}
+  ~aov8[0] & ~aov8[1] -> o8c[3]-
+  after (2400) ~aov8[0] & ~aov8[1] -> o8c[4]+
+  << i : 0..3 : << j : 0..3 : {o8[i,j]-} requires {o8c[4]} >>>>
+  <<& i : 0..3 : <<& j : 0..3 : ~o8[i,j] >>>> -> o8c[4]-
+  after (1600) <<& i : 0..3 : <<& j : 0..3 : ~o8[i,j] >>>> -> o8c[5]+
+  {ov8-} requires {o8c[5]}
+  ~ov8 -> o8c[5]-
+
+  after (2600) <<& i : 0..7 : <<| j : 0..1 : i8[i,j] >>>> -> i8c[0]+
+  {iv8_-} requires {i8c[0]}
+  ~iv8_ -> i8c[0]-
+  after (2400) <<& i : 0..7 : <<& j : 0..1 : ~i8[i,j] >>>> -> i8c[1]+
+  {iv8_+} requires {i8c[1]}
+  iv8_ -> i8c[1]-
+
+  after (2000) <<|i:0..3: axi8[i] >> & <<|i:0..3: ayi8[i] >> -> ai8c[0]+
+  {aiv8[0]+, aiv8[1]+} requires {ai8c[0]}
+  aiv8[0] | aiv8[1] -> ai8c[0]-
+  after (5400) aiv8[0] | aiv8[1] -> ai8c[1]+
+  {ack8+} requires {ai8c[1]}
+  ack8 -> ai8c[1]-
+  after (2400) <<&i:0..3: ~axi8[i] >> & <<&i:0..3: ~ayi8[i] >> -> ai8c[2]+
+  {aiv8[0]-, aiv8[1]-} requires {ai8c[2]}
+  ~aiv8[0] & ~aiv8[1] -> ai8c[2]-
+  after (3400) ~aiv8[0] & ~aiv8[1] -> ai8c[3]+
+  {ack8-} requires {ai8c[3]}
+  ~ack8 -> ai8c[3]-
+
+  after (3200) <<& i : 0..15 : <<| j : 0..1 : i6[i,j] >>>> -> i6c[0]+
+  {iv6_-} requires {i6c[0]}
+  ~iv6_ -> i6c[0]-
+  after (3000) <<& i : 0..15 : <<& j : 0..1 : ~i6[i,j] >>>> -> i6c[1]+
+  {iv6_+} requires {i6c[1]}
+  iv6_ -> i6c[1]-
+
+  after (2000) <<|i:0..3: axi6[i] >> & <<|i:0..3: ayi6[i] >> -> ai6c[0]+
+  {aiv6[0]+, aiv6[1]+} requires {ai6c[0]}
+  aiv6[0] | aiv6[1] -> ai6c[0]-
+  after (4400) aiv6[0] | aiv6[1] -> ai6c[1]+
+  {ack6+} requires {ai6c[1]}
+  ack6 -> ai6c[1]-
+  after (2600) <<&i:0..3: ~axi6[i] >> & <<&i:0..3: ~ayi6[i] >> -> ai6c[2]+
+  {aiv6[0]-, aiv6[1]-} requires {ai6c[2]}
+  ~aiv6[0] & ~aiv6[1] -> ai6c[2]-
+  after (3400) ~aiv6[0] & ~aiv6[1] -> ai6c[3]+
+  {ack6-} requires {ai6c[3]}
+  ~ack6 -> ai6c[3]-
+}
+

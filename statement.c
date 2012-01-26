@@ -81,8 +81,7 @@ static void print_compound_stmt(compound_stmt *x, print_info *f)
  }
 
 static void print_rep_stmt(rep_stmt *x, print_info *f)
- { if (IS_SET(f->flags, PR_cast)) print_char('<', f);
-   else print_string("<<", f);
+ { print_string("<<", f);
    if (x->rep_sym) print_string(token_str(0, x->rep_sym), f);
    print_char(' ', f);
    print_string(x->r.id, f);
@@ -91,7 +90,6 @@ static void print_rep_stmt(rep_stmt *x, print_info *f)
    print_string("..", f);
    print_obj(x->r.h, f);
    print_string(" : ", f);
-   if (IS_SET(f->flags, PR_prs)) print_char('\n', f);
    if (x->rep_sym == SYM_bar)
      { print_obj_list(&x->sl, f, IS_SET(f->flags, PR_short)? " [] " : "\n [] "); }
    else if (x->rep_sym == SYM_arb)
@@ -100,13 +98,9 @@ static void print_rep_stmt(rep_stmt *x, print_info *f)
      { print_obj_list(&x->sl, f, ", "); }
    else if (x->rep_sym == ';')
      { print_obj_list(&x->sl, f, "; "); }
-   else if (IS_SET(f->flags, PR_prs))
-     { print_obj_list(&x->sl, f, "\n"); }
    else
      { print_obj_list(&x->sl, f, " "); }
-   if (IS_SET(f->flags, PR_prs)) print_char('\n', f);
-   if (IS_SET(f->flags, PR_cast)) print_char('>', f);
-   else print_string(">>", f);
+   print_string(">>", f);
  }
 
 
@@ -182,31 +176,10 @@ static void print_meta_binding(meta_binding *x, print_info *f)
  }
 
 static void print_connection(connection *x, print_info *f)
- { char rsep[4] = {0, ',', ' ', 0 };
-   if (IS_SET(f->flags, PR_simple_var))
-     { print_string("connect ", f);
-       print_char('{', f);
-       f->rpos = f->pos;
-       f->rsep = &rsep[1];
-       print_obj(x->a, f);
-       print_obj(x->a->tp.tps, f);
-       print_string("}, {", f);
-       f->rpos = f->pos;
-       print_obj(x->b, f);
-       print_obj(x->b->tp.tps, f);
-       print_char('}', f);
-     }
-   else if (IS_SET(f->flags, PR_cast))
-     { print_obj(x->a, f);
-       print_string(" = ", f);
-       print_obj(x->b, f);
-     }
-   else
-     { print_string("connect ", f);
-       print_obj(x->a, f);
-       print_string(", ", f);
-       print_obj(x->b, f);
-     }
+ { print_string("connect ", f);
+   print_obj(x->a, f);
+   print_string(", ", f);
+   print_obj(x->b, f);
  }
 
 static void print_process_name(type *tp, print_info *f)
@@ -217,31 +190,14 @@ static void print_process_name(type *tp, print_info *f)
  }
 
 static void print_instance_stmt(instance_stmt *x, print_info *f)
- { if (IS_SET(f->flags, PR_simple_var))
-     { print_string("instance ", f);
-       f->rpos = f->pos;
-       f->rsep = ", ";
-       print_string(x->d->id, f);
-       print_obj(x->d->tps, f);
-       print_string(" : ", f);
-       print_process_name(&x->d->tps->tp, f);
+ { f->pos += var_str_printf(f->s, f->pos, "instance %s: ", x->d->id);
+   print_obj(x->d->tps, f);
+   if (x->mb)
+     { print_char('(', f);
+       print_obj_list(&x->mb->a, f, ", ");
+       print_char(')', f);
      }
-   else if (IS_SET(f->flags, PR_cast))
-     { print_process_name(&x->d->tps->tp, f);
-       /* TODO: handle array for cast */
-       print_char(' ', f);
-       print_string(x->d->id, f);
-     }
-   else
-     { f->pos += var_str_printf(f->s, f->pos, "instance %s: ", x->d->id);
-       print_obj(x->d->tps, f);
-       if (x->mb)
-         { print_char('(', f);
-           print_obj_list(&x->mb->a, f, ", ");
-           print_char(')', f);
-         }
-     }
-   if (!IS_SET(f->flags, PR_meta)) print_char(';', f);
+   print_char(';', f);
  }
 
 static void print_production_rule(production_rule *x, print_info *f)

@@ -67,19 +67,9 @@ static void *print_inline_array(void *tps, print_info *f)
    if (atps->class == CLASS_array_type)
      { print_char('[', f);
        while (1)
-         { l = (token_expr*)atps->l;
-           h = (token_expr*)atps->h;
-           if (IS_SET(f->flags, PR_cast) && l->class == CLASS_token_expr
-               && l->t.val.i == 0 && h->class == CLASS_token_expr)
-             /* Hack to simplify cast arrays when possible */
-             { assert(h->t.tp == TOK_int);
-               f->pos += var_str_printf(f->s, f->pos, "%ld", h->t.val.i + 1);
-             }
-           else
-             { print_obj(l, f);
-               print_string("..", f);
-               print_obj(h, f);
-             }
+         { print_obj(atps->l, f);
+           print_string("..", f);
+           print_obj(atps->h, f);
            atps = (array_type*)atps->tps;
            if (atps->class != CLASS_array_type) break;
            print_char(',', f);
@@ -110,61 +100,37 @@ static void print_const_def(const_def *x, print_info *f)
 
 static void print_var_decl(var_decl *x, print_info *f)
  { wired_type *wtps;
-   char rsep[4] = {0, ',', ' ', 0 };
    if (IS_SET(x->flags, EXPR_port) == EXPR_port)
      { print_string(x->id, f);
        print_inline_array(x->tps, f);
      }
    else if (IS_SET(x->flags, EXPR_port))
-     { if (IS_SET(f->flags, PR_cast))
-         { wtps = skip_inline_array(x->tps, f);
-           print_obj(wtps, f);
-           print_inline_array(x->tps, f);
-           print_char(' ', f);
-           print_string(x->id, f);
-         }
-       else if (IS_SET(f->flags, PR_simple_var))
-         /* TODO: syntax for non wired ports */
-         { f->rpos = f->pos;
-           print_string(x->id, f);
-           f->rsep = &rsep[1];
-           print_obj(x->tps, f);
-         }
-       else
-         { print_string(x->id, f);
-           wtps = print_inline_array(x->tps, f);
-           print_char(IS_SET(x->flags, EXPR_inport)? '?' : '!', f);
-           print_string(": ", f);
-           print_obj(wtps, f);
+     { print_string(x->id, f);
+       wtps = print_inline_array(x->tps, f);
+       print_char(IS_SET(x->flags, EXPR_inport)? '?' : '!', f);
+       print_string(": ", f);
+       print_obj(wtps, f);
+     }
+   else if (IS_SET(x->flags, VAR_def_wire))
+     { print_string(x->id, f);
+       print_inline_array(x->tps, f);
+       if (x->z_sym)
+         { print_char(x->z_sym, f); }
+       else if (x->z)
+         { print_string(" = ", f);
+           print_obj(x->z, f);
          }
      }
    else if (IS_ALLSET(x->flags, EXPR_wire | EXPR_writable))
-     { if (IS_SET(f->flags, PR_cast))
-         { print_string("node", f);
-           print_inline_array(x->tps, f);
-           f->pos += var_str_printf(f->s, f->pos, " %s;", x->id);
+     { f->pos += var_str_printf(f->s, f->pos, "var %s", x->id);
+       print_inline_array(x->tps, f);
+       if (x->z_sym)
+         { print_char(x->z_sym, f); }
+       else if (x->z)
+         { print_string(" = ", f);
+           print_obj(x->z, f);
          }
-       else if (IS_SET(f->flags, PR_simple_var))
-         { print_string("var ", f);
-           f->rpos = f->pos;
-           rsep[0] = x->z_sym;
-           f->rsep = x->z_sym? &rsep[0] : &rsep[1];
-           print_string(x->id, f);
-           print_obj(x->tps, f);
-           if (x->z_sym) print_char(x->z_sym, f);
-           print_char(';', f);
-         }
-       else
-         { f->pos += var_str_printf(f->s, f->pos, "var %s", x->id);
-           print_inline_array(x->tps, f);
-           if (x->z_sym)
-             { print_char(x->z_sym, f); }
-           else if (x->z)
-             { print_string(" = ", f);
-               print_obj(x->z, f);
-             }
-           print_char(';', f);
-         }
+       print_char(';', f);
      }
    else if (IS_SET(x->flags, EXPR_wire))
      { print_string(x->id, f);
@@ -190,30 +156,13 @@ static void print_parameter(parameter *x, print_info *f)
  }
 
 static void print_wire_decl(wire_decl *x, print_info *f)
- { char *rsep;
-   if (IS_SET(f->flags, PR_simple_var))
-     { rsep = f->rsep;
-       if (x->init_sym)
-         { f->rsep = &f->rsep[-1];
-           f->rsep[0] = x->init_sym;
-         }
-       print_char('_', f);
-       print_string(x->id, f);
-       print_obj(x->tps, f);
-       if (x->init_sym)
-         { print_char(x->init_sym, f);
-           f->rsep = rsep;
-         }
-     }
-   else
-     { print_string(x->id, f);
-       print_inline_array(x->tps, f);
-       if (x->init_sym)
-         { print_char(x->init_sym, f); }
-       else if (x->z)
-         { print_string(" = ", f);
-           print_obj(x->z, f);
-         }
+ { print_string(x->id, f);
+   print_inline_array(x->tps, f);
+   if (x->init_sym)
+     { print_char(x->init_sym, f); }
+   else if (x->z)
+     { print_string(" = ", f);
+       print_obj(x->z, f);
      }
  }
 

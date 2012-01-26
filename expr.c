@@ -92,8 +92,6 @@ static void print_binary_expr(binary_expr *x, print_info *f)
  { token_tp l_op, r_op;
    if (x->l->class == CLASS_binary_expr)
      { l_op = ((binary_expr*)x->l)->op_sym; }
-   else if (x->l->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var))
-     { l_op = ((rep_expr*)x->l)->rep_sym; }
    else l_op = 0;
    if (l_op && precedence(l_op) < precedence(x->op_sym))
      { print_char('(', f);
@@ -105,8 +103,6 @@ static void print_binary_expr(binary_expr *x, print_info *f)
    f->pos += var_str_printf(f->s, f->pos, " %s ", token_str(0, x->op_sym));
    if (x->r->class == CLASS_binary_expr)
      { r_op = ((binary_expr*)x->r)->op_sym; }
-   else if (x->r->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var))
-     { r_op = ((rep_expr*)x->r)->rep_sym; }
    else r_op = 0;
    if (r_op && precedence(r_op) <= precedence(x->op_sym))
      { print_char('(', f);
@@ -119,8 +115,7 @@ static void print_binary_expr(binary_expr *x, print_info *f)
 
 static void print_prefix_expr(prefix_expr *x, print_info *f)
  { print_string(token_str(0, x->op_sym), f);
-   if (x->r->class == CLASS_binary_expr ||
-       (x->r->class == CLASS_rep_expr && IS_SET(f->flags, PR_simple_var)))
+   if (x->r->class == CLASS_binary_expr)
      { print_char('(', f);
        print_obj(x->r, f);
        print_char(')', f);
@@ -132,25 +127,7 @@ static void print_prefix_expr(prefix_expr *x, print_info *f)
 static void print_rep_expr(rep_expr *x, print_info *f)
  { value_tp ival;
    long i, n;
-   if (IS_SET(f->flags, PR_simple_var))
-     { assert(f->exec);
-       n = eval_rep_common(&x->r, &ival, f->exec);
-       push_repval(&ival, f->exec->curr, f->exec);
-       for (i = 0; i < n; i++)
-         { if (i > 0)
-             { print_char(' ', f);
-               print_string(token_str(0, x->rep_sym), f);
-               print_char(' ', f);
-             }
-           print_obj(x->v, f);
-           int_inc(&f->exec->curr->rep_vals->v, f->exec);
-         }
-       pop_repval(&ival, f->exec->curr, f->exec);
-       clear_value_tp(&ival, f->exec);
-       return;
-     }
-   if (IS_SET(f->flags, PR_cast)) print_char('<', f);
-   else print_string("<<", f);
+   print_string("<<", f);
    print_string(token_str(0, x->rep_sym), f);
    print_char(' ', f);
    print_string(x->r.id, f);
@@ -160,8 +137,7 @@ static void print_rep_expr(rep_expr *x, print_info *f)
    print_obj(x->r.h, f);
    print_string(" : ", f);
    print_obj(x->v, f);
-   if (IS_SET(f->flags, PR_cast)) print_char('>', f);
-   else print_string(">>", f);
+   print_string(">>", f);
  }
 
 static void print_value_probe(value_probe *x, print_info *f)
@@ -183,19 +159,9 @@ static void print_array_subscript(array_subscript *x, print_info *f)
      }
    else
      { print_obj(x->x, f); }
-   if (IS_SET(f->flags, PR_simple_var))
-     { print_char('_', f);
-       assert(f->exec);
-       eval_expr(x->idx, f->exec);
-       pop_value(&val, f->exec);
-       print_value_tp(&val, f);
-       clear_value_tp(&val, f->exec);
-     }
-   else
-     { print_char('[', f);
-       print_obj(x->idx, f);
-       print_char(']', f);
-     }
+   print_char('[', f);
+   print_obj(x->idx, f);
+   print_char(']', f);
  }
 
 static void print_array_subrange(array_subrange *x, print_info *f)
@@ -228,10 +194,7 @@ static void print_int_subrange(int_subrange *x, print_info *f)
 
 static void print_field_of_record(field_of_record *x, print_info *f)
  { print_obj(x->x, f);
-   if (IS_SET(f->flags, PR_simple_var) && x->x->tp.kind != TP_process)
-     { f->pos += var_str_printf(f->s, f->pos, "_%s", x->id); }
-   else
-     { f->pos += var_str_printf(f->s, f->pos, ".%s", x->id); }
+   f->pos += var_str_printf(f->s, f->pos, ".%s", x->id);
  }
 
 static void print_field_of_union(field_of_union *x, print_info *f)
@@ -340,7 +303,7 @@ extern expr *mk_const_expr(expr *x, sem_info *f)
        c->flags = x->flags;
        c->tp = x->tp;
        c->x = x;
-       if (IS_SET(x->flags, EXPR_metax))
+       if (IS_SET(x->flags, EXPR_meta))
          { c->meta_idx = f->meta_idx++; }
        x = (expr*)c;
      }
@@ -372,7 +335,7 @@ static void *sem_binary_expr(binary_expr *x, sem_info *f)
    type *ltp, *rtp;
    x->l = sem(x->l, f);
    x->r = sem(x->r, f);
-   SET_IF_SET(x->flags, x->r->flags | x->l->flags, EXPR_all_constx);
+   SET_IF_SET(x->flags, x->r->flags | x->l->flags, EXPR_all_const);
    if (IS_SET(x->flags, EXPR_nocexpr))
      { x->l = mk_const_expr(x->l, f);
        x->r = mk_const_expr(x->r, f);
@@ -431,7 +394,7 @@ static void *sem_prefix_expr(prefix_expr *x, sem_info *f)
  { sem_flags flags = f->flags;
    type *rtp;
    x->r = sem(x->r, f);
-   SET_IF_SET(x->flags, x->r->flags, EXPR_all_constx);
+   SET_IF_SET(x->flags, x->r->flags, EXPR_all_const);
    rtp = &x->r->tp;
    if (x->op_sym == '+' || x->op_sym == '-')
      { if (rtp->kind != TP_int)
@@ -468,7 +431,7 @@ static void *sem_rep_expr(rep_expr *x, sem_info *f)
    enter_sublevel(x, x->r.id, &x->cxt, f);
    x->v = sem(x->v, f);
    fl = x->v->flags | x->r.l->flags | x->r.h->flags;
-   SET_IF_SET(x->flags, fl, EXPR_all_constx);
+   SET_IF_SET(x->flags, fl, EXPR_all_const);
    if (IS_SET(fl, EXPR_rep) && f->rv_ref_depth == 0)
      { RESET_FLAG(x->flags, EXPR_rep); }
      /* if x->v references rep vars, but the outermost rep var referenced is x's
@@ -550,7 +513,7 @@ static void *sem_array_subscript(array_subscript *x, sem_info *f)
  { type *tp;
    x->x = sem(x->x, f);
    x->idx = sem(x->idx, f);
-   SET_IF_SET(x->flags, x->x->flags | x->idx->flags, EXPR_all_constx);
+   SET_IF_SET(x->flags, x->x->flags | x->idx->flags, EXPR_all_const);
    if (IS_SET(x->flags, EXPR_nocexpr))
      { x->x = mk_const_expr(x->x, f);
        x->idx = mk_const_expr(x->idx, f);
@@ -574,7 +537,7 @@ static void *sem_array_subscript(array_subscript *x, sem_info *f)
          { x->class = CLASS_int_subscript;
            RESET_FLAG(x->flags, EXPR_lvalue);
          }
-       else if (!IS_SET(f->flags, SEM_connect))
+       else if (!IS_SET(f->flags, SEM_connect | SEM_debug))
          { sem_error(f, x, "Cannot slice integer port in chp body"); }
        else
          { x->class = CLASS_int_port_subscript; }
@@ -592,7 +555,7 @@ static void *sem_array_subrange(array_subrange *x, sem_info *f)
    x->l = sem(x->l, f);
    x->h = sem(x->h, f);
    fl = x->x->flags | x->l->flags | x->h->flags;
-   SET_IF_SET(x->flags, fl, EXPR_all_constx);
+   SET_IF_SET(x->flags, fl, EXPR_all_const);
    if (IS_SET(x->flags, EXPR_nocexpr))
      { x->l = mk_const_expr(x->l, f);
        x->h = mk_const_expr(x->h, f);
@@ -712,7 +675,7 @@ static void *sem_field_of_record(field_of_record *x, sem_info *f)
        x->class = CLASS_field_of_process;
        return x;
      }
-   SET_IF_SET(x->flags, x->x->flags, EXPR_all_constx);
+   SET_IF_SET(x->flags, x->x->flags, EXPR_all_const);
    SET_IF_SET(x->flags, x->x->flags, EXPR_inherit);
    if (tp->kind == TP_int)
      { if ((z = try_union(x, f))) return z;
@@ -804,7 +767,7 @@ static void *sem_array_constructor(array_constructor *x, sem_info *f)
    m = x->l;
    while (!llist_is_empty(&m) && i <= ARRAY_REP_MAXSIZE)
      { e = llist_head(&m);
-       SET_IF_SET(x->flags, e->flags, EXPR_all_constx);
+       SET_IF_SET(x->flags, e->flags, EXPR_all_const);
        if (IS_SET(e->flags,EXPR_port))
          { sem_error(f, x, "Array constructor contains a port"); }
        if (!type_compatible(x->tp.elem.tp, &e->tp))
@@ -830,7 +793,7 @@ static void *sem_record_constructor(record_constructor *x, sem_info *f)
    m = x->l;
    while (!llist_is_empty(&m))
      { e = llist_head(&m);
-       SET_IF_SET(x->flags, e->flags, EXPR_all_constx);
+       SET_IF_SET(x->flags, e->flags, EXPR_all_const);
        if (IS_SET(e->flags,EXPR_port))
          { sem_error(f, x, "Record constructor contains port"); }
        llist_prepend(&x->tp.elem.l, &e->tp);
@@ -886,7 +849,7 @@ static void *sem_call(call *x, sem_info *f)
          { sem_error(f, a, "Argument for result parameter %s must be writable",
                      p->d->id);
          }
-       SET_IF_SET(x->flags, a->flags, EXPR_all_constx);
+       SET_IF_SET(x->flags, a->flags, EXPR_all_const);
        mp = llist_alias_tail(&mp);
        ma = llist_alias_tail(&ma);
      }
@@ -944,7 +907,7 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
        c->d = dc;
        c->z = dc->z;
        c->tp = dc->tp;
-       SET_IF_SET(c->flags, c->z->flags, EXPR_all_constx);
+       SET_IF_SET(c->flags, c->z->flags, EXPR_all_const);
        sem_free_obj(f, x);
        return c;
      }
@@ -955,7 +918,7 @@ static void *sem_token_expr(token_expr *x, sem_info *f)
        mx = new_parse(f->L, 0, x, meta_ref);
        mx->d = mp;
        mx->meta_idx = mp->meta_idx;
-       SET_FLAG(mx->flags, EXPR_metax);
+       SET_FLAG(mx->flags, EXPR_meta);
        mx->tp = mp->tp;
        sem_free_obj(f, x);
        return mx;
@@ -2136,101 +2099,6 @@ static void *connect_array_subscript(array_subscript *x, exec_info *f)
    return &xxval->v.l->vl[idx];
  }
 
-static void eval_int_port_subscript(int_port_subscript *x, exec_info *f)
- { value_tp xval, xxval, idxval, *ve;
-   value_list *l;
-   exec_flags flags = f->flags;
-   eval_expr(x->idx, f);
-   eval_expr(x->x, f);
-   pop_value(&xxval, f);
-   pop_value(&idxval, f);
-   if (!xxval.rep || !idxval.rep)
-     { xval.rep = REP_none;
-       clear_value_tp(&xxval, f);
-       clear_value_tp(&idxval, f);
-       push_value(&xval, f);
-       return;
-     }
-   else if (xxval.rep == REP_port)
-     { port_to_array(&xxval, x->x, f); }
-   assert(xxval.rep == REP_array);
-   l = xxval.v.l;
-   assert(x->x->tp.kind == TP_int);
-   int_simplify(&idxval, f);
-   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
-     { clear_value_tp(&xxval, f);
-       exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
-                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
-     }
-   ve = &l->vl[idxval.v.i];
-   if (l->refcnt == 1)
-     { copy_and_clear(&xval, ve, f); }
-   else
-     { alias_value_tp(&xval, ve, f); }
-   clear_value_tp(&xxval, f);
-   push_value(&xval, f);
- }
-
-static void *reval_int_port_subscript(int_port_subscript *x, exec_info *f)
- { value_tp xval, *xxval, idxval;
-   value_list *l;
-   eval_expr(x->idx, f); /* For connections, this has to come first */
-   pop_value(&idxval, f);
-   if (!idxval.rep)
-     { exec_error(f, x->idx, "Unknown index [%v]", vstr_obj, x->idx); }
-   xxval = reval_expr(x->x, f);
-   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
-   else if (xxval->rep == REP_port)
-     { if (!xxval->v.p->p) /* double connection error */
-         { clear_value_tp(&idxval, f);
-           return xxval;
-         }
-       port_to_array(xxval, x->x, f);
-     }
-   else if (xxval->rep == REP_union)
-     { exec_error(f, x, "Use of conflicting decompositions"); }
-   assert(xxval->rep == REP_array);
-   l = xxval->v.l;
-   assert(x->x->tp.kind == TP_int);
-   int_simplify(&idxval, f);
-   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
-     { exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
-                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
-     }
-   if (IS_SET(x->flags, EXPR_ifrchk))
-     { strict_check_elem(x->x, xxval, f); }
-   return &l->vl[idxval.v.i];
- }
-
-static void *connect_int_port_subscript(int_port_subscript *x, exec_info *f)
- { value_tp xval, *xxval, idxval;
-   value_list *l;
-   eval_expr(x->idx, f); /* For connections, this has to come first */
-   pop_value(&idxval, f);
-   if (!idxval.rep)
-     { exec_error(f, x->idx, "Unknown index [%v]", vstr_obj, x->idx); }
-   xxval = connect_expr(x->x, f);
-   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
-   else if (xxval->rep == REP_port)
-     { if (!xxval->v.p->p) /* double connection error */
-         { clear_value_tp(&idxval, f);
-           return xxval;
-         }
-       port_to_array(xxval, x->x, f);
-     }
-   else if (xxval->rep == REP_union)
-     { exec_error(f, x, "Use of conflicting decompositions"); }
-   assert(xxval->rep == REP_array);
-   l = xxval->v.l;
-   assert(x->x->tp.kind == TP_int);
-   int_simplify(&idxval, f);
-   if (idxval.rep != REP_int || idxval.v.i < 0 || idxval.v.i >= l->size)
-     { exec_error(f, x->idx, "Index [%v] = %v is outside array %v[0..%ld]",
-                  vstr_obj, x->idx, vstr_val, &idxval, vstr_obj, x->x, l->size);
-     }
-   return &l->vl[idxval.v.i];
- }
-
 static long eval_bit_index(expr *idx, exec_info *f)
  /* Verify that idx evaluates to a positive integer smaller than
   * INT_REP_MAXBITS, and return the evaluated value
@@ -2252,6 +2120,81 @@ static long eval_bit_index(expr *idx, exec_info *f)
                   vstr_obj, idx, vstr_val, &idxval);
      }
    return idxval.v.i;
+ }
+
+static void eval_int_port_subscript(int_port_subscript *x, exec_info *f)
+/* Only called from the debug prompt - doesn't modify any connections */
+ { value_tp xval, xxval, *ve;
+   value_list *l;
+   long idx;
+   idx = eval_bit_index(x->idx, f);
+   eval_expr(x->x, f);
+   pop_value(&xxval, f);
+   if (!xxval.rep)
+     { exec_error(f, x, "Port %v is not connected", vstr_obj, x->x); }
+   else if (xxval.rep != REP_array)
+     { exec_error(f, x, "Port %v is not sliced into bits", vstr_obj, x->x); }
+   l = xxval.v.l;
+   if (idx >= l->size)
+     { clear_value_tp(&xxval, f);
+       exec_error(f, x->idx, "Index [%v] = %ld is outside array %#v[0..%ld]",
+                  vstr_obj, x->idx, idx, x->x, l->size);
+     }
+   ve = &l->vl[idx];
+   if (l->refcnt == 1)
+     { copy_and_clear(&xval, ve, f); }
+   else
+     { alias_value_tp(&xval, ve, f); }
+   clear_value_tp(&xxval, f);
+   push_value(&xval, f);
+ }
+
+static void *reval_int_port_subscript(int_port_subscript *x, exec_info *f)
+ { value_tp xval, *xxval;
+   value_list *l;
+   long idx;
+   idx = eval_bit_index(x->idx, f);
+   xxval = reval_expr(x->x, f);
+   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
+   else if (xxval->rep == REP_port)
+     { if (!xxval->v.p->p) /* double connection error */
+         { return xxval; }
+       port_to_array(xxval, x->x, f);
+     }
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(xxval->rep == REP_array);
+   l = xxval->v.l;
+   if (idx >= l->size)
+     { exec_error(f, x->idx, "Index [%v] = %ld is outside array %#v[0..%ld]",
+                  vstr_obj, x->idx, idx, x->x, l->size);
+     }
+   if (IS_SET(x->flags, EXPR_ifrchk))
+     { strict_check_elem(x->x, xxval, f); }
+   return &l->vl[idx];
+ }
+
+static void *connect_int_port_subscript(int_port_subscript *x, exec_info *f)
+ { value_tp xval, *xxval;
+   value_list *l;
+   long idx;
+   idx = eval_bit_index(x->idx, f); /* For connections, this must come first */
+   xxval = connect_expr(x->x, f);
+   if (!xxval->rep) force_value(xxval, x->x, f); // TODO: stop using force_value
+   else if (xxval->rep == REP_port)
+     { if (!xxval->v.p->p) /* double connection error */
+         { return xxval; }
+       port_to_array(xxval, x->x, f);
+     }
+   else if (xxval->rep == REP_union)
+     { exec_error(f, x, "Use of conflicting decompositions"); }
+   assert(xxval->rep == REP_array);
+   l = xxval->v.l;
+   if (idx >= l->size)
+     { exec_error(f, x->idx, "Index [%v] = %ld is outside array %#v[0..%ld]",
+                  vstr_obj, x->idx, idx, x->x, l->size);
+     }
+   return &l->vl[idx];
  }
 
 static void eval_int_subscript(int_subscript *x, exec_info *f)
@@ -2787,14 +2730,14 @@ static void eval_field_of_union(field_of_union *x, exec_info *f)
    port_value *p;
    eval_expr(x->x, f);
    pop_value(&xv, f);
+   while (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec && xv.v.p->nv)
+     { ve = xv.v.p->nv;
+       assert(ve->rep != REP_port || ve->v.p != xv.v.p);
+       clear_value_tp(&xv, f);
+       alias_value_tp(&xv, ve, f);
+     }
    if (x->d->up.p->class == CLASS_process_def)
-     { while (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec && xv.v.p->nv)
-         { ve = xv.v.p->nv;
-           assert(ve->rep != REP_port || ve->v.p != xv.v.p);
-           clear_value_tp(&xv, f);
-           alias_value_tp(&xv, ve, f);
-         }
-       if (!xv.rep || (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec))
+     { if (!xv.rep || (xv.rep == REP_port && !xv.v.p->p && !xv.v.p->dec))
          { exec_error(f, x, "Port %v is not connected", vstr_obj, x->x); }
        if (xv.rep != REP_port || (!xv.v.p->p && xv.v.p->dec != x->d))
          { exec_error(f, x, "Port %v is not decomposed via field %s",
@@ -3243,7 +3186,7 @@ static void assign_wire_ref(wire_ref *x, exec_info *f)
 
 static void eval_const_expr(const_expr *x, exec_info *f)
  { value_tp xval, *ve;
-   if (IS_SET(x->flags, EXPR_metax))
+   if (IS_SET(x->flags, EXPR_meta))
      { assert(x->meta_idx < f->meta_ps->nr_meta);
        ve = &f->meta_ps->meta[x->meta_idx];
        if (!ve->rep)

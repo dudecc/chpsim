@@ -1299,12 +1299,12 @@ static void parse_default_wired_port(lex_tp *L, llist *l)
 /* Pre: '(' has been parsed */
  { var_decl *v;
    do { v = parse_default_wire_decl(L);
-        SET_FLAG(v->flags, EXPR_wire);
+        SET_FLAG(v->flags, VAR_def_wire | EXPR_wire);
         llist_prepend(l, v);
       } while (lex_have_next(L, ','));
    lex_must_be(L, ';');
    do { v = parse_default_wire_decl(L);
-        SET_FLAG(v->flags, EXPR_wire | EXPR_writable);
+        SET_FLAG(v->flags, VAR_def_wire | EXPR_wire | EXPR_writable);
         llist_prepend(l, v);
       } while (lex_have_next(L, ','));
    lex_must_be(L, ')');

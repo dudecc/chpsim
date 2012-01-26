@@ -8,6 +8,8 @@
   /k/d/ie: 1 active threads
   /s/d/oe: 1 active threads
   /s/d/od: 1 active threads
+(cmnd?) (view) /s/d/od at nohide_03.chp[10:0]
+	process inv_lo()(i; ...)
 (cmnd?) --- continuing in batch mode -----------
 (watch) /s/d/od:o up at time 572
 (watch) /k/d/id[0]:o down at time 37701

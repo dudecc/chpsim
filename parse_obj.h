@@ -77,7 +77,7 @@ FLAGS(parse_obj_flags)
      NEXT_FLAG(DEF_forward), /* sem() already done once */
      NEXT_FLAG(EXPR_parenthesized), /* used to resolve precedence */
      NEXT_FLAG(EXPR_unconst), /* depends on a variable/wire/port */
-     NEXT_FLAG(EXPR_metax), /* depends on meta parameters */
+     NEXT_FLAG(EXPR_meta), /* depends on meta parameters */
      NEXT_FLAG(EXPR_cparam), /* depends on a const parameter */
      NEXT_FLAG(EXPR_rep), /* depends on replication parameter */
      NEXT_FLAG(EXPR_lvalue), /* evaluates to a stored value */
@@ -90,13 +90,14 @@ FLAGS(parse_obj_flags)
      NEXT_FLAG(EXPR_wire), /* references a wire/wired port */
      NEXT_FLAG(EXPR_counter), /* references a counter */
      NEXT_FLAG(EXPR_generic), /* cannot use type checking */
+     NEXT_FLAG(VAR_def_wire), /* distinguishes default wire declarations */
      NEXT_FLAG(DEF_builtin), /* builtin object */
      NEXT_FLAG(DEF_varargs), /* variable nr args for routine */
      NEXT_FLAG(DBG_break), /* breakpoint, for statements */
      NEXT_FLAG(DBG_break_cond), /* breakpoint with conditions */
      EXPR_nocexpr = EXPR_unconst | EXPR_cparam | EXPR_rep,
                                 /* all const_expr disqualifiers */
-     EXPR_all_constx = EXPR_nocexpr | EXPR_metax,
+     EXPR_all_const = EXPR_nocexpr | EXPR_meta,
                                 /* All flags relating to constant status */
      EXPR_port = EXPR_inport | EXPR_outport, /* is a port */
      EXPR_inherit = EXPR_wire | EXPR_port_ext | EXPR_generic | EXPR_port |

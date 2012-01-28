@@ -370,6 +370,27 @@ static int _print_wire_value
              f->meta_ps = meta_ps;
              return res;
            }
+         else if (v->v.p->nv)
+           { assert(v->v.p->nv != v);
+             if (v->v.p->dec)
+               { var_str_printf(&f->scratch, pos, ".%s", v->v.p->dec->id);
+                 meta_ps = f->meta_ps;
+                 f->meta_ps = ps = v->v.p->ps;
+                 res = _print_wire_value(v->v.p->nv,&v->v.p->dec->tps->tp,w,f);
+                 f->meta_ps = meta_ps;
+                 return res;
+               }
+             else
+               { return _print_wire_value(v->v.p->nv, tp, w, f); }
+           }
+         else if (v->v.p->v.rep && v->v.p->dec)
+           { var_str_printf(&f->scratch, pos, ".%s", v->v.p->dec->id);
+             meta_ps = f->meta_ps;
+             f->meta_ps = ps = v->v.p->ps;
+             res = _print_wire_value(&v->v.p->v,&v->v.p->dec->tps->tp,w,f);
+             f->meta_ps = meta_ps;
+             return res;
+           }
        return 0;
        case REP_wire:
        return w == v->v.w;

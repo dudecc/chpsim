@@ -1,0 +1,23 @@
+//r
+//p /b
+//fanout /b:I.wire.d[0]
+//fanout /a:O.wire.d[1]
+
+requires "channel.chp";
+
+process A()(O!:bit)
+chp { <<; i : 1..10 : O!false >> }
+process B()(I?:e1of2)
+prs { I.d[0] |  I.d[1] -> I.e-
+     ~I.d[0] & ~I.d[1] -> I.e+
+}
+process BB()(I?:bit)
+meta { instance b : B;
+       connect I.wire, b.I;
+}
+process main()()
+meta { instance a : A; instance b : BB;
+       connect a.O.wire.e, b.I.wire.e;
+       connect a.O.wire.d[0], b.I.wire.d[0];
+       connect a.O.wire.d[1], b.I.wire.d[1];
+}

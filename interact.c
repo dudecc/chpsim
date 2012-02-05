@@ -1507,10 +1507,9 @@ static void wire_fanin(wire_value *w, user_info *f)
 SET_WIRE_CMD(fanin)
 
 static void wire_critical(wire_value *w, user_info *f)
- { action *a;
-   crit_node *c;
-   mpz_t time;
+ { crit_node *c;
    hash_entry *q;
+   mpz_t time;
    if (!IS_SET(f->flags, USER_critical))
      { report(f, "  Use the -critical command line option to enable"
                  " critical cycle checking");
@@ -1521,22 +1520,16 @@ static void wire_critical(wire_value *w, user_info *f)
        return;
      }
    c = q->data.p;
-   a = ACTION_NO_DIR(c->a);
    mpz_init(time);
-   mpz_fdiv_q_2exp(time, f->global->time, 1);
-   while (1)
-     { report(f, "%s:%V %s at time %v", a->cs->ps->nm, vstr_wire, w,
-              a->cs->ps, ACTION_DIR(c->a)? "down" : "up  ", vstr_mpz, time);
-       mpz_sub_ui(time, time, c->delay);
+   while (c)
+     { w = (wire_value*)ACTION_NO_DIR(c->w);
+       mpz_fdiv_q_2exp(time, c->time, 1);
+       report(f, "%V %s at time %v",
+              vstr_wire_context_short, w, w->wframe->cs->ps,
+              ACTION_DIR(c->w)? "up  " : "down", vstr_mpz, time);
        c = c->parent;
-       if (!c) break;
-       if (c->parent)
-         { a = ACTION_NO_DIR(c->a);
-           w = a->target.w;
-         }
-       else
-         { w = c->a; }
      }
+   mpz_clear(time);
  }
 
 SET_WIRE_CMD(critical)

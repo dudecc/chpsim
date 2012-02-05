@@ -1,0 +1,16 @@
+//-timed -critical
+//r
+//r
+//critical /b:i
+
+process A()((i; o+))
+prs { after (250) ~i -> o-
+      after (300)  i -> o+
+}
+process B()((i; o-)) hse { [~i]; o+; [false] }
+process main()()
+meta { instance a[0..3] : A; instance b : B;
+       connect b.o, a[0].i;
+       connect all i : 0..2 : a[i].o, a[i+1].i;
+       connect a[3].o, b.i;
+}

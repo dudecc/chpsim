@@ -108,11 +108,12 @@ struct action
            } target; /* Target of a production/counter rule */
      ctrl_state *cs;
    };
-/* Currently there are only two types of actions: a production rule (PR), or a
- * statement.  Statement actions have a 1 to 1 correspondence with ctrl_state,
- * and if x is a statement action, x = &x->cs.act.  PR actions point to a
- * non-unique ctrl_state, giving a reference frame for the PR action.  These
- * ctrl_states leave their own act field unused
+/* Currently there are only three types of actions: a production rule (PR), a
+ * counter rule (CR), or a statement.  Statement actions have a 1 to 1
+ * correspondence with ctrl_state, and if x is a statement action,
+ * x = &x->cs.act.  PR and CR actions point to a non-unique ctrl_state, giving
+ * a reference frame for the action.  These ctrl_states leave their own act
+ * field unused.
  */
 
 #define ACTION_WITH_DIR(A) \
@@ -138,6 +139,7 @@ struct ctrl_state
                               when doing a parallel replication,
                               creates and frees a single large chunk of memory
                             */
+     struct crit_node *crit; /* used for tracking critical cycles */
      /* data for specific stmts: */
      int i; /* init 0.
                parallel_stmt: counter; communication: position in hs */
@@ -208,6 +210,7 @@ struct exec_info
      int nr_susp; /* number of suspended processes */
      hash_table delays; /* stores custom delay information */
      hash_table *crit_map; /* used for tracking critical cycles */
+     struct crit_node *crit; /* also used for tracking critical cycles */
      long ecount; /* Used for energy estimates */
    };
      
@@ -343,6 +346,26 @@ extern int app_pop;
 #define set_pop_cp(C,D) set_app(CLASS_ ## C, app_pop, (obj_func*)pop_ ## D)
  /* Used if C is a copy of D, and uses the same pop function */
 
+
+/********** critical cycles *************************************************/
+
+typedef struct crit_node crit_node;
+struct crit_node
+   { long refcnt;
+     mpz_t time;
+     void *w; /* wire with encoded direction, similar to ACTION_WITH_DIR */
+     crit_node *parent;
+   };
+
+extern void new_crit_node(wire_value *w, int dir, struct exec_info *f);
+ /* Create a new node for a (dir? upward : downward) transition on w.
+  * Set f->crit to the new node.
+  * This overwrites the current f->crit without clearing it, but the
+  * old value is preserved as the parent of the new value. 
+  */
+
+extern void crit_node_clear(crit_node *x, struct exec_info *f);
+ /* Decrease reference count on x, free x upon reaching 0 */
 
 /******************************************************************************
 

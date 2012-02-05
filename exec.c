@@ -85,6 +85,7 @@ extern void exec_info_init(exec_info *f, exec_info *orig)
    f->err_obj = 0;
    var_str_init(&f->scratch, 0);
    var_str_init(&f->err, 0);
+   f->crit = 0;
    f->ecount = 0;
    if (orig)
      { f->user = orig->user;
@@ -142,6 +143,7 @@ extern ctrl_state *new_ctrl_state(exec_info *f)
        s->rep_vals = 0;
      }
    s->stack = 0;
+   s->crit = 0;
    s->i = 0;
    s->argv = 0;
    s->argc = 0;
@@ -159,7 +161,12 @@ extern action *new_action(exec_info *f)
   * cs is set to f->curr, time is set to current time, target is not set.
   */
  { action *a;
-   NEW(a);
+   if (IS_SET(f->user->flags, USER_critical))
+     { a = malloc(sizeof(action) + sizeof(void*));
+       *((void**)(a+1)) = 0;
+     }
+   else
+     { NEW(a); }
    a->flags = 0;
    a->cs = f->curr;
    mpz_init_set(a->time, f->time);
@@ -363,10 +370,14 @@ extern void action_sched(action *a, exec_info *f)
      }
    SET_FLAG(a->flags, ACTION_sched);
    pqueue_insert(&f->sched, a);
+   if (f->crit)
+     { if (IS_SET(a->flags, ACTION_is_pr | ACTION_is_cr))
+         { *((crit_node**)(a+1)) = f->crit; }
+       else
+         { a->cs->crit = f->crit; }
+       f->crit->refcnt++;
+     }
  }
-
-#define CRIT_STEP(A,W,F) if (IS_SET((F)->user->flags, USER_critical)) \
-                           crit_node_step((A), (W), (F))
 
 extern void run_checks(wire_value *w, exec_info *f)
  /* Runs through all checks in f->check
@@ -379,14 +390,18 @@ extern void run_checks(wire_value *w, exec_info *f)
        RESET_FLAG(a->flags, ACTION_check);
        if (IS_SET(a->flags, ACTION_is_cr))
          { if ((a->flags & (ACTION_pr_up | ACTION_up_nxt)) == ACTION_up_nxt)
-             { NEW(b); *b = *a; /* Schedule a copy of a */
-               mpz_init_set(b->time, f->time);
+             { b = new_action(f); /* Schedule a copy of a */
+               b->flags = a->flags; b->target = a->target; b->cs = a->cs;
                if (IS_SET(b->flags, ACTION_delay))
                  { q = hash_find(&f->delays, (char*)a);
                    mpz_add_ui(b->time, b->time, 2 * q->data.i);
                  }
                SET_FLAG(b->flags, ACTION_resched | ACTION_sched);
                pqueue_insert(&f->sched, b);
+               if (f->crit)
+                 { *((crit_node**)(b+1)) = f->crit;
+                   f->crit->refcnt++;
+                 }
              }
            if ((a->flags & (ACTION_pr_dn | ACTION_dn_nxt)) == ACTION_dn_nxt)
              { action_sched(a, f); }
@@ -404,10 +419,10 @@ extern void run_checks(wire_value *w, exec_info *f)
        ASSIGN_FLAG(a->flags, a->flags >> 2, ACTION_pr_up | ACTION_pr_dn);
        if ((a->flags & (ACTION_pr_up | ACTION_sched)) == ACTION_pr_up &&
            (a->target.w->flags & WIRE_val_mask) != WIRE_value)
-         { action_sched(a, f); CRIT_STEP(a, w, f); }
+         { action_sched(a, f); }
        if ((a->flags & (ACTION_pr_dn | ACTION_sched)) == ACTION_pr_dn &&
            (a->target.w->flags & WIRE_val_mask) != 0)
-         { action_sched(a, f); CRIT_STEP(a, w, f); }
+         { action_sched(a, f); }
      }
  }
 
@@ -515,6 +530,7 @@ extern void exec_run(exec_info *f)
    process_state *ps;
    exec_info *g;
    action *a;
+   hash_entry *q;
    while (1)
      { a = pqueue_extract(&f->sched);
        if (!a)
@@ -539,6 +555,16 @@ extern void exec_run(exec_info *f)
        if (IS_SET(a->flags, ACTION_susp))
          { llist_free(&f->curr->dep, (llist_func*)clear_action_dep, f); }
        RESET_FLAG(a->flags, ACTION_sched | ACTION_susp);
+       if (IS_SET(f->user->flags, USER_critical))
+         { if (IS_SET(a->flags, ACTION_is_pr | ACTION_is_cr))
+             { f->crit = *((crit_node**)(a+1));
+               *((crit_node**)(a+1)) = 0;
+             }
+           else
+             { f->crit = a->cs->crit;
+               a->cs->crit == 0;
+             }
+         }
        if (IS_SET(a->flags, ACTION_is_pr))
          { if (IS_SET(ps->flags, DBG_step|DBG_next) || exec_interrupted)
              { interact_report(f); }
@@ -583,6 +609,10 @@ extern void exec_run(exec_info *f)
                f->nr_susp++;
                a->cs->ps->nr_susp++;
              }
+         }
+       if (f->crit)
+         { crit_node_clear(f->crit, f);
+           f->crit = 0;
          }
      }
    if (f->nr_susp)
@@ -663,6 +693,37 @@ extern void exec_modules(llist *l, exec_info *f)
      }
  }
 
+/********** critical cycles *************************************************/
+
+extern void new_crit_node(wire_value *w, int dir, exec_info *f)
+ /* Create a new node for a (dir? upward : downward) transition on w.
+  * Set f->crit to the new node.
+  * This overwrites the current f->crit without clearing it, but the
+  * old value is preserved as the parent of the new value. 
+  */
+ { crit_node *c;
+   hash_entry *q;
+   NEW(c);
+   c->refcnt = 1;
+   c->parent = f->crit;
+   if (f->crit)
+     { f->crit->refcnt++; }
+   mpz_init_set(c->time, f->time);
+   c->w = (void*)(((long)w) | (dir? 1 : 0));
+   f->crit = c;
+   if (hash_insert(f->crit_map, (char*)w, &q))
+     { crit_node_clear(q->data.p, f); }
+   q->data.p = c;
+ }
+
+extern void crit_node_clear(crit_node *x, struct exec_info *f)
+ /* Decrease reference count on x, free x upon reaching 0 */
+ { if (x && !(--x->refcnt))
+     { mpz_clear(x->time);
+       crit_node_clear(x->parent, f);
+       free(x);
+     }
+ }
 
 /*****************************************************************************/
 

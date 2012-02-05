@@ -1054,6 +1054,8 @@ extern void write_wire(int val, wire_value *w, exec_info *f)
               IS_SET(w->flags, WIRE_value)? "up" : "down", vstr_mpz, time);
        mpz_clear(time);
      }
+   if (IS_SET(f->user->flags, USER_critical))
+     { new_crit_node(w, val, f); }
    if (IS_SET(w->flags, WIRE_has_dep))
      { ASSIGN_FLAG(old, w->flags, WIRE_value);
        /* old is now formatted for update_wire_expr */
@@ -1066,6 +1068,8 @@ extern void write_wire(int val, wire_value *w, exec_info *f)
          }
        run_checks(w, f);
      }
+   if (IS_SET(f->user->flags, USER_critical))
+     { f->crit = f->crit->parent; }
  }
 
 extern void update_counter(int dir, counter_value *c, exec_info *f)
@@ -1355,55 +1359,6 @@ extern void add_wire_dep(wire_value *w, exec_info *f)
    llist_prepend(&f->curr->dep, w); /* not refcnt'ed */
  }
 
-
-/********** critical cycles *************************************************/
-
-static crit_node *new_crit_node(crit_node *parent, void *x)
- /* if parent, then x must be action, else x must be wire_value */
- { crit_node *c;
-   action *a = x;
-   NEW(c);
-   c->refcnt = 1;
-   c->parent = parent;
-   if (parent)
-     { c->a = ACTION_WITH_DIR(a);
-       parent->refcnt++;
-     }
-   else
-     { c->a = x; }
-   return c;
- }
-
-static void crit_node_free(crit_node *c)
- /* Pre: c->refcnt == 0 */
- { if (c->parent && !(--c->parent->refcnt))
-     { crit_node_free(c->parent); }
-   free(c);
- }
-
-extern void crit_node_step(action *a, wire_value *w, exec_info *f)
- /* Call this when a change on w has scheduled the production rule a. */
- { crit_node *wc, *ac;
-   hash_entry *q;
-   q = hash_find(f->crit_map, (char*)w);
-   if (q)
-     { wc = q->data.p; }
-   else
-     { wc = new_crit_node(0, w);
-       wc->refcnt = 0;
-     }
-   if (hash_insert(f->crit_map, (char*)a->target.w, &q))
-     { ac = q->data.p;
-       if (!(--ac->refcnt)) crit_node_free(ac);
-     }
-   q->data.p = ac = new_crit_node(wc, a);
-   if ((q = hash_find(&f->delays, ACTION_WITH_DIR(a))))
-     { ac->delay = q->data.i; }
-   else
-     { ac->delay = 100; }
- }
-   
-   
 
 /*****************************************************************************/
 

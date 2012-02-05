@@ -1,0 +1,18 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) --- error ------------------------------
+Error: deadlock
+  1 threads are permanently suspended:
+(susp-perm) /b at crit02.chp[8:20]
+(cmnd?) /a[9]:o down at time 2500
+/a[8]:o down at time 2250
+/a[7]:o down at time 2000
+/a[6]:o down at time 1750
+/a[5]:o down at time 1500
+/a[4]:o down at time 1250
+/a[3]:o down at time 1000
+/a[2]:o down at time 750
+/a[1]:o down at time 500
+/a[0]:o down at time 250
+(cmnd?) 

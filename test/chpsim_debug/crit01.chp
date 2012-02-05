@@ -1,0 +1,13 @@
+//-timed -critical
+//r
+//r
+//critical /a[9]:o
+
+process A()((i; o+))
+prs { ~i -> o- }
+process B()() chp { [false] }
+process main()()
+meta { instance a[0..9] : A; instance b : B;
+       connect a[0].i, false;
+       connect all i : 0..8 : a[i].o, a[i+1].i;
+}

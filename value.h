@@ -422,18 +422,6 @@ extern void clear_wire_expr(wire_expr *e, struct exec_info *f);
 extern void add_wire_dep(wire_value *w, struct exec_info *f);
  /* set up w to reschedule f->curr upon the changing of w's value */
 
-/********** critical cycles *************************************************/
-
-typedef struct crit_node crit_node;
-struct crit_node
-   { int refcnt, delay;
-     void *a; /* if !parent, wire_value, else ACTION_WITH_DIR (see exec.h) */
-     crit_node *parent;
-   };
-
-extern void crit_node_step(action *a, wire_value *w, struct exec_info *f);
- /* Call this when a change on w has scheduled the production rule a. */
-
 /*****************************************************************************/
 
 extern void init_value(int app1, int app2, int app3, int app4, int app5);

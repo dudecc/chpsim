@@ -2389,7 +2389,7 @@ static void eval_array_subrange(array_subrange *x, exec_info *f)
    xval.v.l = xl = new_value_list(hidx - lidx + 1, f);
    for (i = lidx, j = 0; i <= hidx; i++, j++)
      { cp(&xl->vl[j], &l->vl[i], f); }
-   if (!IS_SET(x->flags, EXPR_lvalue))
+   if (!IS_SET(x->x->flags, EXPR_lvalue))
      { clear_value_tp(&xxval, f); }
    push_value(&xval, f);
  }

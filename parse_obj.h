@@ -447,6 +447,12 @@ CLASS(delay_hold)
      expr *n;
    };
 
+CLASS(property_stmt)
+   { PARSE_OBJ;
+     const str *id;
+     expr *node, *v;
+   };
+
 /********** types ************************************************************/
 
 #define TYPE_SPEC_OBJ \
@@ -592,6 +598,11 @@ CLASS(wire_decl)
      type_spec *tps;
    };
 
+CLASS(property_decl)
+   { PARSE_OBJ;
+     const str *id;
+     expr *z; /* TODO: Allow floating point */
+   };
 
 /********** routines *********************************************************/
 
@@ -610,6 +621,11 @@ CLASS_COPY(hse_body, chp_body);
 CLASS_COPY(prs_body, chp_body);
 
 CLASS_COPY(delay_body, chp_body);
+
+CLASS(property_body)
+   { PARSE_OBJ;
+     llist sl; /* statements */
+   };
 
 CLASS_2(function_def) /* also for procedure_def */
    { PARSE_OBJ;
@@ -637,6 +653,7 @@ CLASS_2(process_def)
      hse_body *hb;
      prs_body *pb;
      delay_body *db;
+     property_body *ppb;
    };
 
 /********** modules **********************************************************/

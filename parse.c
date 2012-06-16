@@ -170,6 +170,9 @@ INLINE_STATIC int starts_function_definition(lex_tp *L)
 INLINE_STATIC int starts_procedure_definition(lex_tp *L)
  { return lex_have(L, KW_procedure); }
 
+INLINE_STATIC int starts_property_declaration(lex_tp *L)
+ { return lex_have(L, KW_property); }
+
 INLINE_STATIC int starts_value_parameter(lex_tp *L)
  { return lex_have(L, KW_val) || lex_have(L, KW_const) || lex_have(L, TOK_id); }
 
@@ -200,11 +203,17 @@ INLINE_STATIC int starts_prs_body(lex_tp *L)
 INLINE_STATIC int starts_delay_body(lex_tp *L)
  { return lex_have(L, KW_delay); }
 
+INLINE_STATIC int starts_property_body(lex_tp *L)
+ { return lex_have(L, KW_property); }
+
 INLINE_STATIC int starts_var_declaration(lex_tp *L)
  { return lex_have(L, KW_var) || lex_have(L, KW_volatile); }
 
 INLINE_STATIC int starts_instance_stmt(lex_tp *L)
  { return lex_have(L, KW_instance); }
+
+INLINE_STATIC int starts_property_stmt(lex_tp *L)
+ { return lex_have(L, TOK_id); }
 
 INLINE_STATIC int starts_initializer(lex_tp *L)
  { return lex_have(L, '='); }
@@ -280,7 +289,9 @@ static int starts_definition(lex_tp *L)
  }
 
 static int starts_global_definition(lex_tp *L)
- { return lex_have(L, KW_export) || starts_definition(L); }
+ { return lex_have(L, KW_export) || starts_definition(L)
+          || starts_property_declaration(L);
+ }
 
 static int starts_production_rule(lex_tp *L)
  { return lex_have(L, KW_after) || lex_have(L, KW_atomic) || starts_expr(L); }
@@ -316,6 +327,24 @@ static void *parse_type(lex_tp *L);
 static void *parse_parallel_statement(lex_tp *L);
 static void *parse_definition(lex_tp *L);
 static void *parse_production_rule(lex_tp *L);
+
+static void parse_unknown(token_tp stop_sym, lex_tp *L)
+ /* This allows for a certain amount of extensibility for certain parts of
+    chpsim, allowing unknown future syntax to be parsed and ignored (ideally
+    with a warning.  We only check for balancing of () [] {}, and parse until
+    stop_sym is encountered outside of these groupings.
+  */
+ { while (!lex_have(L, TOK_eof))
+     { if (lex_have_next(L, stop_sym)) return;
+       else if (lex_have_next(L, '(')) parse_unknown(')', L);
+       else if (lex_have_next(L, '[')) parse_unknown(']', L);
+       else if (lex_have_next(L, '{')) parse_unknown('}', L);
+       else if (lex_have_next(L, ')')) lex_error(L, "Unbalanced ()");
+       else if (lex_have_next(L, ']')) lex_error(L, "Unbalanced []");
+       else if (lex_have_next(L, '}')) lex_error(L, "Unbalanced {}");
+     }
+   lex_must_be(L, stop_sym);
+ }
 
 static void *parse_guard_aux(token_tp sym, lex_tp *L)
  /* If this guarded command turns out to be a replicator, we must ensure that
@@ -1248,6 +1277,34 @@ static void *parse_delay_body(lex_tp *L)
    return x;
  }
 
+static void *parse_property_stmt(lex_tp *L)
+ { property_stmt *x;
+   lex_must_be(L, TOK_id);
+   x = new_parse(L, L->prev, 0, property_stmt);
+   x->id = L->prev->t.val.s;
+   lex_must_be(L, '(');
+   x->node = parse_expr(L);
+   lex_must_be(L, ')');
+   lex_must_be(L, SYM_assign);
+   x->v = parse_expr(L);
+   return x;
+ }
+   
+
+static void *parse_property_body(lex_tp *L)
+ { property_body *x;
+   lex_must_be(L, KW_property);
+   x = new_parse(L, L->prev, 0, property_body);
+   lex_must_be(L, '{');
+   while (starts_property_stmt(L))
+     { llist_prepend(&x->sl, parse_property_stmt(L));
+       SEPARATOR(L, ';', starts_property_stmt(L));
+     }
+   lex_must_be(L, '}');
+   llist_reverse(&x->sl);
+   return x;
+ }
+
 static void *parse_wire_decl(lex_tp *L)
  { wire_decl *x;
    lex_must_be(L, TOK_id);
@@ -1436,6 +1493,10 @@ static void *parse_process_definition(lex_tp *L)
        else if (starts_delay_body(L))
          { if (x->db) lex_error(L, "Multiple delay bodies encountered");
            x->db = parse_delay_body(L);
+         }
+       else if (starts_property_body(L))
+         { if (x->ppb) lex_error(L, "Multiple property bodies encountered");
+           x->ppb = parse_property_body(L);
          }
        else break;
      }
@@ -1798,13 +1859,31 @@ static void *parse_definition(lex_tp *L)
    return x;
  }
 
+static void *parse_property_declaration(lex_tp *L)
+ { property_decl *x;
+   lex_must_be(L, KW_property);
+   x = new_parse(L, L->prev, 0, property_decl);
+   lex_must_be(L, TOK_id);
+   x->id = L->prev->t.val.s;
+   if (lex_have_next(L, '='))
+     { x->z = parse_expr(L); }
+   lex_must_be(L, ';');
+   return x;
+ }
+
 static void *parse_global_definition(lex_tp *L)
  { parse_obj *x;
    int export;
    export = lex_have_next(L, KW_export);
-   x = parse_definition(L);
-   if (export)
-     { SET_FLAG(x->flags, DEF_export); }
+   if (starts_property_declaration(L))
+     { parse_property_declaration(L);
+       SET_FLAG(x->flags, DEF_export);
+     }
+   else
+     { x = parse_definition(L);
+       if (export)
+         { SET_FLAG(x->flags, DEF_export); }
+     }
    return x;
  }
 

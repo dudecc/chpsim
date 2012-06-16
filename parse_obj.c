@@ -122,6 +122,7 @@ DEF_CLASS_B(const_wired_connection, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(production_rule, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(transition, statement, 0, 0, OBJ_zero);
 DEF_CLASS_B(delay_hold, statement, 0, 0, OBJ_zero);
+DEF_CLASS_B(property_stmt, statement, 0, 0, OBJ_zero);
 
 
 /********** types ************************************************************/
@@ -150,6 +151,7 @@ DEF_CLASS_B(var_decl, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(parameter, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(meta_parameter, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(wire_decl, parse_obj, 0, 0, OBJ_zero);
+DEF_CLASS_B(property_decl, parse_obj, 0, 0, OBJ_zero);
 
 
 /********** routines *********************************************************/
@@ -159,6 +161,7 @@ DEF_CLASS_B(meta_body, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(hse_body, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(prs_body, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(delay_body, parse_obj, 0, 0, OBJ_zero);
+DEF_CLASS_B(property_body, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(function_def, parse_obj, 0, 0, OBJ_zero);
 DEF_CLASS_B(process_def, parse_obj, 0, 0, OBJ_zero);
 

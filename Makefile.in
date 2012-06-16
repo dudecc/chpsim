@@ -54,7 +54,8 @@ am_chpconv_OBJECTS = chpconv.$(OBJEXT) builtin_io.$(OBJEXT) \
 	ifrchk.$(OBJEXT) lex.$(OBJEXT) modules.$(OBJEXT) \
 	parse.$(OBJEXT) parse_obj.$(OBJEXT) print.$(OBJEXT) \
 	routines.$(OBJEXT) sem_analysis.$(OBJEXT) statement.$(OBJEXT) \
-	types.$(OBJEXT) value.$(OBJEXT) variables.$(OBJEXT)
+	types.$(OBJEXT) value.$(OBJEXT) properties.$(OBJEXT) \
+	variables.$(OBJEXT)
 chpconv_OBJECTS = $(am_chpconv_OBJECTS)
 chpconv_LDADD = $(LDADD)
 chpconv_DEPENDENCIES = $(CLIBDIR)/libalways.a
@@ -63,7 +64,8 @@ am_chpsim_OBJECTS = chpsim.$(OBJEXT) builtin_io.$(OBJEXT) \
 	ifrchk.$(OBJEXT) lex.$(OBJEXT) modules.$(OBJEXT) \
 	parse.$(OBJEXT) parse_obj.$(OBJEXT) print.$(OBJEXT) \
 	routines.$(OBJEXT) sem_analysis.$(OBJEXT) statement.$(OBJEXT) \
-	types.$(OBJEXT) value.$(OBJEXT) variables.$(OBJEXT)
+	types.$(OBJEXT) value.$(OBJEXT) variables.$(OBJEXT) \
+	properties.$(OBJEXT)
 chpsim_OBJECTS = $(am_chpsim_OBJECTS)
 chpsim_LDADD = $(LDADD)
 chpsim_DEPENDENCIES = $(CLIBDIR)/libalways.a
@@ -205,6 +207,7 @@ LDADD = $(CLIBDIR)/libalways.a -lreadline -lgmp -lm
 chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c ifrchk.c \
                  lex.c modules.c parse.c parse_obj.c print.c routines.c \
                  sem_analysis.c statement.c types.c value.c variables.c \
+                 properties.c properties.h \
                  lex.h parse_obj.h print.h value.h ifrchk.h builtin_io.h chp.h \
                  exec.h expr.h modules.h parse.h routines.h interact.h \
                  sem_analysis.h statement.h types.h variables.h \
@@ -213,6 +216,7 @@ chpsim_SOURCES = chpsim.c builtin_io.c chp.c exec.c expr.c interact.c ifrchk.c \
 chpconv_SOURCES = chpconv.c builtin_io.c chp.c exec.c expr.c interact.c \
                   ifrchk.c lex.c modules.c parse.c parse_obj.c print.c \
                   routines.c sem_analysis.c statement.c types.c value.c \
+                  properties.c properties.h \
                   variables.c lex.h parse_obj.h print.h value.h ifrchk.h \
                   builtin_io.h chp.h exec.h expr.h modules.h parse.h routines.h \
                   interact.h sem_analysis.h statement.h types.h variables.h \
@@ -325,6 +329,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parse_obj.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/print.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/properties.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/routines.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sem_analysis.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statement.Po@am__quote@

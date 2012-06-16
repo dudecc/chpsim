@@ -1,4 +1,4 @@
-/* symbol.def: multi-character symbols and keywords
+/* properties.h: properties
  * 
  * COPYRIGHT 2010. California Institute of Technology
  * 
@@ -44,83 +44,25 @@
  * You should have received a copy of the GNU General Public License
  * along with chpsim.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Authors: Marcel van der Goot and Chris Moore
+ * Authors: Chris Moore
  */
-#ifndef SYM
-#define SYM(M, S)
-#endif
-#ifndef KW
-#define KW(M)
-#endif
 
-/* Important: If one symbol is a prefix of another, the longer one
-	      must be listed first.
-*/
-SYM(assign, ":=")
-SYM(arrow, "->")
-SYM(varargs, "...")
-SYM(dots, "..")
-SYM(loop, "*[")
-SYM(bar, "[]")
-SYM(arb, "[:]")
-SYM(concat, "++")
-SYM(neq, "!=")
-SYM(lte, "<=")
-SYM(gte, ">=")
-SYM(peek, "#?")
-SYM(equiv, "==")
-SYM(keep, "?#")
-SYM(andand, "&&")
-SYM(oror, "||")
-SYM(comment_close, "*/")
-SYM(rep, "<<")
-SYM(rep_end, ">>")
+#include "properties.h"
+#include <hash.h>
+#include <llist.h>
+#include <string_table.h>
 
-/* keywords must be in lower-case, and satisfy the rules for identifiers.
-   Note: lex.c:scan_id_kw() assumes that keywords consist of letters only.
-	 If you add a keyword with an underscore or digit, please modify
-	 that function.
-*/
-KW(after)
-KW(all)
-KW(atomic)
-KW(array)
-KW(bool)
-KW(builtin)
-KW(chp)
-KW(connect)
-KW(const)
-KW(counter)
-KW(default)
-KW(delay)
-KW(export)
-KW(external)
-KW(false)
-KW(field)
-KW(function)
-KW(hse)
-KW(instance)
-KW(int)
-KW(meta)
-KW(mod)
-KW(of)
-KW(procedure)
-KW(process)
-KW(property)
-KW(prs)
-KW(record)
-KW(requires)
-KW(res)
-KW(skip)
-KW(symbol)
-KW(type)
-KW(true)
-KW(union)
-KW(val)
-KW(valres)
-KW(var)
-KW(volatile)
-KW(xor)
+//extern void declare_property(const str *id, long z, property_info *f);
+/* Add the property named id to the list of declared properties.  The initial
+ * value for the property is z.
+ */
 
-#undef SYM
-#undef KW
+//extern void add_property(const str *id, void *node, long x, property_info *f);
+/* Add x to the value of the property for the given node. */
+
+//extern long get_property(const str *id, void *node, property_info *f);
+/* Return value of the property for the given node. */
+
+//extern llist list_properties(property_info *f);
+/* Return a list of all declared nodes */
+

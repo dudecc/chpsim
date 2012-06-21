@@ -209,6 +209,7 @@ struct exec_info
      struct user_info *user; /* for user interaction */
      int nr_susp; /* number of suspended processes */
      hash_table delays; /* stores custom delay information */
+     struct property_info *prop; /* stores properties */
      hash_table *crit_map; /* used for tracking critical cycles */
      struct crit_node *crit; /* also used for tracking critical cycles */
      long ecount; /* Used for energy estimates */

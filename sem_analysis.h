@@ -73,6 +73,7 @@ FLAGS(sem_flags)
      NEXT_FLAG(SEM_meta), /* in meta body */
      NEXT_FLAG(SEM_meta_binding), /* in meta binding */
      NEXT_FLAG(SEM_connect), /* in connect stmt */
+     NEXT_FLAG(SEM_prop), /* set when property references are allowed */
      NEXT_FLAG(SEM_debug), /* parsing from the debug prompt */
      SEM_body = SEM_prs | SEM_delay | SEM_meta /* all body types */
    };

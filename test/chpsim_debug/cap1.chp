@@ -1,0 +1,13 @@
+//r
+//v /a
+//p capacitance(o)
+//p capacitance(i)
+
+property capacitance;
+
+process buff()((i; o-))
+prs { ~i -> o+ }
+property { capacitance(i) := 5; capacitance(o) := 3 }
+
+process main()()
+meta { instance a : buff; connect a.i, a.o; }

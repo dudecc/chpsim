@@ -288,6 +288,12 @@ static void print_type_expr(type_expr *x, print_info *f)
    print_char('>', f);
  }
 
+static void print_property_ref(property_ref *x, print_info *f)
+ { f->pos += var_str_printf(f->s, f->pos, "%s(", x->id);
+   print_obj(x->node, f);
+   print_char(')', f);
+ }
+
 
 /********** semantic analysis ************************************************/
 
@@ -811,6 +817,7 @@ static void *sem_call(call *x, sem_info *f)
    expr *a;
    llist ma, mp;
    meta_binding *y;
+   property_ref *pp;
    token_expr *te;
    x->d = d = find_id(f, x->id, x);
    if (d->class == CLASS_instance_stmt)
@@ -824,7 +831,29 @@ static void *sem_call(call *x, sem_info *f)
        SET_FLAG(y->flags, DEF_forward);
        return sem(y, f);
      }
-   if (d->class == CLASS_process_def)
+   else if (d->class == CLASS_property_decl)
+     { if (!IS_SET(f->flags, SEM_prop | SEM_debug))
+         { sem_error(f, x, "Property reference cannot appear here"); }
+       if (llist_size(&x->a) != 1)
+         { sem_error(f, x, "Property reference requires one target"); }
+       pp = new_parse(f->L, 0, x, property_ref);
+       pp->id = x->id;
+       a = llist_idx_extract(&x->a, 0);
+       if (!IS_SET(f->flags, SEM_prs))
+         { SET_FLAG(f->flags, SEM_prs);
+           pp->node = a = sem(a, f);
+           RESET_FLAG(f->flags, SEM_prs);
+         }
+       else
+         { pp->node = a = sem(a, f); }
+       if (!IS_SET(a->flags, EXPR_wire) || a->tp.kind != TP_bool)
+         { sem_error(f, x, "Property target is not a wire"); }
+       pp->tp.kind = TP_int;
+       pp->flags = EXPR_cparam; /* Constant, but shouldn't be a const_expr */
+       sem_free_obj(f, x);
+       return pp;
+     }
+   else if (d->class == CLASS_process_def)
      { sem_error(f, x, "%s is a process, not a process instance", x->id); }
    else if (d->class != CLASS_function_def)
      { sem_error(f, x, "%s is not a function/procedure", x->id); }
@@ -3237,6 +3266,17 @@ static void eval_type_expr(type_expr *x, exec_info *f)
    push_value(&v, f);
  }
 
+static void eval_property_ref(property_ref *x, exec_info *f)
+ { value_tp v, node;
+   eval_expr(x->node, f);
+   pop_value(&node, f);
+   assert(node.rep == REP_wire);
+   v.rep = REP_int;
+   v.v.i = get_property(x->id, node.v.w, f->prop);
+   clear_value_tp(&node, f);
+   push_value(&v, f);
+ }
+
 /*****************************************************************************/
 
 extern void init_expr(void)
@@ -3266,6 +3306,7 @@ extern void init_expr(void)
    set_print(const_expr);
    set_print(implicit_array);
    set_print(type_expr);
+   set_print(property_ref);
    set_sem(rep_expr);
    set_sem(binary_expr);
    set_sem(prefix_expr);
@@ -3323,4 +3364,5 @@ extern void init_expr(void)
    set_eval(const_expr);
    set_eval(implicit_array);
    set_eval(type_expr);
+   set_eval(property_ref);
  }

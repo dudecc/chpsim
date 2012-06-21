@@ -60,6 +60,7 @@
 #include "statement.h"
 #include "variables.h"
 #include "types.h"
+#include "properties.h"
 
 /********** reading source ***************************************************/
 
@@ -147,6 +148,8 @@ extern exec_info *prepare_exec(user_info *U, process_def *dp)
      { NEW(f->crit_map);
        hash_table_init(f->crit_map, 1, HASH_ptr_is_key, 0);
      }
+   NEW(f->prop);
+   init_property_info(f->prop);
    ps = new_process_state(f, make_str("/"));
    ps->p = dp;
    ps->nr_meta = dp->nr_meta;

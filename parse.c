@@ -1876,7 +1876,7 @@ static void *parse_global_definition(lex_tp *L)
    int export;
    export = lex_have_next(L, KW_export);
    if (starts_property_declaration(L))
-     { parse_property_declaration(L);
+     { x = parse_property_declaration(L);
        SET_FLAG(x->flags, DEF_export);
      }
    else

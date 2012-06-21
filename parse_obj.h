@@ -326,6 +326,11 @@ CLASS(type_expr) /* type that is passed as a meta parameter */
      type_spec *tps;
    };
 
+CLASS(property_ref) /* Initially parsed as a call */
+   { EXPR_OBJ;
+     const str *id;
+     expr *node;
+   };
 
 /********** statements *******************************************************/
 
@@ -624,7 +629,7 @@ CLASS_COPY(delay_body, chp_body);
 
 CLASS(property_body)
    { PARSE_OBJ;
-     llist sl; /* statements */
+     llist sl; /* property statements */
    };
 
 CLASS_2(function_def) /* also for procedure_def */

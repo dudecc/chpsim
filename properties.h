@@ -56,8 +56,15 @@
 
 typedef struct property_info property_info;
 struct property_info
-   { hash_table h;
+   { hash_table h; /* Maps {str*, void*} to long integers
+                      {property, 0} contains initial values and must be set
+                                    for all declared properties
+                    */
+     llist pl; /* List of all valid properties */
    };
+
+extern void init_property_info(property_info *f);
+ /* Initialize the structures in f */
 
 extern void declare_property(const str *id, long z, property_info *f);
 /* Add the property named id to the list of declared properties.  The initial
@@ -69,8 +76,5 @@ extern void add_property(const str *id, void *node, long x, property_info *f);
 
 extern long get_property(const str *id, void *node, property_info *f);
 /* Return value of the property for the given node. */
-
-extern llist list_properties(property_info *f);
-/* Return a list of all declared nodes */
 
 #endif /* PROPERTIES_H */

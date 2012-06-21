@@ -97,6 +97,7 @@ DEF_CLASS_B(meta_ref, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(implicit_array, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(wire_ref, expr, 0, 0, OBJ_zero);
 DEF_CLASS_B(type_expr, expr, 0, 0, OBJ_zero);
+DEF_CLASS_B(property_ref, expr, 0, 0, OBJ_zero);
 
 
 /********** statements *******************************************************/

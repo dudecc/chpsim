@@ -224,6 +224,14 @@ static void print_delay_hold(delay_hold *x, print_info *f)
    print_char('}', f);
  }
 
+static void print_property_stmt(property_stmt *x, print_info *f)
+ { print_string(x->id, f);
+   print_char('(', f);
+   print_obj(x->node, f);
+   print_string(") = ", f);
+   print_obj(x->v, f);
+ }
+
 /********** semantic analysis ************************************************/
 
 /* llist_func_p */
@@ -577,7 +585,9 @@ static void *sem_production_rule(production_rule *x, sem_info *f)
    else if (x->v->tp.kind != TP_bool)
      { sem_error(f, x, "Target of rule is not a boolean variable"); }
    if (x->delay)
-     { x->delay = sem(x->delay, f);
+     { SET_FLAG(f->flags, SEM_prop);
+       x->delay = sem(x->delay, f);
+       RESET_FLAG(f->flags, SEM_prop);
        if (x->delay->tp.kind != TP_int)
          { sem_error(f, x, "Production rule delay is not an integer"); }
        if (IS_SET(x->delay->flags, EXPR_unconst))
@@ -611,6 +621,22 @@ static void *sem_delay_hold(delay_hold *x, sem_info *f)
        if (IS_SET(x->n->flags, EXPR_unconst))
          { sem_error(f, x, "Delay hold threshold is not constant"); }
      }
+   return x;
+ }
+
+static void *sem_property_stmt(property_stmt *x, sem_info *f)
+ { if (!IS_SET(x->flags, DEF_forward))
+     { SET_FLAG(x->flags, DEF_forward);
+       return x;
+     }
+   x->node = sem(x->node, f);
+   if (!IS_SET(x->node->flags, EXPR_wire) || x->node->tp.kind != TP_bool)
+     { sem_error(f, x, "Property target is not a wire"); }
+   x->v = sem(x->v, f);
+   if (IS_SET(x->v->flags, EXPR_unconst))
+     { sem_error(f, x, "Property value is not constant"); }
+   if (x->v->tp.kind != TP_int)
+     { sem_error(f, x, "Property value is not an integer"); }
    return x;
  }
 
@@ -1964,6 +1990,22 @@ static int exec_delay_hold(delay_hold *x, exec_info *f)
        llist_prepend(&c->dep, e);
        m = llist_alias_tail(&m);
      }
+   return EXEC_next;
+ }
+
+static int exec_property_stmt(property_stmt *x, exec_info *f)
+ { value_tp node, v;
+   eval_expr(x->node, f);
+   pop_value(&node, f);
+   assert(node.rep == REP_wire);
+   eval_expr(x->v, f);
+   pop_value(&v, f);
+   if (v.rep == REP_z)
+     { exec_error(f, x, "Property value %v is too large", vstr_val, &v); }
+   assert(v.rep == REP_int);
+   add_property(x->id, node.v.w, v.v.i, f->prop);
+   clear_value_tp(&node, f);
+   return EXEC_next;
  }
 
 /********** breakpoints ******************************************************/
@@ -2060,6 +2102,7 @@ extern void init_statement(void)
    set_print(production_rule);
    set_print(transition);
    set_print(delay_hold);
+   set_print(property_stmt);
    set_sem(parallel_stmt);
    set_sem(compound_stmt);
    set_sem(rep_stmt);
@@ -2077,6 +2120,7 @@ extern void init_statement(void)
    set_sem(production_rule);
    set_sem(transition);
    set_sem(delay_hold);
+   set_sem(property_stmt);
    set_exec(parallel_stmt);
    set_pop(parallel_stmt);
    set_exec(compound_stmt);
@@ -2096,6 +2140,7 @@ extern void init_statement(void)
    set_exec(instance_stmt);
    set_exec(production_rule);
    set_exec(delay_hold);
+   set_exec(property_stmt);
    set_brk(parallel_stmt);
    set_brk(compound_stmt);
    set_brk(rep_stmt);

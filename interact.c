@@ -167,6 +167,7 @@ static void eval_interact(value_tp *v, expr *e, ctrl_state *cs, user_info *f)
      { exec_info_init(&g, f->global);
        g.curr = cs;
        g.meta_ps = cs->ps;
+       g.prop = f->global->prop; /* Allow evaluation of properties */
        SET_FLAG(f->flags, USER_debug);
        eval_expr(e, &g);
        pop_value(v, &g);

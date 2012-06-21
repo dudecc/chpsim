@@ -56,7 +56,7 @@ typedef struct hash_entry hash_entry;
 struct hash_entry
    { char *key;
      hash_entry *tail;
-     union { int i;
+     union { long i;
 	     void *p;
 	   } data;
    };

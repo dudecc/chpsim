@@ -636,11 +636,45 @@ extern void exec_run(exec_info *f)
      }
  }
 
+static void _remove_forwards(value_tp *v, exec_info *f)
+ { long i;
+   if (v->rep == REP_record || v->rep == REP_array)
+     { for (i = 0; i < v->v.l->size; i++)
+         { _remove_forwards(&v->v.l->vl[i], f); }
+     }
+   else if (v->rep == REP_union)
+     { _remove_forwards(&v->v.u->v, f); }
+   else if (v->rep == REP_wire)
+     { wire_fix(&v->v.w, f); }
+ }
+
+static int remove_forwards(ctrl_state *s, exec_info *f)
+ /* Put all wires of s into a canonical format by removing wire forwarding */
+ { long i;	
+   for (i = 0; i < s->nr_var; i++)
+     { _remove_forwards(&s->var[i], f); }
+   return 0;
+ }
+
+static int run_properties(ctrl_state *s, exec_info *f)
+ /* If s has an attached property body, execute it.
+    Wire forwards must be removed for this to work correctly.
+  */ 
+ { if (s->ps->p->ppb)
+     { f->curr = s;
+       f->meta_ps = s->ps;
+       exec_immediate(&s->ps->p->ppb->sl, f);
+     }
+   return 0;
+ }
+
 extern void prepare_chp(exec_info *f)
  /* Prepare chp execution phase */
  { ctrl_state *s;
    mpz_set_ui(f->time, 1);
    RESET_FLAG(f->flags, EXEC_instantiation);
+   llist_apply(&f->chp, (llist_func*)remove_forwards, f);
+   llist_apply(&f->chp, (llist_func*)run_properties, f);
    while (!llist_is_empty(&f->chp))
      { s = llist_idx_extract(&f->chp, 0);
        f->curr = s;

@@ -88,6 +88,16 @@ static void print_chp_body(chp_body *x, print_info *f)
    print_string("\n }\n", f);
  }
 
+static void print_property_body(property_body *x, print_info *f)
+ { if (IS_SET(f->flags, PR_short))
+     { print_string("PROPERTY { ... }", f); }
+   else
+     { print_string("PROPERTY\n { ", f);
+       print_obj_list(&x->sl, f, ";\n   ");
+       print_string("\n }\n", f);
+     }
+ }
+
 static void print_function_def(function_def *x, print_info *f)
  { if (x->ret)
      { f->pos += var_str_printf(f->s, f->pos, "function %s(", x->id); }
@@ -193,6 +203,15 @@ static void *sem_chp_body(chp_body *x, sem_info *f)
    return x;
  }
 
+static void *sem_property_body(property_body *x, sem_info *f)
+ { sem_flags flags = f->flags;
+   ASSIGN_FLAG(f->flags, SEM_prs, SEM_body);
+   sem_list(&x->sl, f);
+   SET_FLAG(x->flags, DEF_forward);
+   f->flags = flags;
+   return x;
+ }
+
 static void *sem_process_body(process_def *x, void *b, sem_info *f)
 /* Just a helper function for sem_process_def */
  { chp_body *cb = b;
@@ -227,6 +246,8 @@ static void *sem_process_def(process_def *x, sem_info *f)
        if (x->hb) x->hb = sem_process_body(x, x->hb, f);
        if (x->pb) x->pb = sem_process_body(x, x->pb, f);
        if (x->db) x->db = sem_process_body(x, x->db, f);
+       if (x->ppb) /* No declarations - No extra scope level; */
+         { x->ppb = sem(x->ppb, f); x->ppb = sem(x->ppb, f); }
      }
    else
      { sem_list(&x->ml, f);
@@ -540,15 +561,6 @@ static int exec_process_def(process_def *x, exec_info *f)
    chp_body *b; /* or meta_body, ... */
    assert(f->curr->ps->nr_thread == 1);
    b = f->curr->ps->b;
-   if (!IS_SET(f->flags, EXEC_instantiation))
-     { l = x->pl; /* Run checks again to remove wire forwards */
-       while (!llist_is_empty(&l))
-         { d = llist_head(&l);
-           VAR_STR_X(&f->scratch, 0) = 0;
-           check_new_ports(&f->curr->var[d->var_idx], &d->tp, f);
-           l = llist_alias_tail(&l);
-         }
-     }
    assert(b);
    exec_immediate(&b->dl, f);
    if (b == x->pb)
@@ -929,6 +941,7 @@ extern void init_routines(void)
    set_print_cp(meta_body, chp_body);
    set_print_cp(hse_body, chp_body);
    set_print_cp(prs_body, chp_body);
+   set_print(property_body);
    set_print(function_def);
    set_print(process_def);
    set_sem(function_def);
@@ -938,6 +951,7 @@ extern void init_routines(void)
    set_sem_cp(hse_body, chp_body);
    set_sem_cp(prs_body, chp_body);
    set_sem_cp(delay_body, chp_body);
+   set_sem(property_body);
    set_sem(process_def);
    set_import(function_def);
    set_import(process_def);

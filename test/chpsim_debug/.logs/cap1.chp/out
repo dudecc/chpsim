@@ -1,0 +1,8 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) --- CHP execution ----------------------
+(cmnd?) (view) /a at cap1.chp[8:0]
+	process buff()(i; ...)
+(cmnd?)   capacitance(o) = 8
+(cmnd?)   capacitance(i) = 8
+(cmnd?) --- done -------------------------------

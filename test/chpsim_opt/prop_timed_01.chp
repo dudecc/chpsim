@@ -1,0 +1,50 @@
+//-timed
+requires "channel.chp";
+
+const N = 20;
+property cap = 1;
+
+process celem()((i0, i1; o-))
+prs {
+  var o_+;
+  after (80)  i0 &  i1 -> o_-
+  after (80) ~i0 & ~i1 -> o_+
+  after (30 + 20 * cap(o))  o_ -> o-
+  after (40 + 25 * cap(o)) ~o_ -> o+
+}
+property {
+  cap(i0) := 10;
+  cap(i1) := 10;
+}
+
+process nor2()((i0, i1; o-))
+prs {
+  after (30 + 20 * cap(o))  i0 |  i1 -> o-
+  after (50 + 30 * cap(o)) ~i0 & ~i1 -> o+
+}
+property {
+  cap(i1) := 5;
+  cap(i0) := 5
+}
+
+process B()(I?,O!:(e-;d[0..1]-))
+meta {
+  instance x[0..1] : celem;
+  instance e : nor2;
+
+  connect all i : 0..1 : x[i].i0, O.e;
+  connect all i : 0..1 : x[i].i1, I.d[i];
+  connect all i : 0..1 : x[i].o, O.d[i];
+  connect O.d[0], e.i0;
+  connect O.d[1], e.i1;
+  connect         e.o, I.e;
+}
+
+process A()(O!:bit)
+chp { <<; i : 0..N : O!random(2)[0] >> }
+process C()(I?:bit)
+chp { var t : int; I; t:=time(); <<; i : 1..N : I >>; t:=time()-t; print(t) }
+process main()()
+meta { instance a : A; instance b : B; instance c : C;
+       connect a.O.wire, b.I; connect b.O, c.I.wire
+}

@@ -171,6 +171,15 @@ static void print_meta_parameter(meta_parameter *x, print_info *f)
    print_obj(x->tps, f);
  }
 
+static void print_property_decl(property_decl *x, print_info *f)
+ { f->pos += var_str_printf(f->s, f->pos, "property %s", x->id);
+   if (x->z)
+     { print_string(" = ", f);
+       print_obj(x->z, f);
+     }
+   print_char(';', f);
+ }
+
 
 /*****************************************************************************/
 
@@ -299,6 +308,21 @@ static void *sem_meta_parameter(meta_parameter *x, sem_info *f)
    x->tp = x->tps->tp;
    if (x->tp.kind == TP_type) SET_FLAG(x->flags, EXPR_generic);
    SET_IF_SET(x->flags, x->tp.tps->flags, EXPR_generic);
+   return x;
+ }
+
+static void *sem_property_decl(property_decl *x, sem_info *f)
+ { declare_id(f, x->id, x);
+   if (IS_SET(x->flags, DEF_forward)) return x;
+   SET_FLAG(x->flags, DEF_forward);
+   if (x->z)
+     { x->z = sem(x->z, f);
+       if (IS_SET(x->z->flags, EXPR_unconst))
+         { sem_error(f, x->z, "Initializer is not constant."); }
+       if (x->z->tp.kind != TP_int)
+         { sem_error(f, x->z, "Initializer is not an integer."); }
+       x->z = mk_const_expr(x->z, f);
+     }
    return x;
  }
 
@@ -435,6 +459,21 @@ static int exec_const_def(const_def *x, exec_info *f)
    return EXEC_next;
  }
 
+static int exec_property_decl(property_decl *x, exec_info *f)
+ { value_tp zval;
+   if (x->z)
+     { eval_expr(x->z, f);
+       pop_value(&zval, f);
+       if (zval.rep == REP_z)
+         { exec_error(f, x, "Initial value %v is too large", vstr_val, &zval); }
+       declare_property(x->id, zval.v.i, f->prop);
+     }
+   else
+     { declare_property(x->id, 0, f->prop); }
+   /* TODO: Check for multiple declarations with different values of z */
+   return EXEC_next;
+ }
+
 
 /*****************************************************************************/
 
@@ -445,13 +484,16 @@ extern void init_variables(void)
    set_print(parameter);
    set_print(wire_decl);
    set_print(meta_parameter);
+   set_print(property_decl);
    set_sem(const_def);
    set_import(const_def);
    set_sem(var_decl);
    set_sem(parameter);
    set_sem(wire_decl);
    set_sem(meta_parameter);
+   set_sem(property_decl);
    set_exec(var_decl);
    set_exec(const_def);
+   set_exec(property_decl);
  }
 

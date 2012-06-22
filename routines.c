@@ -803,11 +803,12 @@ static void exec_builtin_random(function_def *x, exec_info *f)
    if (xval->rep == REP_int)
      { if (xval->v.i <= 0)
          { exec_error(f, x, "random() requires a positive integer argument"); }
-       mask = 1;
-       while (mask < xval->v.i) mask = mask << 1;
+       mask = 1; size = 0;
+       while (mask < xval->v.i)
+         { mask = mask << 1; size++; }
        mask--;
        do { rand = 0;
-            for (i = 0; i < sizeof(long) / 4; i++)
+            for (i = 0; i <= size / 32; i++)
               { if (i > 0) rand = rand << 32;
                 rand |= lrand48();
               }

@@ -1,9 +1,15 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) /b at unwatch.chp[10:0]
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /b
+(view) /b at unwatch.chp[10:0]
 	process B()(I?: (e-; d[0..1]-); ...)
-(cmnd?) (cmnd?) (cmnd?) (cmnd?) (watch) /b:O.d[1] up at time 206984
+(cmnd?) watch O.d[0]
+(cmnd?) watch O.d[1]
+(cmnd?) clear watch O.d[0]
+(cmnd?) r
+(watch) /b:O.d[1] up at time 206984
 (watch) /b:O.d[1] down at time 220225
 (watch) /b:O.d[1] up at time 409942
 (watch) /b:O.d[1] down at time 486581

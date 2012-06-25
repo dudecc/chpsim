@@ -1,23 +1,32 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?)   /b[2] is an instance of hide_03.chp[24:0] B
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) p /b[2]
+  /b[2] is an instance of hide_03.chp[24:0] B
   I --> /a:O.d[2]
 (active) /b[2] at hide_03.chp[25:6]
-(cmnd?) (view) /b[2] at hide_03.chp[25:6]
+(cmnd?) v /b[2]
+(view) /b[2] at hide_03.chp[25:6]
 	[#{I : I = 0}]
-(cmnd?)   I = port --> /a:O.d[2], # = false
-(cmnd?)   /a is an instance of hide_03.chp[21:0] A
+(cmnd?) p I
+  I = port --> /a:O.d[2], # = false
+(cmnd?) p /a
+  /a is an instance of hide_03.chp[21:0] A
   O.d[0] --> /b[0]:I
   O.d[1] --> /b[1]:I
   O.d[2] --> /b[2]:I
   O.d[3] --> /b[3]:I
 (active) /a at hide_03.chp[22:6]
-(cmnd?) (view) /a at hide_03.chp[22:6]
+(cmnd?) v /a
+(view) /a at hide_03.chp[22:6]
 	O!0
-(cmnd?)   O = port decomposed through field d
-(cmnd?)   O.d = [port --> /b[0]:I, # = false, port --> /b[1]:I, # = false, port --> /b[2]:I, # = false, port --> /b[3]:I, # = false]
-(cmnd?) --- error ------------------------------
+(cmnd?) p O
+  O = port decomposed through field d
+(cmnd?) p O.d
+  O.d = [port --> /b[0]:I, # = false, port --> /b[1]:I, # = false, port --> /b[2]:I, # = false, port --> /b[3]:I, # = false]
+(cmnd?) 
+--- error ------------------------------
 Error: deadlock
 (cmnd?) --- continuing in batch mode -----------
 (cmnd) where

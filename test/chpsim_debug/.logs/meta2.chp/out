@@ -1,6 +1,8 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?)   Expected 1 parameters, found only 0
-(cmnd?)   Main process has unknown meta parameters (use 'meta' command)
+(cmnd?) meta
+  Expected 1 parameters, found only 0
+(cmnd?) 
+  Main process has unknown meta parameters (use 'meta' command)
 (cmnd?) --- continuing in batch mode -----------
   Main process has unknown meta parameters (use 'meta' command)

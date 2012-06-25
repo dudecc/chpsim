@@ -1,13 +1,17 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?)   /a is an instance of pterm1.chp[20:0] AA
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) p /a
+  /a is an instance of pterm1.chp[20:0] AA
   O.a --> /b/b:Ia
   O.b --> /b/b:Ib
   Process instance /a has terminated
-(cmnd?)   /b is an instance of pterm1.chp[35:0] BB
+(cmnd?) p /b
+  /b is an instance of pterm1.chp[35:0] BB
   I.a --> /b/b:Ia
   I.b --> /b/b:Ib
   Process instance /b has terminated
-(cmnd?) /b/b> done
+(cmnd?) 
+/b/b> done
 --- done -------------------------------

@@ -1,15 +1,21 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) --- error ------------------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) r
+--- error ------------------------------
 Error: deadlock
-(cmnd?)   /b is an instance of disconn01.chp[9:0] B
+(cmnd?) p /b
+  /b is an instance of disconn01.chp[9:0] B
   O --> /a:I
 (suspended) /b at disconn01.chp[9:28]
-(cmnd?) (view) /b at disconn01.chp[9:28]
+(cmnd?) v /b
+(view) /b at disconn01.chp[9:28]
 	O!0
-(cmnd?)   O = port --> /a:I, # = false
-(cmnd?)   /a is an instance of disconn01.chp[8:0] A
+(cmnd?) p O
+  O = port --> /a:I, # = false
+(cmnd?) p /a
+  /a is an instance of disconn01.chp[8:0] A
   I --> /b:O
   Process instance /a has terminated
 (cmnd?) 

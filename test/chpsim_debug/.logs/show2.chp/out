@@ -1,7 +1,10 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) --- error ------------------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) print print
+--- error ------------------------------
 Error: / at (interaction)[2:6]
 	Cannot evaluate procedure print
-(cmnd?) --- done -------------------------------
+(cmnd?) 
+--- done -------------------------------

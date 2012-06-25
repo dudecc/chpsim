@@ -1,8 +1,10 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- error ------------------------------
+(cmnd?) r
+--- error ------------------------------
 Error: deadlock
   1 threads are permanently suspended:
 (susp-perm) / at deadlock01.chp[4:41]
-(cmnd?)   x = 5
+(cmnd?) p x
+  x = 5
 (cmnd?) 

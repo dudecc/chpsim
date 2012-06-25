@@ -1,22 +1,35 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) / at var1.chp[17:0]
+(cmnd?) step
+--- CHP execution ----------------------
+(cmnd?) view /
+(view) / at var1.chp[17:0]
 	process main()()
-(cmnd?)   x = ?
-(cmnd?) (step) / at var1.chp[18:20]
+(cmnd?) print x
+  x = ?
+(cmnd?) step
+(step) / at var1.chp[18:20]
 	x := 5
-(cmnd?) (view) / at var1.chp[18:20]
+(cmnd?) view /
+(view) / at var1.chp[18:20]
 	x := 5
-(cmnd?)   x = ?
-(cmnd?) (step) / at var1.chp[18:28]
+(cmnd?) print x
+  x = ?
+(cmnd?) step
+(step) / at var1.chp[18:28]
 	x := 0
-(cmnd?) (view) / at var1.chp[18:28]
+(cmnd?) view /
+(view) / at var1.chp[18:28]
 	x := 0
-(cmnd?)   x = 5
-(cmnd?) (step) / at var1.chp[18:35]
+(cmnd?) print x
+  x = 5
+(cmnd?) step
+(step) / at var1.chp[18:35]
 	}
-(cmnd?) (view) / at var1.chp[18:35]
+(cmnd?) view /
+(view) / at var1.chp[18:35]
 	}
-(cmnd?)   x = 0
-(cmnd?) --- done -------------------------------
+(cmnd?) print x
+  x = 0
+(cmnd?) step
+--- done -------------------------------

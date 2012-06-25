@@ -1,7 +1,11 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) /a at constwire01.chp[6:6]
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /a
+(view) /a at constwire01.chp[6:6]
 	I.e+
-(cmnd?)   Wire is connected to rail 'false'
-(cmnd?) --- done -------------------------------
+(cmnd?) fanin I.d[1]
+  Wire is connected to rail 'false'
+(cmnd?) 
+--- done -------------------------------

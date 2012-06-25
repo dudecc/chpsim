@@ -1,14 +1,19 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) --- error ------------------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) r
+--- error ------------------------------
 Error: deadlock
-(cmnd?) (view) /b at prs_09.chp[11:0]
+(cmnd?) v /b
+(view) /b at prs_09.chp[11:0]
 	process B()(I?: (e-; d[0..1]-); ...)
-(cmnd?) 2 fanouts:
+(cmnd?) fanout Ov
+2 fanouts:
 Ov -> I.e-
 ~Ov -> I.e+
-(cmnd?) 4 fanouts:
+(cmnd?) fanout O_[0]
+4 fanouts:
 O_[0] -> O.d[0]-
 ~O_[0] -> O.d[0]+
 (O_[0] & ...) -> Ov-

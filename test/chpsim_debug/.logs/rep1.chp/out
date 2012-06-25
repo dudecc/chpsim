@@ -1,9 +1,12 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- error ------------------------------
+(cmnd?) run
+--- error ------------------------------
 Error: / at rep1.chp[5:61]
 	Index [i] = 2 is outside of range [0..1]
-(cmnd?) (view) / at rep1.chp[5:59]
+(cmnd?) view
+(view) / at rep1.chp[5:59]
 	x[i]+
-(cmnd?)   i = 2
+(cmnd?) print i
+  i = 2
 (cmnd?) 

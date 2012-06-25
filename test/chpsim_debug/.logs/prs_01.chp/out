@@ -1,7 +1,11 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) /a at prs_01.chp[6:0]
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /a
+(view) /a at prs_01.chp[6:0]
 	process A()(O(a-; b-))
-(cmnd?) (cmnd?) (watch) /b:I.b up at time 16498
+(cmnd?) watch O.b
+(cmnd?) r
+(watch) /b:I.b up at time 16498
 --- done -------------------------------

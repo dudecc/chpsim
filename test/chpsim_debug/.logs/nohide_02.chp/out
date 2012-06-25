@@ -1,13 +1,20 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?)   /a/a: 1 active threads
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) p
+  /a/a: 1 active threads
   /b/b: 1 active threads
-(cmnd?)   No such process instance: /a/a/O/wire
-(cmnd?)   No such process instance: /a/a/O/wire
-(cmnd?)   No such process instance: /b/b/I/wire
-(cmnd?)   No such process instance: /b/b/I/wire
-(cmnd?) --- error ------------------------------
+(cmnd?) p /a/a/O/wire
+  No such process instance: /a/a/O/wire
+(cmnd?) v /a/a/O/wire
+  No such process instance: /a/a/O/wire
+(cmnd?) p /b/b/I/wire
+  No such process instance: /b/b/I/wire
+(cmnd?) v /b/b/I/wire
+  No such process instance: /b/b/I/wire
+(cmnd?) 
+--- error ------------------------------
 Error: deadlock
 (cmnd?) --- continuing in batch mode -----------
 (cmnd) where

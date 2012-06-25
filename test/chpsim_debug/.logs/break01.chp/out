@@ -1,18 +1,27 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?)   Breakpoint set at break01.chp[11:39]
-(cmnd?) (break) / at break01.chp[11:39]
+(cmnd?) break 11:44
+  Breakpoint set at break01.chp[11:39]
+(cmnd?) r
+(break) / at break01.chp[11:39]
 	x[i] := i[0]
-(cmnd?)   i = 0
-(cmnd?) (break) / at break01.chp[11:39]
+(cmnd?) p i
+  i = 0
+(cmnd?) r
+(break) / at break01.chp[11:39]
 	x[i] := i[0]
-(cmnd?) (break) / at break01.chp[11:39]
+(cmnd?) r
+(break) / at break01.chp[11:39]
 	x[i] := i[0]
-(cmnd?) (break) / at break01.chp[11:39]
+(cmnd?) r
+(break) / at break01.chp[11:39]
 	x[i] := i[0]
-(cmnd?)   i = 3
-(cmnd?)   x = 2
-(cmnd?) (break) / at break01.chp[11:39]
+(cmnd?) p i
+  i = 3
+(cmnd?) p x
+  x = 2
+(cmnd?) 
+(break) / at break01.chp[11:39]
 	x[i] := i[0]
 (cmnd?) --- continuing in batch mode -----------
 (break) / at break01.chp[11:39]

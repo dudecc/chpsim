@@ -1,5 +1,6 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?)   Main process has unknown meta parameters (use 'meta' command)
+(cmnd?) 
+  Main process has unknown meta parameters (use 'meta' command)
 (cmnd?) --- continuing in batch mode -----------
   Main process has unknown meta parameters (use 'meta' command)

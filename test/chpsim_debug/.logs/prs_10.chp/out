@@ -1,13 +1,17 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) /b2 at prs_10.chp[9:0]
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /b2
+(view) /b2 at prs_10.chp[9:0]
 	process B()(I?: (e-; d[0..1]-); ...)
-(cmnd?) 4 fanouts:
+(cmnd?) fanout I.e
+4 fanouts:
 (I.e & ...) -> /b1:O_[0]-
 (~I.e & ...) -> /b1:O_[0]+
 (I.e & ...) -> /b1:O_[1]-
 (~I.e & ...) -> /b1:O_[1]+
-(cmnd?) --- error ------------------------------
+(cmnd?) 
+--- error ------------------------------
 Error: deadlock
 No threads left.

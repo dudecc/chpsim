@@ -1,12 +1,17 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) --- CHP execution ----------------------
-(cmnd?) (view) /b/n at wterm1.chp[8:7]
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /b/n
+(view) /b/n at wterm1.chp[8:7]
 	process nor2_lo()(i[0..1]; ...)
-(cmnd?)   2 fanins:
+(cmnd?) fanin /a:O.wire.e
+  2 fanins:
 (~i[1] & ~i[0]) -> o+
 (i[1] | i[0]) -> o-
-(cmnd?) (cmnd?) (watch) /b/n:o up at time 5357
+(cmnd?) watch /b:I.wire.e
+(cmnd?) 
+(watch) /b/n:o up at time 5357
 (watch) /b/n:o down at time 27063
 (watch) /b/n:o up at time 159015
 --- error ------------------------------

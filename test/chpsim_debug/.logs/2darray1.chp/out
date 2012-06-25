@@ -1,10 +1,15 @@
 --- global constants -------------------
 --- instantiation ----------------------
-(cmnd?) (view) / at 2darray1.chp[6:0]
+(cmnd?) v /
+(view) / at 2darray1.chp[6:0]
 	process main()()
-(cmnd?) (cmnd?) (step) / at 2darray1.chp[6:0]
+(cmnd?) p x
+(cmnd?) s
+(step) / at 2darray1.chp[6:0]
 	process main()()
-(cmnd?)   x = ?
-(cmnd?) --- CHP execution ----------------------
+(cmnd?) p x
+  x = ?
+(cmnd?) 
+--- CHP execution ----------------------
   (nothing to execute)
 --- done -------------------------------

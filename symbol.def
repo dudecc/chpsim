@@ -75,6 +75,7 @@ SYM(oror, "||")
 SYM(comment_close, "*/")
 SYM(rep, "<<")
 SYM(rep_end, ">>")
+SYM(marked_paren, "`(")
 
 /* keywords must be in lower-case, and satisfy the rules for identifiers.
    Note: lex.c:scan_id_kw() assumes that keywords consist of letters only.

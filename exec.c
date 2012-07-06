@@ -57,6 +57,7 @@
 #include "interact.h"
 #include "routines.h"
 #include "expr.h"
+#include "properties.h"
 
 /*extern*/ int app_exec = -1;
 /*extern*/ int app_pop = -1;
@@ -66,12 +67,14 @@
 static int action_cmp(action *a, action *b)
  { return mpz_cmp(b->time, a->time); }
 
-extern void exec_info_init(exec_info *f, exec_info *orig)
- /* initialize *f.
-    If orig, then the interaction-related fields of orig are copied.
- */
+static void exec_info_init(exec_info *f, user_info *U)
  { f->flags = 0;
-   pqueue_init(&f->sched, (pqueue_func*)action_cmp);
+   if (IS_SET(U->flags, USER_random))
+     { pqueue_init(&f->sched, PQUEUE_priority_int, 0); }
+   else
+     { pqueue_init(&f->sched, 0, (pqueue_func*)action_cmp);
+       mpz_init_set_ui(f->time, 1);
+     }
    hash_table_init(&f->delays, 1, HASH_ptr_is_key, 0);
    llist_init(&f->check);
    llist_init(&f->chp);
@@ -79,7 +82,6 @@ extern void exec_info_init(exec_info *f, exec_info *orig)
    f->nr_susp = 0;
    f->curr = 0;
    f->meta_ps = 0;
-   mpz_init_set_ui(f->time, 1);
    f->stack = 0; f->fl = 0;
    f->val = 0;
    f->err_obj = 0;
@@ -87,25 +89,49 @@ extern void exec_info_init(exec_info *f, exec_info *orig)
    var_str_init(&f->err, 0);
    f->crit = 0;
    f->ecount = 0;
-   if (orig)
-     { f->user = orig->user;
-       f->parent = orig;
-       f->crit_map = orig->crit_map;
+   f->user = U;
+ }
+
+extern void exec_info_init_main(exec_info *f, user_info *U)
+ /* Initialize *f with interaction-related fields from U */
+ { exec_info_init(f, U);
+   f->parent = 0;
+   U->global = f;
+   if (IS_SET(U->flags, USER_critical))
+     { NEW(f->crit_map);
+       hash_table_init(f->crit_map, 1, HASH_ptr_is_key, 0);
      }
-   else
-     { f->user = 0;
-       f->parent = 0;
-       f->crit_map = 0;
-     }
+   NEW(f->prop);
+   init_property_info(f->prop);
+ }
+
+extern void exec_info_init_sub(exec_info *f, exec_info *g)
+ /* Initialize *f with interaction-related fields from g */
+ { exec_info_init(f, g->user);
+   f->parent = g;
+   f->crit_map = g->crit_map;
+ }
+
+extern void exec_info_init_eval(exec_info *f, process_state *ps)
+ /* Initialize *f for evaluation only */
+ { f->flags = EXEC_eval_only;
+   f->stack = 0; f->fl = 0;
+   f->curr = 0;
+   f->meta_ps = ps;
+   var_str_init(&f->scratch, 0);
+   var_str_init(&f->err, 0);
  }
 
 extern void exec_info_term(exec_info *f)
  /* termination actions */
  { eval_stack *w, *tmp;
-   pqueue_term(&f->sched);
-   hash_table_free(&f->delays);
-   mpz_clear(f->time);
-   assert(!f->susp_perm);
+   if (!IS_SET(f->flags, EXEC_eval_only))
+     { pqueue_term(&f->sched);
+       assert(!f->susp_perm);
+       hash_table_free(&f->delays);
+       if (!IS_SET(f->user->flags, USER_random))
+         { mpz_clear(f->time); }
+     }
    f->curr = 0;
    assert(!f->stack);
    w = f->fl;
@@ -115,6 +141,7 @@ extern void exec_info_term(exec_info *f)
      }
    f->fl = 0;
    var_str_free(&f->scratch);
+   var_str_free(&f->err);
  }
 
 extern ctrl_state *new_ctrl_state(exec_info *f)
@@ -126,7 +153,8 @@ extern ctrl_state *new_ctrl_state(exec_info *f)
  */
  { ctrl_state *s;
    NEW(s);
-   mpz_init_set(s->act.time, f->time);
+   if (!IS_SET(f->user->flags, USER_random))
+     { mpz_init_set(s->act.time, f->time); }
    s->act.cs = s;
    s->act.flags = 0;
    s->obj = 0;
@@ -152,7 +180,8 @@ extern ctrl_state *new_ctrl_state(exec_info *f)
  }
 
 extern void free_ctrl_state(ctrl_state *s, exec_info *f)
- { mpz_clear(s->act.time);
+ { if (!IS_SET(f->user->flags, USER_random))
+     { mpz_clear(s->act.time); }
    free(s);
  }
 
@@ -169,7 +198,8 @@ extern action *new_action(exec_info *f)
      { NEW(a); }
    a->flags = 0;
    a->cs = f->curr;
-   mpz_init_set(a->time, f->time);
+   if (!IS_SET(f->user->flags, USER_random))
+     { mpz_init_set(a->time, f->time); }
    return a;
  }
 
@@ -344,32 +374,36 @@ static int rand_delay()
 extern void action_sched(action *a, exec_info *f)
  /* Pre: a is not scheduled. Schedule a. */
  { hash_entry *q;
-   mpz_set(a->time, f->time);
-   if (IS_SET(f->user->flags, USER_rrandom))
+   int p;
+   if (IS_SET(f->user->flags, USER_random))
      { if (IS_SET(a->flags, ACTION_atomic))
-         { mpz_set_ui(a->time, 0); }
+         { p = INT_MIN; }
        else
-         { mpz_set_ui(a->time, (int)lrand48()); }
+         { p = lrand48();
+           if (p == INT_MIN) p++;
+         }
+       pqueue_insert_int(&f->sched, a, p);
      }
-   else if (IS_SET(a->flags, ACTION_atomic))
-     { mpz_clrbit(a->time, 0); }
-   else if (IS_SET(f->user->flags, USER_random))
-     { mpz_add_ui(a->time, a->time, rand_delay() << 1); }
-   else if (IS_SET(a->flags, ACTION_delay))
-     { q = hash_find(&f->delays, ACTION_WITH_DIR(a));
-       if (q)
-         { mpz_add_ui(a->time, a->time, 2 * q->data.i); }
+   else
+     { mpz_set(a->time, f->time);
+       if (IS_SET(a->flags, ACTION_atomic))
+         { mpz_clrbit(a->time, 0); }
+       else if (IS_SET(a->flags, ACTION_delay))
+         { q = hash_find(&f->delays, ACTION_WITH_DIR(a));
+           if (q)
+             { mpz_add_ui(a->time, a->time, 2 * q->data.i); }
+           else if (IS_SET(a->flags, ACTION_is_pr))
+             { mpz_add_ui(a->time, a->time, 200); }
+         }
        else if (IS_SET(a->flags, ACTION_is_pr))
          { mpz_add_ui(a->time, a->time, 200); }
+       pqueue_insert(&f->sched, a);
      }
-   else if (IS_SET(a->flags, ACTION_is_pr))
-     { mpz_add_ui(a->time, a->time, 200); }
+   SET_FLAG(a->flags, ACTION_sched);
    if (IS_SET(a->flags, ACTION_susp))
      { f->nr_susp--;
        a->cs->ps->nr_susp--;
      }
-   SET_FLAG(a->flags, ACTION_sched);
-   pqueue_insert(&f->sched, a);
    if (f->crit)
      { if (IS_SET(a->flags, ACTION_is_pr | ACTION_is_cr))
          { *((crit_node**)(a+1)) = f->crit; }
@@ -546,9 +580,11 @@ extern void exec_run(exec_info *f)
              }
            continue;
          }
-       if (mpz_cmp(f->time, a->time) < 0)
-         { mpz_set(f->time, a->time);
-           mpz_setbit(f->time, 0);
+       if (!IS_SET(f->user->flags, USER_random))
+         { if (mpz_cmp(f->time, a->time) < 0)
+             { mpz_set(f->time, a->time);
+               mpz_setbit(f->time, 0);
+             }
          }
        f->curr = a->cs;
        f->meta_ps = ps = f->curr->ps;
@@ -671,7 +707,8 @@ static int run_properties(ctrl_state *s, exec_info *f)
 extern void prepare_chp(exec_info *f)
  /* Prepare chp execution phase */
  { ctrl_state *s;
-   mpz_set_ui(f->time, 1);
+   if (!IS_SET(f->user->flags, USER_random))
+     { mpz_set_ui(f->time, 1); }
    RESET_FLAG(f->flags, EXEC_instantiation);
    llist_apply(&f->chp, (llist_func*)remove_forwards, f);
    llist_apply(&f->chp, (llist_func*)run_properties, f);
@@ -742,7 +779,8 @@ extern void new_crit_node(wire_value *w, int dir, exec_info *f)
    c->parent = f->crit;
    if (f->crit)
      { f->crit->refcnt++; }
-   mpz_init_set(c->time, f->time);
+   if (!IS_SET(f->user->flags, USER_random))
+     { mpz_init_set(c->time, f->time); }
    c->w = (void*)(((long)w) | (dir? 1 : 0));
    f->crit = c;
    if (hash_insert(f->crit_map, (char*)w, &q))
@@ -753,7 +791,8 @@ extern void new_crit_node(wire_value *w, int dir, exec_info *f)
 extern void crit_node_clear(crit_node *x, struct exec_info *f)
  /* Decrease reference count on x, free x upon reaching 0 */
  { if (x && !(--x->refcnt))
-     { mpz_clear(x->time);
+     { if (!IS_SET(f->user->flags, USER_random))
+         { mpz_clear(x->time); }
        crit_node_clear(x->parent, f);
        free(x);
      }

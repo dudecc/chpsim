@@ -15,6 +15,6 @@
 	process inv_lo()(i; ...)
 (cmnd?) batch
 --- continuing in batch mode -----------
-(watch) /s/d/od:o up at time 572
-(watch) /k/d/id[0]:o down at time 37701
+(watch) /s/d/od:o up
+(watch) /k/d/id[0]:o down
 --- done -------------------------------

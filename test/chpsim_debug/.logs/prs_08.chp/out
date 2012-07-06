@@ -8,10 +8,14 @@
 (cmnd?) watch O_[0]
 (cmnd?) watch O_[1]
 (cmnd?) r
-(watch) /b:O_[0] down at time 36079
-(watch) /b:O_[0] up at time 70304
-(watch) /b:O_[1] down at time 235499
-(watch) /b:O_[1] up at time 241400
+(watch) /b:O_[0] down
+(watch) /b:O_[0] up
+(watch) /b:O_[1] down
+(watch) /b:O_[1] up
+(watch) /b:O_[0] down
+(watch) /b:O_[0] up
+(watch) /b:O_[1] down
+(watch) /b:O_[1] up
 --- error ------------------------------
 Error: Upward transition on wire O_[1] of process /b
   caused instability on wire O.d[1]

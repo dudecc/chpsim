@@ -6,6 +6,6 @@ Command line: ../../chpsim -batch -timed mem_timed_01.chp
 --- error ------------------------------
 Error: deadlock
 (cmnd) where
-/m at mem_timed_01.chp[8:8]
-	[<<& i : 0..3 : ~D[i].e>>]
+/m at mem_timed_01.chp[3:0]
+	process mem(ROM: array [0..7] of {0..15})(A?: e1of8; ...)
 (cmnd) quit

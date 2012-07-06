@@ -174,6 +174,7 @@ FLAGS(exec_flags)
      NEXT_FLAG(EVAL_probe_wait), /* set if we might want to suspend */
      NEXT_FLAG(EVAL_connect), /* inside a connect stmt */
      NEXT_FLAG(EVAL_bit), /* assigning bits of an integer */
+     NEXT_FLAG(EXEC_eval_only), /* non evaluation fields are uninitialized */
      NEXT_FLAG(EXEC_instantiation), /* instantiation phase */
      NEXT_FLAG(EXEC_immediate), /* do non-parallel execution */
      NEXT_FLAG(EXEC_sequential), /* choose chp over meta */
@@ -237,10 +238,14 @@ typedef enum exec_return
 */
 
 
-extern void exec_info_init(exec_info *f, exec_info *orig);
- /* initialize *f.
-    If orig, then the interaction-related fields of orig are copied.
- */
+extern void exec_info_init_main(exec_info *f, struct user_info *U);
+ /* Initialize *f with interaction-related fields from U */
+
+extern void exec_info_init_sub(exec_info *f, exec_info *g);
+ /* Initialize *f with interaction-related fields from g */
+
+extern void exec_info_init_eval(exec_info *f, process_state *ps);
+ /* Initialize *f for evaluation only */
 
 extern void exec_info_term(exec_info *f);
  /* termination actions */

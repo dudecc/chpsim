@@ -8,12 +8,12 @@
 (cmnd?) watch O.d[0]
 (cmnd?) watch O.d[1]
 (cmnd?) r
-(watch) /b:O.d[0] up at time 61319
-(watch) /b:O.d[0] down at time 62931
-(watch) /b:O.d[1] up at time 240112
-(watch) /b:O.d[1] down at time 307608
-(watch) /b:O.d[0] up at time 359252
-(watch) /b:O.d[0] down at time 435772
-(watch) /b:O.d[1] up at time 440974
-(watch) /b:O.d[1] down at time 678037
+(watch) /b:O.d[0] up
+(watch) /b:O.d[0] down
+(watch) /b:O.d[1] up
+(watch) /b:O.d[1] down
+(watch) /b:O.d[0] up
+(watch) /b:O.d[0] down
+(watch) /b:O.d[1] up
+(watch) /b:O.d[1] down
 --- done -------------------------------

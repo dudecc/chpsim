@@ -425,8 +425,7 @@ extern void print_wire_exec(wire_value *w, exec_info *f)
 extern void print_wire_value(wire_value *w, process_state *ps, print_info *f)
  /* Print a name for w in the reference frame of ps to f */
  { exec_info g;
-   exec_info_init(&g, 0);
-   g.meta_ps = ps;
+   exec_info_init_eval(&g, ps);
    print_wire_exec(w, &g);
    print_string(g.scratch.s, f);
    exec_info_term(&g);
@@ -436,8 +435,7 @@ extern void print_wire_value(wire_value *w, process_state *ps, print_info *f)
 extern int vstr_wire(var_string *s, int pos, void *w, void *ps)
  /* Print a name for w in the reference frame of ps to s[pos...] */
  { exec_info g;
-   exec_info_init(&g, 0);
-   g.meta_ps = ps;
+   exec_info_init_eval(&g, ps);
    print_wire_exec(w, &g);
    var_str_printf(s, pos, "%s", g.scratch.s);
    exec_info_term(&g);
@@ -453,8 +451,7 @@ extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps)
    var_decl *d;
    port_value *pv;
    char *ext;
-   exec_info_init(&g, 0);
-   g.meta_ps = ps;
+   exec_info_init_eval(&g, ps);
    print_wire_exec(w, &g);
    if (is_visible(ps))
      { var_str_printf(s, pos, "%s of process %s", g.scratch.s, g.meta_ps->nm); }
@@ -481,8 +478,7 @@ extern int vstr_wire_context_short(var_string *s, int pos, void *w, void *ps)
    var_decl *d;
    port_value *pv;
    char *ext;
-   exec_info_init(&g, 0);
-   g.meta_ps = ps;
+   exec_info_init_eval(&g, ps);
    print_wire_exec(w, &g);
    if (is_visible(ps))
      { var_str_printf(s, pos, "%s:%s", g.meta_ps->nm, g.scratch.s); }
@@ -520,8 +516,7 @@ static void print_port_exec(port_value *p, exec_info *f)
 extern void print_port_value(port_value *p, print_info *f)
  /* print the name of port p */
  { exec_info g;
-   exec_info_init(&g, 0);
-   g.meta_ps = p->ps;
+   exec_info_init_eval(&g, p->ps);
    print_port_exec(p, &g);
    print_string(g.scratch.s, f);
    exec_info_term(&g);
@@ -531,8 +526,7 @@ extern void print_port_value(port_value *p, print_info *f)
 extern int vstr_port(var_string *s, int pos, void *p)
  /* print the name of port p to s[pos...] */
  { exec_info g;
-   exec_info_init(&g, 0);
-   g.meta_ps = ((port_value*)p)->ps;
+   exec_info_init_eval(&g, ((port_value*)p)->ps);
    print_port_exec(p, &g);
    var_str_printf(s, pos, "%s", g.scratch.s);
    exec_info_term(&g);
@@ -564,8 +558,7 @@ extern int print_port_connect(port_value *p, print_info *f)
        if (print_port_connect(pv->v.p->p, f)) return 1;
        print_char('.', f);
        print_string(pv->v.p->dec->id, f);
-       exec_info_init(&g, 0);
-       g.meta_ps = p->ps;
+       exec_info_init_eval(&g, p->ps);
        print_port_exec(p, &g);
        rs = strchr(g.scratch.s, '.');
        is = strchr(g.scratch.s, '[');
@@ -1047,12 +1040,19 @@ extern void write_wire(int val, wire_value *w, exec_info *f)
      }
    if (IS_SET(w->flags, WIRE_watch) || (IS_SET(f->user->flags, USER_watchall)
                                         && !IS_SET(w->flags, WIRE_is_probe)))
-     { mpz_init(time);
-       mpz_fdiv_q_2exp(time, f->time, 1);
-       report(f->user, "(watch) %V %s at time %v",
-              vstr_wire_context_short, w, f->meta_ps,
-              IS_SET(w->flags, WIRE_value)? "up" : "down", vstr_mpz, time);
-       mpz_clear(time);
+     { if (IS_SET(f->user->flags, USER_random))
+         { report(f->user, "(watch) %V %s",
+                  vstr_wire_context_short, w, f->meta_ps,
+                  IS_SET(w->flags, WIRE_value)? "up" : "down");
+         }
+       else
+         { mpz_init(time);
+           mpz_fdiv_q_2exp(time, f->time, 1);
+           report(f->user, "(watch) %V %s at time %v",
+                  vstr_wire_context_short, w, f->meta_ps,
+                  IS_SET(w->flags, WIRE_value)? "up" : "down", vstr_mpz, time);
+           mpz_clear(time);
+         }
      }
    if (IS_SET(f->user->flags, USER_critical))
      { new_crit_node(w, val, f); }

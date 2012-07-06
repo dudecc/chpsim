@@ -4,8 +4,8 @@ Command line: ../../chpsim -batch prs_arb_02.chp
 --- instantiation ----------------------
 --- CHP execution ----------------------
 --- error ------------------------------
-Error: Upward transition on wire X[1] of process /b
-  caused instability on wire X[0]
+Error: Upward transition on wire X[0] of process /b
+  caused instability on wire X[1]
 Error occurred: cannot continue
 (cmnd) where
 /b at prs_arb_02.chp[6:0]

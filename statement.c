@@ -1036,7 +1036,7 @@ static value_tp eval_fn(value_tp *v, function_def *x, exec_info *f)
    value_tp *var, xval;
    int i;
    dbg_flags ps_flags = f->curr->ps->flags;
-   exec_info_init(&sub, f);
+   exec_info_init_sub(&sub, f);
    SET_IF_SET(sub.flags, f->flags, EXEC_instantiation);
    s = new_ctrl_state(&sub);
    s->obj = (parse_obj*)x;

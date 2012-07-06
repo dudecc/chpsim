@@ -1,6 +1,6 @@
 requires "channel.chp";
 
-const N = 100;
+const N = 200;
 process A()(O!:bit)
 chp { <<; i : 1..N : O!i[0] >> }
 process B()(I[0..1]?, O! : e1of2)

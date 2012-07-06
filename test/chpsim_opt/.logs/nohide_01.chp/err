@@ -3,22 +3,22 @@ Command line: ../../chpsim -batch -nohide -watchall nohide_01.chp
 --- global constants -------------------
 --- instantiation ----------------------
 --- CHP execution ----------------------
-(watch) /b:I.e up at time 11686
-(watch) /a/O/wire:O.d[0] up at time 42623
-(watch) /b:I.e down at time 67969
-(watch) /a/O/wire:O.d[0] down at time 73326
-(watch) /b:I.e up at time 106838
-(watch) /a/O/wire:O.d[1] up at time 173070
-(watch) /b:I.e down at time 173255
-(watch) /a/O/wire:O.d[1] down at time 238528
-(watch) /b:I.e up at time 355489
-(watch) /a/O/wire:O.d[2] up at time 355553
-(watch) /b:I.e down at time 355665
-(watch) /a/O/wire:O.d[2] down at time 370596
-(watch) /b:I.e up at time 380344
+(watch) /b:I.e up
+(watch) /a/O/wire:O.d[0] up
+(watch) /b:I.e down
+(watch) /a/O/wire:O.d[0] down
+(watch) /b:I.e up
+(watch) /a/O/wire:O.d[1] up
+(watch) /b:I.e down
+(watch) /a/O/wire:O.d[1] down
+(watch) /b:I.e up
+(watch) /a/O/wire:O.d[2] up
+(watch) /b:I.e down
+(watch) /a/O/wire:O.d[2] down
+(watch) /b:I.e up
 --- error ------------------------------
 Error: deadlock
 (cmnd) where
-/a/O/wire at /usr/local/share/chpsim/channel.chp[23:12]
-	I#?x
+/a/O/wire at /usr/local/share/chpsim/channel.chp[23:5]
+	[O.e], ...
 (cmnd) quit

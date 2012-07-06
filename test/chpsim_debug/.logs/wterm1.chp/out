@@ -11,9 +11,9 @@
 (i[1] | i[0]) -> o-
 (cmnd?) watch /b:I.wire.e
 (cmnd?) 
-(watch) /b/n:o up at time 5357
-(watch) /b/n:o down at time 27063
-(watch) /b/n:o up at time 159015
+(watch) /b/n:o up
+(watch) /b/n:o down
+(watch) /b/n:o up
 --- error ------------------------------
 Error: deadlock
 No threads left.

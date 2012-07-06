@@ -7,7 +7,7 @@
 requires "channel.chp";
 
 process A()(O!:bit)
-chp { <<; i : 0..15 : O!i[0] >> }
+chp { <<; i : 0..15 : O!i[0] >>; [false] }
 process B()(I?,O!:(e-;d[0..1]-))
 prs {
   var O_[0..1]+;

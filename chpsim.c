@@ -237,7 +237,7 @@ extern int main(int argc, char *argv[])
        else if (!strcmp(argv[i], "-timed"))
          { RESET_FLAG(U->flags, USER_random); }
        else if (!strcmp(argv[i], "-rrand"))
-         { SET_FLAG(U->flags, USER_rrandom); }
+         { fprintf(stderr, "Warning: -rrand is depreciated.\n"); }
        else if (!strcmp(argv[i], "-help") || !strcmp(argv[i], "-h"))
          { usage(0); }
        else if (argv[i][0] == '-')

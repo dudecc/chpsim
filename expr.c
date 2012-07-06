@@ -2942,7 +2942,7 @@ static void eval_call(call *x, exec_info *f)
    dbg_flags ps_flags = f->curr->ps->flags;
    if (IS_SET(x->d->flags, DEF_varargs))
      { exec_error(f, x, "Cannot evaluate procedure %s", x->id); }
-   exec_info_init(&sub, f);
+   exec_info_init_sub(&sub, f);
    SET_IF_SET(sub.flags, f->flags, EXEC_instantiation);
    s = new_ctrl_state(&sub);
    s->obj = (parse_obj*)x->d;

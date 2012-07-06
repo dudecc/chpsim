@@ -15,13 +15,13 @@
   O.wire = {(0), [(0), (0), (0)]}
 (cmnd?) watch O.wire.e
 (cmnd?) 
-(watch) /b:I.e up at time 11686
-(watch) /b:I.e down at time 67969
-(watch) /b:I.e up at time 106838
-(watch) /b:I.e down at time 173255
-(watch) /b:I.e up at time 355489
-(watch) /b:I.e down at time 355665
-(watch) /b:I.e up at time 380344
+(watch) /b:I.e up
+(watch) /b:I.e down
+(watch) /b:I.e up
+(watch) /b:I.e down
+(watch) /b:I.e up
+(watch) /b:I.e down
+(watch) /b:I.e up
 --- error ------------------------------
 Error: deadlock
 (cmnd?) --- continuing in batch mode -----------

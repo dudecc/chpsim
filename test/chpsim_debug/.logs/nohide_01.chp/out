@@ -20,6 +20,6 @@
 Error: deadlock
 (cmnd?) --- continuing in batch mode -----------
 (cmnd) where
-/a/O/wire at /usr/local/share/chpsim/channel.chp[23:12]
-	I#?x
+/a/O/wire at /usr/local/share/chpsim/channel.chp[23:5]
+	[O.e], ...
 (cmnd) quit

@@ -265,7 +265,8 @@ static int starts_atom(lex_tp *L)
  }
 
 static int starts_postfix_expr(lex_tp *L)
- { return lex_have(L, TOK_id) || lex_have(L, '(') || starts_atom(L); }
+ { return lex_have(L, TOK_id) || lex_have(L, '(')
+     || lex_have(L, SYM_marked_paren) || starts_atom(L); }
 
 static int starts_prefix_expr(lex_tp *L)
  { return lex_have(L, '+') || lex_have(L, '-') || lex_have(L, '~')
@@ -524,7 +525,7 @@ static void *parse_atom(lex_tp *L)
            x->t = L->prev->t;
          }
      }
-   else if (lex_have_next(L, '('))
+   else if (lex_have_next(L, '(') || lex_have_next(L, SYM_marked_paren))
      { x = parse_expr(L);
        SET_FLAG(x->flags, EXPR_parenthesized);
        lex_must_be(L, ')');

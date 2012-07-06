@@ -7,5 +7,5 @@
 	process A()(O(a-; b-))
 (cmnd?) watch O.b
 (cmnd?) r
-(watch) /b:I.b up at time 16498
+(watch) /b:I.b up
 --- done -------------------------------

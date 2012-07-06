@@ -49,21 +49,19 @@
 #ifndef PQUEUE
 #define PQUEUE
 
+#include "standard.h"
+
 /********** types ************************************************************/
 
-typedef struct pqueue_node pqueue_node;
-struct pqueue_node
+typedef struct pqueue_node_int pqueue_node_int;
+struct pqueue_node_int
    { void *data;
-     int left_size, right_size;
-     pqueue_node *left, *right;
-     pqueue_node *parent;
+     int p;
    };
 
-typedef enum pqueue_flags
-   { PQUEUE_use_freelist = 1, /* Limit use of malloc/free */
-     PQUEUE_is_stack = PQUEUE_use_freelist << 1
-       /* INTERNAL: Determines behavoir for equal priority nodes */
-   } pqueue_flags;
+FLAGS(pqueue_flags)
+   { FIRST_FLAG(PQUEUE_priority_int) /* Store integer priorities with data */
+   };
 
 typedef int pqueue_func(void *x, void *info);
  /* used for priority function cmp, and for pqueue_apply */
@@ -71,13 +69,17 @@ typedef int pqueue_func(void *x, void *info);
 typedef struct pqueue pqueue;
 struct pqueue
    { pqueue_func *cmp;
-     pqueue_node *root;
-     pqueue_node *free;
-     int size;
+     void *info;
+     union
+       { void **data;
+         pqueue_node_int *n_int;
+       } tbl;
+     int size, nr_alloc;
+     int last_priority;
      pqueue_flags flags;
    };
 
-extern void pqueue_init(pqueue *q, pqueue_func *cmp);
+extern void pqueue_init(pqueue *q, pqueue_flags flags, pqueue_func *cmp);
  /* Pre: q has been allocated, but not initialized.  cmp takes in two
   * data elements and returns >0 if the first has higher priority
   */
@@ -87,20 +89,19 @@ extern void pqueue_term(pqueue *q);
 
 /********** insertion/extraction *********************************************/
 
-extern pqueue_node *pqueue_insert(pqueue *q, void *x);
+extern void pqueue_insert(pqueue *q, void *x);
  /* Insert element x into the queue */
-
-extern pqueue_node *pqueue_insert_head(pqueue *q, void *x);
- /* Also inserts element x into the queue */
 
 extern void *pqueue_extract(pqueue *q);
  /* Remove and return the highest priority element of q */
 
-extern void pqueue_remove(pqueue *q, pqueue_node *p);
- /* Remove the specified element p from q */
-
 extern void *pqueue_root(pqueue *q);
  /* Return the highest priority element of q */
+
+extern void pqueue_insert_int(pqueue *q, void *x, int p);
+ /* Pre: q->flags == PQUEUE_priority_int
+  * Insert element x into the queue with priority p (ignore q->cmp)
+  */
 
 /********** applying element operations **************************************/
 

@@ -8,14 +8,14 @@
 (cmnd?) watch O.d[0]
 (cmnd?) watch O.d[1]
 (cmnd?) r
-(watch) /b:O.d[0] up at time 36186
-(watch) /b:O.d[0] down at time 135871
-(watch) /b:O.d[1] up at time 188045
-(watch) /b:O.d[1] down at time 321737
-(watch) /b:O.d[0] up at time 593318
-(watch) /b:O.d[0] down at time 706252
-(watch) /b:O.d[1] up at time 713963
-(watch) /b:O.d[1] down at time 768830
+(watch) /b:O.d[0] up
+(watch) /b:O.d[0] down
+(watch) /b:O.d[1] up
+(watch) /b:O.d[1] down
+(watch) /b:O.d[0] up
+(watch) /b:O.d[0] down
+(watch) /b:O.d[1] up
+(watch) /b:O.d[1] down
 --- error ------------------------------
 Error: deadlock
 No threads left.

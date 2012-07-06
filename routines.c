@@ -785,10 +785,16 @@ static void exec_builtin_time(function_def *x, exec_info *f)
    while (g->parent) g = g->parent;
    assert(x->ret);
    xval = &f->curr->var[x->ret->var_idx];
-   xval->rep = REP_z;
-   xval->v.z = new_z_value(f);
-   mpz_fdiv_q_2exp(xval->v.z->z, g->time, 1);
-   int_simplify(xval, f);
+   if (IS_SET(f->user->flags, USER_random))
+     { xval->rep = REP_int;
+       xval->v.i = 0;
+     }
+   else
+     { xval->rep = REP_z;
+       xval->v.z = new_z_value(f);
+       mpz_fdiv_q_2exp(xval->v.z->z, g->time, 1);
+       int_simplify(xval, f);
+     }
  }
 
 /* exec_builtin_func */

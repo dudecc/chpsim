@@ -185,9 +185,9 @@ static void *pqueue_extract_int(pqueue *q)
 
 extern void *pqueue_extract(pqueue *q)
  { if (IS_SET(q->flags, PQUEUE_priority_int))
-     { pqueue_extract_int(q); }
+     { return pqueue_extract_int(q); }
    else
-     { pqueue_extract_cmp(q); }
+     { return pqueue_extract_cmp(q); }
  }
 
 /********** Other ************************************************************/

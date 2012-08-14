@@ -113,6 +113,12 @@ extern long int_log2(value_tp *x, exec_info *f);
     clears *x
  */
 
+extern int equal_value(value_tp *v, value_tp *w, exec_info *f, void *obj);
+ /* Pre: v and w have compatible types.
+    1 if equal values, 0 if not.
+    obj is used for warnings. (v and w are not cleared)
+ */
+
 extern value_tp *find_reference(port_value *p, exec_info *f);
 /* Checks all ports to find the reference to the given port value */
 	
@@ -127,13 +133,6 @@ extern void port_to_array(value_tp *v, expr *x, exec_info *f);
 
 extern void default_value(value_tp *v, exec_info *f);
  /* Pre: v is union value */
-
-extern void wu_proc_remove(value_tp *v, int dir, exec_info *f);
-/* Pre: v contains a port which is connected to the default port of a
- * decomposition process.
- * Relocate the decomposed port from the decomposition process to
- * v.v.p->v, then destroy the decomposition process.
- */
 
 extern void init_expr(void);
  /* call at startup */

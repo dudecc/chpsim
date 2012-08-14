@@ -167,6 +167,7 @@ extern void check_dbg_malloc(const char *src, int ln);
 extern void *dbg_use_ptr(const char *src, int ln, void *q);
 extern void dbg_leak(const char *src, int ln, void *q);
 extern void (*no_dbg_free)(void *);
+extern char* (*no_dbg_strdup)(const char *);
 
 #define strdup(S) dbg_strdup(__FILE__, __LINE__, S)
 extern char *dbg_strdup(const char *src, int ln, const char *s);
@@ -178,6 +179,7 @@ extern char *dbg_strdup(const char *src, int ln, const char *s);
 #define use_ptr(P) (P)
 #define LEAK(P)
 #define no_dbg_free free
+#define no_dbg_strdup strdup
 
 #endif /* MALLOCDBG */
 

@@ -46,7 +46,12 @@ along with this file.  If not, see <http://www.gnu.org/licenses/>.
 #define ACTUALFREE free
 #endif
 
+#ifndef ACTUALSTRDUP
+#define ACTUALSTRDUP strdup
+#endif
+
 /*extern*/ void (*no_dbg_free)(void *) = ACTUALFREE;
+/*extern*/ char* (*no_dbg_strdup)(const char *) = ACTUALSTRDUP;
 
 /* Internal representation:
 
@@ -106,14 +111,16 @@ static void malloc_error(const char *src, int ln, const char *fmt, ...)
    vfprintf(stderr, fmt, a);
    putc('\n', stderr);
    fflush(stderr);
+   va_end(a);
    if (log)
-     { if (src) fprintf(log, "(E) %s[%d] ", src, ln);
+     { va_start(a, fmt);
+       if (src) fprintf(log, "(E) %s[%d] ", src, ln);
        else putc('\t', log);
        vfprintf(log, fmt, a);
        putc('\n', log);
        fflush(log); /* in case program crashes later */
+       va_end(a);
      }
-   va_end(a);
  }
 
 static void malloc_log(const char *src, int ln, void *p, const char *fmt, ...)

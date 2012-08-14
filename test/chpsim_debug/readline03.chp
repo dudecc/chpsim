@@ -1,0 +1,5 @@
+//r
+//p	/a	
+
+process a()() chp { skip }
+process main()() meta { instance a3oiuhcvbe : a; }

@@ -22,9 +22,8 @@ along with this file.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef VAR_STRING_H
 #define VAR_STRING_H
 
-#include "standard.h"
-#include <string.h>
 #include <ctype.h>
+#include "standard.h"
 
 typedef struct var_string
    { int size;

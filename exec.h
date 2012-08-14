@@ -69,7 +69,9 @@ FLAGS(dbg_flags)
      NEXT_FLAG(DBG_inst), /* instantiate current process */
      NEXT_FLAG(DBG_deadlock), /* process is part of a deadlock cycle */
      NEXT_FLAG(DBG_tmp1), /* used during deadlock checks */
-     NEXT_FLAG(DBG_tmp2) /* used during deadlock checks */
+     NEXT_FLAG(DBG_tmp2), /* used during deadlock checks */
+     NEXT_FLAG(PROC_union), /* set if process is implementing a union */
+     NEXT_FLAG(PROC_noexec) /* set on obsoleted union processes */
    };
 
 extern void init_exec(int app1, int app2);
@@ -92,6 +94,7 @@ FLAGS(action_flags)
      NEXT_FLAG(ACTION_has_up_pr), /* action has a pull up production rule */
      NEXT_FLAG(ACTION_has_dn_pr), /* action has a pull down production rule */
      NEXT_FLAG(ACTION_is_cr), /* action is a counter rule */
+     NEXT_FLAG(ACTION_dummy), /* action is a dummy write frame */
      NEXT_FLAG(ACTION_pr_up), /* up rule is enabled */
      NEXT_FLAG(ACTION_pr_dn), /* down rule is enabled */
      NEXT_FLAG(ACTION_up_nxt), /* up rule will be enabled */
@@ -106,14 +109,22 @@ struct action
      union { wire_value *w;
              counter_value *c;
            } target; /* Target of a production/counter rule */
-     ctrl_state *cs;
+     union { ctrl_state *cs;
+             llist fanin; /* For dummy action, llist(wire_value) */
+           };
    };
-/* Currently there are only three types of actions: a production rule (PR), a
- * counter rule (CR), or a statement.  Statement actions have a 1 to 1
- * correspondence with ctrl_state, and if x is a statement action,
+/* Currently there are only three executable types of actions: a production
+ * rule (PR), a counter rule (CR), or a statement.  Statement actions have a
+ * 1 to 1 correspondence with ctrl_state, and if x is a statement action,
  * x = &x->cs.act.  PR and CR actions point to a non-unique ctrl_state, giving
  * a reference frame for the action.  These ctrl_states leave their own act
  * field unused.
+ *
+ * The fourth type of action, dummy actions, should never be scheduled for
+ * execution.  A wire that is not part of a port, but is directly written to
+ * by an immediate rule (see WIRE_xu/WIRE_xd in value.h), uses a dummy action
+ * as its write frame for debugging purposes.  There is no valid ctrl_state,
+ * but there is a list of the wires that fan in to this wire.
  */
 
 #define ACTION_WITH_DIR(A) \
@@ -164,6 +175,7 @@ struct process_state
                        -2: terminated */
      int nr_susp; /* nr of suspended threads */
      dbg_flags flags;
+     llist children; /* llist(process_state*) */
      hash_table *accesses;  /* only used with strict checking */
    };
 

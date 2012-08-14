@@ -62,11 +62,14 @@
 #include "routines.h"
 #include "statement.h"
 #include "expr.h"
+#include "exec.h"
 #include "types.h"
 #include "parse.h"
 #include <errno.h>
 
 #include <readline/readline.h>
+
+static user_info *rl_user_info;
 
 /*extern*/ int app_brk = -1;
 
@@ -90,6 +93,7 @@ extern void user_info_init(user_info *f)
  { f->flags = 0;
    f->log = 0;
    f->user_stdout = stdout;
+   f->main = 0;
    NEW(f->L);
    lex_tp_init(f->L);
    f->L->fin = stdin;
@@ -97,7 +101,7 @@ extern void user_info_init(user_info *f)
    SET_FLAG(f->L->flags, LEX_readline);
    llist_init(&f->old_L);
    llist_init(&f->cmds);
-   llist_init(&f->procs);
+   llist_init(&f->hprocs);
    llist_init(&f->ml);
    llist_init(&f->path);
    llist_init(&f->wait);
@@ -190,20 +194,51 @@ extern int is_visible(process_state *ps)
  /* false if ps should be invisible (cannot be looked up by name) */
  { return ps->nm && ps->nm[1] != '/'; }
 
-/* llist_func */
-extern int instance_eq(process_state *ps, const str *nm)
- /* true if ps has name nm */
- { return is_visible(ps) && ps->nm == nm; }
+static process_state *_find_instance(process_state *ps, const str *nm)
+ { llist l;
+   int len;
+   process_state *ret;
+   if (!ps) return 0;
+   if (ps->nm == nm) return ps;
+   len = strlen(ps->nm);
+   if (len == 1) len = 0;
+   if (strncmp(ps->nm, nm, len) || nm[len] != '/') return 0;
+   for (l = ps->children; !llist_is_empty(&l); l = llist_alias_tail(&l))
+     { ret = _find_instance(llist_head(&l), nm);
+       if (ret) return ret;
+     }
+   return 0;
+ }
 
 extern process_state *find_instance(user_info *f, const str *nm, int must)
  /* Find the process instance for nm. If 'must' and not found, then a new
     instance is created.
  */
  { process_state *ps;
-   ps = llist_find(&f->procs, (llist_func*)instance_eq, nm);
+   ps = _find_instance(f->main, nm);
    if (!ps && must)
      { ps = new_process_state(f->global, nm); }
    return ps;
+ }
+
+static int procs_apply(process_state *ps, llist_func *f, void *info)
+ { llist l;
+   int v = 0;
+   l = ps->children;
+   v = f(ps, info);
+   while (!v && !llist_is_empty(&l))
+     { v = procs_apply(llist_head(&l), f, info);
+       l = llist_alias_tail(&l);
+     }
+   return v;
+ }
+
+static int procs_apply_all(user_info *f, llist_func *g, void *info)
+ /* Include hidden processes */
+ { int v;
+   v = procs_apply(f->main, g, info);
+   if (!v) v = llist_apply(&f->hprocs, g, info);
+   return v;
  }
 
 /*****************************************************************************/
@@ -320,7 +355,7 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
    record_type *rtps;
    record_field *rf;
    llist m;
-   process_state *meta_ps;
+   process_state *meta_ps, *ps;
    meta_parameter *mp;
    type_value *tpv;
    if (tp && tp->kind == TP_generic)
@@ -366,11 +401,11 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
      { var_str_printf(&f->scratch, pos, ".%s", v->v.u->f->id);
        show_conn_aux(&v->v.u->v, &v->v.u->f->tp, f);
      }
-   else if (v->rep == REP_wire)
+   else if (v->rep == REP_wwire || v->rep == REP_rwire)
      { report(f, "  %s = %v", f->scratch.s, vstr_val, v); }
    else if (v->rep != REP_port)
      { report(f, "  %s has not been connected\n", f->scratch.s); }
-   else if (!v->v.p->p)
+   else if (!v->v.p->p || IS_SET(v->v.p->wprobe.flags, PORT_deadwu))
      { if (v->v.p->nv)
          { assert(v->v.p->nv != v);
            if (v->v.p->dec)
@@ -378,21 +413,20 @@ static void show_conn_aux(value_tp *v, type *tp, user_info *f)
            else
              { show_conn_aux(v->v.p->nv, tp, f); }
          }
-       else if (v->v.p->v.rep && v->v.p->dec)
-         { show_conn_aux(&v->v.p->v, &v->v.p->dec->tps->tp, f); }
        else
          { report(f, "  %s has been disconnected\n", f->scratch.s); }
      }
-   else if (!is_visible(v->v.p->p->ps) && v->v.p->p->dec)
-     { d = llist_idx(&v->v.p->p->ps->p->pl, 0);
-       pv = &v->v.p->p->ps->var[d->var_idx];
+   else if (!is_visible(v->v.p->p->wprobe.wps) && v->v.p->p->dec)
+     { ps = v->v.p->p->wprobe.wps;
+       d = llist_idx(&ps->p->pl, 0);
+       pv = &ps->var[d->var_idx];
        if (pv->v.p == v->v.p->p)
-         { d = llist_idx(&v->v.p->p->ps->p->pl, 1);
-           pv = &v->v.p->p->ps->var[d->var_idx];
+         { d = llist_idx(&ps->p->pl, 1);
+           pv = &ps->var[d->var_idx];
          }
        var_str_printf(&f->scratch, pos, ".%s", v->v.p->p->dec->id);
        meta_ps = f->global->meta_ps;
-       f->global->meta_ps = v->v.p->p->ps;
+       f->global->meta_ps = ps;
        show_conn_aux(pv, &d->tp, f);
        f->global->meta_ps = meta_ps;
      }
@@ -437,8 +471,9 @@ static void __get_susp_threads(wire_value *w, hash_table *h, user_info *f)
    while (!llist_is_empty(&l))
      { e = llist_head(&l);
        l = llist_alias_tail(&l);
-       while (!IS_SET(e->flags, WIRE_action))
+       while (!IS_SET(e->flags, WIRE_action | WIRE_llist))
          { e = e->u.dep; }
+       if (IS_SET(e->flags, WIRE_hold | WIRE_llist)) continue;
        if (!IS_SET(e->u.act->flags, ACTION_sched) &&
            e->u.act->cs->ps == f->ps && e->u.act != &f->global->curr->act)
          { hash_insert(h, (char*)e->u.act, 0); }
@@ -455,12 +490,13 @@ static void _get_susp_threads(value_tp *v, hash_table *h, user_info *f)
        case REP_union:
          _get_susp_threads(&v->v.u->v, h, f);
        return;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
          __get_susp_threads(v->v.w, h, f);
        return;
        case REP_port:
          __get_susp_threads(&v->v.p->wprobe, h, f);
-         if (v->v.p->p) __get_susp_threads(&v->v.p->p->wprobe, h, f);
+         if (v->v.p->p || IS_SET(v->v.p->wprobe.flags, PORT_multiprobe))
+           { __get_susp_threads(v->v.p->wpp, h, f); }
        return;
        default:
        return;
@@ -502,6 +538,7 @@ static void show_ps_threads(process_state *ps, user_info *f)
 /* llist_func */
 static int _show_all_threads(process_state *ps, user_info *f)
  { if (ps->nr_thread <= 0) return 0;
+   if (IS_SET(ps->flags, PROC_noexec)) return 0;
    if (!is_visible(ps)) return 0;
    if (ps->nr_susp == 0)
      { report(f, "  %s: %d active threads", ps->nm, ps->nr_thread); }
@@ -518,7 +555,7 @@ extern void show_all_threads(user_info *f)
  /* print all threads
   * abbreviate by listing only number of threads of each type per process
   */
- { llist_apply(&f->procs, (llist_func*)_show_all_threads, f); }
+ { procs_apply(f->main, (llist_func*)_show_all_threads, f); }
 
 extern void show_perm_threads(exec_info *g, user_info *f)
  /* print all threads in permanent susension */
@@ -730,6 +767,10 @@ static void set_focus_ps(process_state *ps, user_info *f)
    f->view_pos = 0;
    f->focus = f->global;
    f->ps = ps;
+   if (ps->b->class == CLASS_prs_body)
+     { f->curr = f->focus_top = ps->cs;
+       return;
+     }
    cs = f->focus->curr;
    if (cs && _set_focus_ps(&cs->act, f)) return;
    while (f->focus)
@@ -790,6 +831,8 @@ static int cmnd_view(user_info *f)
 
 /********** deadlock *********************************************************/
 
+#if 0
+
 static process_state *_deadlock_find(process_state *ps, exec_info *f);
 
 static process_state *__deadlock_find
@@ -815,10 +858,12 @@ static process_state *__deadlock_find
          while (!llist_is_empty(&l))
            { e = llist_head(&l);
              l = llist_alias_tail(&l);
-             while (!IS_SET(e->flags, WIRE_action))
+             while (!IS_SET(e->flags, WIRE_action | WIRE_llist))
                { e = e->u.dep; }
+             if (IS_SET(e->flags, WIRE_hold | WIRE_llist))
+               { continue; }
              if (e->u.act->cs->ps == ps)
-               { return _deadlock_find(v->v.p->p->ps, f); }
+               { return _deadlock_find(v->v.p->p->wprobe.wps, f); }
            }
        return 0;
        default:
@@ -857,7 +902,7 @@ static void _deadlock_mark(value_tp *v, exec_info *f)
        case REP_port:
          if (!v->v.p->p) return;
          if (!IS_SET(v->v.p->wprobe.flags, WIRE_has_dep)) return;
-         deadlock_mark(v->v.p->p->ps, f);
+         deadlock_mark(v->v.p->p->wprobe.wps, f);
        return;
        default:
        return;
@@ -896,6 +941,12 @@ extern void deadlock_find(exec_info *f)
    set_focus_ps(dead_ps, f->user);
    f->curr = f->user->curr;
  }
+
+#else
+
+extern void deadlock_find(exec_info *f)
+ { return; }
+#endif
 
 /********** breakpoints ******************************************************/
 
@@ -1261,7 +1312,7 @@ static int wire_cmnd(wire_func_tp *F, const str *cmd, user_info *f)
            eval_interact(&val, e, cs, f);
            free(cs);
          }
-       if (val.rep == REP_wire)
+       if (val.rep == REP_wwire || val.rep == REP_rwire)
          { w = val.v.w;
            while (IS_SET(w->flags, WIRE_forward))
              { w = w->u.w; }
@@ -1347,13 +1398,49 @@ static void print_pr
    f->flags = flags;
  }
 
+static void _wire_fanout
+(wire_value *orig, llist dep, hash_table *emap, llist *prs, user_info *f)
+ { wire_expr *e;
+   wire_value *w;
+   void *prev;
+   hash_entry *q;
+   while (!llist_is_empty(&dep))
+     { e = llist_head(&dep);
+       prev = orig;
+       while (1)
+         { if (hash_insert(emap, (char*)e, &q))
+             { llist_prepend((llist*)&q->data.p, prev);
+               break;
+             }
+           llist_init((llist*)&q->data.p);
+           llist_prepend((llist*)&q->data.p, prev);
+           if (IS_SET(e->flags, WIRE_llist))
+             { assert(!"Unsupported fanout type"); }
+           else if (!IS_SET(e->flags, WIRE_action))
+             { prev = e;
+               e = e->u.dep;
+               continue;
+             }
+           else if (!IS_SET(e->flags, WIRE_hold))
+             { llist_prepend(prs, e); }
+           else if (IS_ALLSET(e->flags, WIRE_x))
+             { w = e->u.hold;
+               if (IS_SET(w->flags, WIRE_has_dep) && !llist_is_empty(&w->u.dep))
+                 { _wire_fanout(orig, w->u.dep, emap, prs, f); }
+             }
+           else
+             { assert(!"Unsupported fanout type"); }
+           break;
+         }
+       dep = llist_alias_tail(&dep);
+     }
+ }
+
 /* wire_func_tp */
 static void wire_fanout(wire_value *w, user_info *f)
  { hash_table emap; /* maps wire_exprs to llist of fanins */
-   hash_entry *q;
-   wire_expr *e, *pr;
+   wire_expr *pr;
    ctrl_state *cs;
-   void *prev;
    llist m, prs; /* Unique list of pr expressions */
    print_info g;
    if (!IS_SET(w->flags, WIRE_has_dep) || llist_is_empty(&w->u.dep))
@@ -1362,26 +1449,7 @@ static void wire_fanout(wire_value *w, user_info *f)
      }
    hash_table_init(&emap, 1, HASH_ptr_is_key, (hash_func*)emap_delete);
    llist_init(&prs);
-   m = w->u.dep;
-   while (!llist_is_empty(&m))
-     { e = llist_head(&m);
-       prev = w;
-       while (1)
-         { if (hash_insert(&emap, (char*)e, &q))
-             { llist_prepend((llist*)&q->data.p, prev);
-               break;
-             }
-           llist_init((llist*)&q->data.p);
-           llist_prepend((llist*)&q->data.p, prev);
-           if (IS_SET(e->flags, WIRE_action) && ~IS_SET(e->flags, WIRE_hold))
-             { llist_prepend(&prs, e);
-               break;
-             }
-           prev = e;
-           e = e->u.dep;
-         }
-       m = llist_alias_tail(&m);
-     }
+   _wire_fanout(w, w->u.dep, &emap, &prs, f);
    report(f, "%d fanouts:\n", llist_size(&prs));
    g.s = &f->scratch; g.flags = 0; g.f = stdout;
    while (!llist_is_empty(&prs))
@@ -1429,7 +1497,7 @@ static void _wire_fanin
          for (i = 0; i < v->v.l->size; i++)
            { _wire_fanin(&v->v.l->vl[i], emap, pu, pd, w); }
        return;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
          if (!IS_SET(v->v.w->flags, WIRE_has_dep)) return;
          l = v->v.w->u.dep;
        break;
@@ -1468,17 +1536,24 @@ static void wire_fanin(wire_value *w, user_info *f)
    process_state *ps;
    wire_expr *pu = 0, *pd = 0;
    print_info g;
+   llist l;
+   if (IS_SET(w->wframe->flags, ACTION_dummy))
+     { for (l = w->wframe->fanin; !llist_is_empty(&l); l = llist_alias_tail(&l))
+         { wire_fanin(llist_head(&l), f); }
+       return;
+     }
    ps = w->wframe->cs->ps;
    if (!IS_SET(w->wframe->flags, ACTION_is_pr))
      { if (ps == &const_frame_ps)
          { report(f, "  Wire is connected to rail '%s'\n",
                   IS_SET(w->flags, WIRE_value)? "true" : "false");
          }
-       else if (ps->b->class != CLASS_chp_body && ps->b->class != CLASS_hse_body)
+       else if (ps->b->class != CLASS_chp_body &&
+                ps->b->class != CLASS_hse_body)
          { report(f, "  Wire has no fanins\n"); }
        else
          { report(f, "  Wire is driven by output %V\n",
-                  vstr_wire_context, w, ps, ps->nm);
+                  vstr_wire_context, w, ps);
          }
        return;
      }
@@ -1602,6 +1677,387 @@ static int cmnd_clear(user_info *f)
        break;
      }
    f->cxt = 0;
+   return 1;
+ }
+
+/********** decomposition checking *******************************************/
+
+static void add_check_ps(process_state *ps, exec_info *f)
+ { ctrl_state *cs, *curr;
+   process_state *meta_ps;
+   cs = ps->cs;
+   curr = f->curr;
+   meta_ps = f->meta_ps;
+   f->curr = cs;
+   f->meta_ps = ps;
+   APP_OBJ_Z(app_exec, cs->obj, f, EXEC_next);
+   f->curr = curr;
+   f->meta_ps = meta_ps;
+ }
+
+static wire_value *new_wpp(process_state *ps)
+ { wire_value *w;
+   NEW(w);
+   w->flags = WIRE_has_dep | WIRE_is_probe;
+   w->refcnt = 1;
+   llist_init(&w->u.dep);
+   w->wps = ps;
+   return w;
+ }
+
+static void setup_wprobe(wire_value *w)
+ { assert(!IS_SET(w->flags, WIRE_has_dep));
+   SET_FLAG(w->flags, WIRE_has_dep | PORT_multiprobe);
+   llist_init(&w->u.dep);
+ }
+
+static void add_we_action
+(wire_expr_flags flags, void *act, wire_expr *e, exec_info *f)
+ /* Pre: e has WIRE_llist set, e->u.ldep initialized */
+ { wire_expr *eact;
+   eact = new_wire_expr(f);
+   eact->refcnt = 1;
+   eact->valcnt = 1;
+   eact->flags = flags | WIRE_value | WIRE_trigger;
+   eact->u.act = act;
+   if (IS_SET(e->flags, WIRE_value))
+     { eact->flags |= WIRE_val_dir; }
+   llist_prepend(&e->u.ldep, eact);
+ }
+
+static void add_wire(wire_value *w, wire_expr *e, exec_info *f)
+ { e->refcnt++; e->valcnt++;
+   llist_prepend(&w->u.dep, e);
+ }
+
+static void attach_port(value_tp *pval, exec_info *f);
+
+static void create_multiport(port_value *q, port_value *p, exec_info *f)
+ { port_value *pp, *z;
+   wire_value *xp, *xpp, *xq, *yp, *ypp, *yq;
+   wire_expr *ex, *exx, *ey, *eyy, *etmp;
+   int decomp;
+   pp = p->p;
+   xp = &p->wprobe;
+   xpp = &pp->wprobe;
+   decomp = IS_SET(xpp->flags, PORT_deadwu);
+   if (IS_SET(xpp->flags, PORT_multiprobe))
+     { yp = p->wpp; ypp = pp->wpp;
+       assert(llist_size(&xpp->u.dep) == 1);
+       assert(llist_size(&ypp->u.dep) == 1);
+       exx = llist_head(&xpp->u.dep);
+       eyy = llist_head(&ypp->u.dep);
+       if (!decomp)
+         { assert(llist_size(&xp->u.dep) == 1);
+           assert(llist_size(&yp->u.dep) == 1);
+           ex = llist_head(&xp->u.dep);
+           ey = llist_head(&yp->u.dep);
+         }
+       else
+         { ex = llist_head(&eyy->u.ldep);
+           assert((ex->flags & WIRE_action) == WIRE_xu);
+           z = PORT_FROM_WPROBE(ex->u.hold);
+           assert(llist_size(&z->wprobe.u.dep) == 1);
+           ex = llist_head(&z->wprobe.u.dep);
+           assert(llist_size(&z->wpp->u.dep) == 1);
+           ey = llist_head(&z->wpp->u.dep);
+         }
+     }
+   else if (IS_SET(xp->flags, PORT_multiprobe))
+     { assert(decomp);
+       setup_wprobe(xpp);
+       yp = p->wpp; ypp = pp->wpp;
+       assert(llist_size(&xp->u.dep) == 1);
+       assert(llist_size(&yp->u.dep) == 1);
+       ex = llist_head(&xp->u.dep);
+       ey = llist_head(&yp->u.dep);
+       exx = llist_head(&ey->u.ldep);
+       assert((exx->flags & WIRE_action) == WIRE_xu);
+       z = PORT_FROM_WPROBE(exx->u.hold);
+       assert(llist_size(&z->wprobe.u.dep) == 1);
+       exx = llist_head(&z->wprobe.u.dep);
+       assert(llist_size(&z->wpp->u.dep) == 1);
+       eyy = llist_head(&z->wpp->u.dep);
+       etmp = new_wire_expr(f);
+       etmp->flags = WIRE_val_dir | WIRE_value | WIRE_trigger | WIRE_llist;
+       llist_prepend(&etmp->u.ldep, ey);
+       ey->refcnt++; ey->valcnt++;
+       add_we_action(WIRE_xu, xpp, etmp, f);
+       ey = etmp;
+       etmp = new_wire_expr(f);
+       etmp->refcnt = etmp->valcnt = 2;
+       etmp->flags = WIRE_val_dir | WIRE_value | WIRE_trigger | WIRE_llist;
+       llist_prepend(&ypp->u.dep, etmp);
+       llist_prepend(&eyy->u.ldep, etmp);
+       eyy = etmp;
+       add_wire(xpp, exx, f);
+       add_we_action(WIRE_xd | WIRE_value, ypp, ex, f);
+     }
+   else
+     { p->wpp = yp = new_wpp(xp->wps);
+       pp->wpp = ypp = new_wpp(xpp->wps);
+       if (!decomp) setup_wprobe(xp);
+       setup_wprobe(xpp);
+       ex = new_wire_expr(f);
+       exx = new_wire_expr(f);
+       ey = new_wire_expr(f);
+       eyy = new_wire_expr(f);
+       ey->flags = eyy->flags = WIRE_val_dir | WIRE_value |
+                                WIRE_trigger | WIRE_llist;
+       ex->flags = exx->flags = WIRE_trigger | WIRE_llist;
+       add_wire(xpp, exx, f);
+       add_wire(ypp, eyy, f);
+       add_we_action(WIRE_xd, ypp, ex, f);
+       add_we_action(WIRE_xu, xpp, ey, f);
+       if (!decomp)
+         { add_wire(xp, ex, f);
+           add_wire(yp, ey, f);
+           add_we_action(WIRE_xd, yp, exx, f);
+           add_we_action(WIRE_xu, xp, eyy, f);
+         }
+       /* TODO: only add value clearing actions when necessary */
+       add_we_action(WIRE_vc, &pp->v, exx, f);
+       add_we_action(WIRE_vc, &p->v, ex, f);
+     }
+   xq = &q->wprobe;
+   q->wpp = yq = new_wpp(xq->wps);
+   setup_wprobe(xq);
+   add_wire(xq, ex, f);
+   add_wire(yq, ey, f);
+   add_we_action(WIRE_xd, yq, exx, f);
+   add_we_action(WIRE_xu, xq, eyy, f);
+   if (IS_SET(xpp->wps->flags, PROC_noexec))
+     { assert(decomp);
+       RESET_FLAG(xpp->wps->flags, PROC_noexec);
+       attach_port(p->nv, f);
+       add_check_ps(xpp->wps, f);
+     }
+ }
+
+static void _attach_port(value_tp *pval, exec_info *f)
+ /* Pre: pval->rep == REP_port */
+ { int i, size;
+   value_union *vu;
+   value_list *vl;
+   value_tp *pvl, *nv;
+   nv = pval->v.p->nv;
+   switch (nv->rep)
+     { case REP_union:
+         vu = new_value_union(f);
+         vu->d = nv->v.u->d;
+         vu->f = nv->v.u->f;
+         vu->v = *pval;
+         pval->v.p->nv = &nv->v.u->v;
+         pval->rep = REP_union;
+         pval->v.u = vu;
+         _attach_port(&vu->v, f);
+       return;
+       case REP_array: case REP_record:
+         size = nv->v.l->size;
+         vl = new_value_list(size, f);
+         for (i = 0; i < size; i++)
+           { pvl = &vl->vl[i];
+             *pvl = *pval;
+             if (i > 0)
+               { pvl->v.p = new_port_value(pval->v.p->wprobe.wps, f); }
+             pvl->v.p->nv = &nv->v.l->vl[i];
+             _attach_port(pvl, f);
+           }
+         pval->rep = nv->rep;
+         pval->v.l = vl;
+       return;
+       case REP_port:
+         if (nv->v.p->p)
+           { create_multiport(pval->v.p, nv->v.p, f); }
+         else
+           { assert(nv->v.p->nv);
+             pval->v.p->nv = nv->v.p->nv;
+             _attach_port(pval, f);
+           }
+       return;
+       default:
+         assert(!"Unhandled port type");
+       return;
+     }
+ }
+
+static void _hse_multiwire_fix
+(value_tp *v, wire_value *w, wire_value *wnew, exec_info *f)
+ { int i;
+   switch (v->rep)
+     { case REP_array: case REP_record:
+         for (i = 0; i < v->v.l->size; i++)
+            { _hse_multiwire_fix(&v->v.l->vl[i], w, wnew, f); }
+       return;
+       case REP_wwire: case REP_rwire:
+         if (v->v.w == w)
+           { v->v.w = wnew;
+             w->refcnt--;
+             wnew->refcnt++;
+           }
+       return;
+       default:
+       return;
+     }
+ }
+
+static wire_value *hse_multiwire_fix(wire_value *w, exec_info *f)
+ { ctrl_state *cs;
+   wire_value *wnew;
+   int i;
+   NEW(wnew);
+   wnew->flags = WIRE_has_writer | WIRE_has_dep;
+   SET_IF_SET(wnew->flags, w->flags, WIRE_value);
+   wnew->refcnt = 1;
+   llist_init(&wnew->u.dep);
+   wnew->wframe = w->wframe;
+   w->refcnt++;
+   cs = w->wframe->cs;
+   for (i = 0; i < cs->nr_var; i++)
+     { _hse_multiwire_fix(&cs->var[i], w, wnew, f); }
+   return wnew;
+ }
+
+static void create_multiwire(value_tp *wv, exec_info *f)
+ /* Pre: wv->v.rep == REP_wwire, f->user->ps is container for wv */
+ { wire_expr *e;
+   wire_value *wref, *w;
+   action *act;
+   llist l;
+   w = wv->v.w;
+   act = w->wframe;
+   if (!IS_SET(act->flags, ACTION_dummy))
+     { e = new_wire_expr(f);
+       e->flags = WIRE_trigger | WIRE_xor | WIRE_x;
+       if (IS_SET(w->flags, WIRE_value))
+         { SET_FLAG(e->flags, WIRE_value); }
+       else
+         { SET_FLAG(e->flags, WIRE_val_dir); }
+       e->u.hold = w;
+       if (IS_SET(act->flags, ACTION_is_pr))
+         { NEW(wref);
+           wref->flags = WIRE_has_writer | WIRE_has_dep | WIRE_virtual;
+           SET_IF_SET(wref->flags, w->flags, WIRE_value);
+           wref->refcnt = 2;
+           llist_init(&wref->u.dep);
+           wref->wframe = act;
+           act->target.w = wref;
+         }
+       else
+         { wref = hse_multiwire_fix(w, f); }
+       NEW(act);
+       act->flags = ACTION_dummy;
+       act->target.w = w;
+       llist_init(&act->fanin);
+       w->wframe = act;
+       llist_prepend(&act->fanin, wref);
+       add_wire(wref, e, f);
+     }
+   else
+     { wref = llist_head(&act->fanin);
+       l = wref->u.dep;
+       do { e = llist_head(&l);
+            l = llist_alias_tail(&l);
+          } while (!IS_SET(e->flags, WIRE_trigger));
+     }
+   NEW(wref);
+   wref->flags = WIRE_has_writer | WIRE_has_dep;
+   SET_IF_SET(wref->flags, w->flags, WIRE_value);
+   wref->refcnt = 2;
+   wref->wframe = &f->user->ps->cs->act;
+   llist_init(&wref->u.dep);
+   llist_prepend(&act->fanin, wref);
+   add_wire(wref, e, f);
+   wv->v.w = wref;
+ }
+
+static void attach_port(value_tp *pval, exec_info *f)
+ { int i;
+   switch (pval->rep)
+     { case REP_union:
+         attach_port(&pval->v.u->v, f);
+       return;
+       case REP_array: case REP_record:
+         for (i = 0; i < pval->v.l->size; i++)
+           { attach_port(&pval->v.l->vl[i], f); }
+       return;
+       case REP_port:
+         assert(!pval->v.p->p && pval->v.p->nv);
+         _attach_port(pval, f);
+       return;
+       case REP_wwire:
+         wire_fix(&pval->v.w, f);
+         create_multiwire(pval, f);
+       return;
+       case REP_rwire:
+       return;
+       default:
+         assert(!"Unhandled port type");
+       return;
+     }
+ }
+
+/* cmnd_func_tp */
+static int cmnd_check(user_info *f)
+ { int i;
+   llist m;
+   var_decl *d;
+   char *nm;
+   process_state *ps, *meta_ps;
+   ctrl_state *cs, *curr;
+   if (IS_SET(f->global->flags, EXEC_instantiation))
+     { report(f, "  Instantiation has not yet finished\n");
+       return 1;
+     }
+   if (IS_SET(f->flags, USER_started))
+     { report(f, "  Execution has already started\n");
+       return 1;
+     }
+   if (!lex_have(f->L, TOK_instance))
+     { report(f, "  Usage: check instance\n");
+       return 1;
+     }
+   nm = f->L->curr->t.val.s;
+   ps = find_instance(f, nm, 0);
+   if (!ps || ps->nr_thread == 0)
+     { report(f, "  No such process instance: %s\n", nm);
+       return 1;
+     }
+   if (!ps->b || ps->b != ps->p->mb)
+     { report(f, "  Process instance %s has not been decomposed\n", nm);
+       return 1;
+     }
+   if (ps->p->cb) ps->b = ps->p->cb;
+   // else if (ps->p->hb) ps->b = ps->p->hb;
+   // else if (ps->p->pb) ps->b = ps->p->pb;
+   if (ps->b == ps->p->mb)
+     { report(f, "  Process instance %s has no non-meta body\n", nm);
+       return 1;
+     }
+   m = ps->b->dl;
+   while (!llist_is_empty(&m))
+     { d = llist_head(&m);
+       m = llist_alias_tail(&m);
+       if (d->class != CLASS_var_decl) continue;
+       clear_value_tp(&ps->var[d->var_idx], f->global);
+     }
+   strict_check_init(ps, f->global); /* TODO: Only when EXPR_ifrchk is set */
+   ps->cs = cs = new_ctrl_state(f->global);
+   f->ps = cs->ps = ps;
+   cs->var = ps->var;
+   cs->nr_var = ps->nr_var;
+   cs->rep_vals = 0;
+   cs->obj = (parse_obj*)ps->p;
+   cs->cxt = ps->b->cxt;
+   ps->nr_thread = 1;
+   ps->nr_susp = 0;
+   m = ps->p->pl;
+   while (!llist_is_empty(&m))
+     { d = llist_head(&m);
+       m = llist_alias_tail(&m);
+       attach_port(&ps->var[d->var_idx], f->global);
+     }
+   add_check_ps(ps, f->global);
    return 1;
  }
 
@@ -1801,6 +2257,8 @@ static cmnd_entry cmnd_list[] =
           "fanout instance : expr - fanout from the specified frame"},
      { "critical", "cr", cmnd_critical, "! - list critical transitions", 0 },
      { "energy", "en", cmnd_energy, "! - display current energy estimate", 0 },
+     { "check", "ch", cmnd_check,
+          "!check instance - verify decomposition correctness", 0 },
      { "where", "wh", cmnd_where, "- show call stack", 0 },
      { "up", "u", cmnd_up,
           "\tup [int] - move up the call stack (towards the caller)", 0 },
@@ -1906,6 +2364,7 @@ extern token_tp prompt_user(user_info *f, const char *prompt)
    jmp_buf err_jmp, *orig_err_jmp = f->L->err_jmp;
    f->L->err_jmp = &err_jmp;
    setjmp(err_jmp);
+   rl_user_info = f; /* TODO: better way to pass user_info to readline */
    if (!llist_is_empty(&f->cmds) && llist_is_empty(&f->old_L))
      { return fake_prompt(f, prompt); }
    else if (IS_SET(f->flags, USER_quit))
@@ -2023,13 +2482,9 @@ static void ctrl_c(int sig)
 
 /* llist_func */
 static int process_not_started(process_state *ps, exec_info *f)
- /* if ps has not started, free it and return 1; otherwise return 0 */
+ /* if ps has not started, warn appropriately. Always return 0 */
  { if (!ps->nr_thread)
-     { report(f->user, "(warning) no process instance %s\n", ps->nm);
-       ps->refcnt--;
-       free_process_state(ps, f);
-       return 1;
-     }
+     { report(f->user, "(warning) no process instance %s\n", ps->nm); }
    return 0;
  }
 
@@ -2072,11 +2527,12 @@ extern void interact_instantiate(exec_info *f)
 extern void interact_chp(exec_info *f)
  /* Run chp execution phase */
  { report(f->user, "--- CHP execution ----------------------\n");
-   llist_all_extract(&f->user->procs, (llist_func*)process_not_started, f);
+   procs_apply_all(f->user, (llist_func*)process_not_started, f);
    if (!pqueue_root(&f->sched))
      { report(f->user, "  (nothing to execute)\n"); }
    else
      { interact(f, make_str("continue"));
+       SET_FLAG(f->user->flags, USER_started);
        exec_run(f);
      }
  }
@@ -2136,12 +2592,63 @@ static char *command_generator(const char *text, int state)
      }
    else idx++;
    while (idx < NR_CMND && strncmp(cmnd_list[idx].cmnd, text, len)) idx++;
-   return (idx < NR_CMND)? strdup(cmnd_list[idx].cmnd) : 0;
+   return (idx < NR_CMND)? no_dbg_strdup(cmnd_list[idx].cmnd) : 0;
+ }
+
+static process_state *best_parent(process_state *ps, const char *nm)
+ { llist l;
+   int len;
+   process_state *ret;
+   len = strlen(ps->nm);
+   if (len == 1) len = 0;
+   if (strncmp(ps->nm, nm, len) || nm[len] != '/') return 0;
+   for (l = ps->children; !llist_is_empty(&l); l = llist_alias_tail(&l))
+     { ret = best_parent(llist_head(&l), nm);
+       if (ret) return ret;
+     }
+   return ps;
+ }
+
+static char *instance_generator(const char *text, int state)
+ { static int len, count;
+   static llist procs;
+   static process_state *last_ps;
+   process_state *ps;
+   char *c;
+   if (!state)
+     { len = strlen(text);
+       ps = rl_user_info->main;
+       if (!ps) return 0;
+       ps = best_parent(ps, text);
+       assert(ps);
+       procs = ps->children;
+       count = 0;
+     }
+   else if (!llist_is_empty(&procs))
+     { procs = llist_alias_tail(&procs); }
+   while (!llist_is_empty(&procs))
+     { ps = llist_head(&procs);
+       if (!strncmp(ps->nm, text, len))
+         { last_ps = ps;
+           count++;
+           return no_dbg_strdup(ps->nm);
+         }
+       procs = llist_alias_tail(&procs);
+     }
+   if (count == 1 && !llist_is_empty(&last_ps->children))
+     /* Do not add a space after an instance name with children */
+     { asprintf(&c, "%s/", last_ps->nm);
+       count = 2;
+       return c;
+     }
+   return 0;
  }
 
 static char **interact_completion(const char *text, int start, int end)
  { if (start == 0)
      { return rl_completion_matches(text, command_generator); }
+   else if (text[0] == '/')
+     { return rl_completion_matches(text, instance_generator); }
    return 0;
  }
 

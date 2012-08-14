@@ -207,7 +207,7 @@ extern void print_value_tp(value_tp *v, print_info *f)
        case REP_port:
                 if (!v->v.p->p)
                   { print_string("disconnected port", f); }
-                else if (!is_visible(v->v.p->p->ps) && v->v.p->p->dec)
+                else if (!is_visible(v->v.p->p->wprobe.wps) && v->v.p->p->dec)
                   { print_string("port decomposed through field ", f);
                     print_string(v->v.p->p->dec->id, f);
                   }
@@ -229,7 +229,7 @@ extern void print_value_tp(value_tp *v, print_info *f)
                 print_string("process ", f);
                 print_string(v->v.ps->nm, f);
        break;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
                 w = v->v.w;
                 while (IS_SET(w->flags, WIRE_forward)) w = w->u.w;
                 f->pos += var_str_printf(f->s, f->pos, "(%c)",
@@ -357,12 +357,13 @@ static int _print_wire_value
        return 0;
        case REP_port:
          if (w == &v->v.p->wprobe) return 1;
-         else if (v->v.p->p)
+         else if (w == v->v.p->wpp) return 1;
+         else if (v->v.p->p && !IS_SET(v->v.p->wprobe.flags, PORT_deadwu))
            { if (w == &v->v.p->p->wprobe) return 1;
              if (!v->v.p->p->dec) return 0;
              var_str_printf(&f->scratch, pos, ".%s", v->v.p->p->dec->id);
              meta_ps = f->meta_ps;
-             f->meta_ps = ps = v->v.p->p->ps;
+             f->meta_ps = ps = v->v.p->p->wprobe.wps;
              d = llist_idx(&ps->p->pl, 0);
              if (ps->var[d->var_idx].v.p == v->v.p->p)
                { d = llist_idx(&ps->p->pl, 1); }
@@ -375,7 +376,7 @@ static int _print_wire_value
              if (v->v.p->dec)
                { var_str_printf(&f->scratch, pos, ".%s", v->v.p->dec->id);
                  meta_ps = f->meta_ps;
-                 f->meta_ps = ps = v->v.p->ps;
+                 f->meta_ps = ps = v->v.p->wprobe.wps;
                  res = _print_wire_value(v->v.p->nv,&v->v.p->dec->tps->tp,w,f);
                  f->meta_ps = meta_ps;
                  return res;
@@ -383,16 +384,8 @@ static int _print_wire_value
              else
                { return _print_wire_value(v->v.p->nv, tp, w, f); }
            }
-         else if (v->v.p->v.rep && v->v.p->dec)
-           { var_str_printf(&f->scratch, pos, ".%s", v->v.p->dec->id);
-             meta_ps = f->meta_ps;
-             f->meta_ps = ps = v->v.p->ps;
-             res = _print_wire_value(&v->v.p->v,&v->v.p->dec->tps->tp,w,f);
-             f->meta_ps = meta_ps;
-             return res;
-           }
        return 0;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
        return w == v->v.w;
        default:
        return 0;
@@ -404,6 +397,13 @@ extern void print_wire_exec(wire_value *w, exec_info *f)
  { llist l;
    var_decl *d;
    value_tp *var = f->meta_ps->var;
+   wire_expr *e;
+   while (IS_SET(w->flags, WIRE_virtual))
+     { assert(llist_size(&w->u.dep) == 1);
+       e = llist_head(&w->u.dep);
+       assert(IS_SET(e->flags, WIRE_x));
+       w = e->u.hold;
+     }
    l = f->meta_ps->p->pl;
    while (!llist_is_empty(&l))
      { d = llist_head(&l);
@@ -465,7 +465,7 @@ extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps)
        pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
        assert(pv->dec);
        var_str_printf(s, pos, "%v.%s%s of process %s", vstr_port, pv->p,
-                      pv->dec->id, ext, pv->p->ps->nm);
+                      pv->dec->id, ext, pv->p->wprobe.wps->nm);
      }
    exec_info_term(&g);
    return 0;
@@ -491,18 +491,18 @@ extern int vstr_wire_context_short(var_string *s, int pos, void *w, void *ps)
        assert(g.meta_ps->var[d->var_idx].rep == REP_port);
        pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
        assert(pv->dec);
-       var_str_printf(s, pos, "%s:%v.%s%s", pv->p->ps->nm, vstr_port, pv->p,
-                      pv->dec->id, ext);
+       var_str_printf(s, pos, "%s:%v.%s%s", pv->p->wprobe.wps->nm, vstr_port,
+                      pv->p, pv->dec->id, ext);
      }
    exec_info_term(&g);
    return 0;
  }
 
 static void print_port_exec(port_value *p, exec_info *f)
- /* Pre: f->meta_ps == p->ps: print the name of port p to f->scratch */
- { llist l = p->ps->p->pl;
+ /* Pre: f->meta_ps == p->wprobe.wps: print the name of port p to f->scratch */
+ { llist l = p->wprobe.wps->p->pl;
    var_decl *d;
-   value_tp *var = p->ps->var;
+   value_tp *var = p->wprobe.wps->var;
    while (!llist_is_empty(&l))
      { d = llist_head(&l);
        l = llist_alias_tail(&l);
@@ -516,7 +516,7 @@ static void print_port_exec(port_value *p, exec_info *f)
 extern void print_port_value(port_value *p, print_info *f)
  /* print the name of port p */
  { exec_info g;
-   exec_info_init_eval(&g, p->ps);
+   exec_info_init_eval(&g, p->wprobe.wps);
    print_port_exec(p, &g);
    print_string(g.scratch.s, f);
    exec_info_term(&g);
@@ -526,7 +526,7 @@ extern void print_port_value(port_value *p, print_info *f)
 extern int vstr_port(var_string *s, int pos, void *p)
  /* print the name of port p to s[pos...] */
  { exec_info g;
-   exec_info_init_eval(&g, ((port_value*)p)->ps);
+   exec_info_init_eval(&g, ((port_value*)p)->wprobe.wps);
    print_port_exec(p, &g);
    var_str_printf(s, pos, "%s", g.scratch.s);
    exec_info_term(&g);
@@ -542,23 +542,25 @@ extern int print_port_connect(port_value *p, print_info *f)
    value_tp *pv;
    var_decl *d;
    char *rs, *is;
+   process_state *ps;
    if (!p)
      { print_string("(disconnected)", f);
        return 1;
      }
-   else if (!is_visible(p->ps))
+   ps = p->wprobe.wps;
+   if (!is_visible(ps))
      { assert(!p->dec);
-       d = llist_idx(&p->ps->p->pl, 0);
-       pv = &p->ps->var[d->var_idx];
+       d = llist_idx(&ps->p->pl, 0);
+       pv = &ps->var[d->var_idx];
        if (pv->rep != REP_port || !pv->v.p->dec)
-         { d = llist_idx(&p->ps->p->pl, 1);
-           pv = &p->ps->var[d->var_idx];
+         { d = llist_idx(&ps->p->pl, 1);
+           pv = &ps->var[d->var_idx];
          }
        assert(pv->rep == REP_port && pv->v.p->dec);
        if (print_port_connect(pv->v.p->p, f)) return 1;
        print_char('.', f);
        print_string(pv->v.p->dec->id, f);
-       exec_info_init_eval(&g, p->ps);
+       exec_info_init_eval(&g, ps);
        print_port_exec(p, &g);
        rs = strchr(g.scratch.s, '.');
        is = strchr(g.scratch.s, '[');
@@ -569,7 +571,7 @@ extern int print_port_connect(port_value *p, print_info *f)
        exec_info_term(&g);
      }
    else
-     { print_string(p->ps->nm, f);
+     { print_string(ps->nm, f);
        print_char(':', f);
        print_port_value(p, f);
      }
@@ -616,9 +618,10 @@ extern port_value *new_port_value(process_state *ps, exec_info *f)
    NEW(p);
    p->wprobe.refcnt = 1;
    p->wprobe.flags = WIRE_is_probe;
+   p->wprobe.wps = ps;
+   p->wpp = 0;
    p->p = 0;
    p->v.rep = REP_none;
-   p->ps = ps;
    p->dec = 0;
    p->nv = 0;
    return p;
@@ -695,72 +698,75 @@ extern void clear_value_tp(value_tp *v, exec_info *f)
    wire_value *w, *ww;
    counter_value *c;
    z_value *vz;
-   if (v->rep == REP_z)
-     { vz = v->v.z;
-       vz->refcnt--;
-       if (!vz->refcnt)
-         {
-           mpz_clear(vz->z);
-           free(vz);
-         }
-     }
-   else if (v->rep == REP_array || v->rep == REP_record)
-     { vl = v->v.l;
-       vl->refcnt--;
-       if (!vl->refcnt)
-         { for (i = 0; i < vl->size; i++)
-             { clear_value_tp(&vl->vl[i], f); }
-           free(vl);
-         }
-     }
-   else if (v->rep == REP_union)
-     { vu = v->v.u;
-       vu->refcnt--;
-       if (!vu->refcnt)
-         { clear_value_tp(&vu->v, f);
-           free(vu);
-         }
-     }
-   else if (v->rep == REP_process)
-     { ps = v->v.ps;
-       ps->refcnt--;
-       if (!ps->refcnt)
-         { free_process_state(ps, f); }
-     }
-   else if (v->rep == REP_port)
-     { p = v->v.p;
-       p->wprobe.refcnt--;
-       if (!p->wprobe.refcnt)
-         { free_port_value(p, f); }
-     }
-   else if (v->rep == REP_type)
-     { tp = v->v.tp;
-       tp->refcnt--;
-       if (!tp->refcnt)
-         { ps = tp->meta_ps;
-           ps->refcnt--;
-           if (!ps->refcnt)
-             { free_process_state(ps, f); }
-           free(tp);
-         }
-     }
-   else if (v->rep == REP_wire)
-     { w = v->v.w;
-       w->refcnt--;
-       while (!w->refcnt)
-         { if (!IS_SET(w->flags, WIRE_forward))
-             { free(w); break; }
-           ww = w->u.w;
-           free(w);
-           w = ww;
-           w->refcnt--;
-         }
-     }
-   else if (v->rep == REP_cnt)
-     { c = v->v.c;
-       c->refcnt--;
-       if (!c->refcnt)
-         { free(c); }
+   switch (v->rep)
+     { case REP_z:
+         vz = v->v.z;
+         vz->refcnt--;
+         if (!vz->refcnt)
+           { mpz_clear(vz->z);
+             free(vz);
+           }
+       break;
+       case REP_array: case REP_record:
+         vl = v->v.l;
+         vl->refcnt--;
+         if (!vl->refcnt)
+           { for (i = 0; i < vl->size; i++)
+               { clear_value_tp(&vl->vl[i], f); }
+             free(vl);
+           }
+       break;
+       case REP_union:
+         vu = v->v.u;
+         vu->refcnt--;
+         if (!vu->refcnt)
+           { clear_value_tp(&vu->v, f);
+             free(vu);
+           }
+       break;
+       case REP_process:
+         ps = v->v.ps;
+         ps->refcnt--;
+         if (!ps->refcnt)
+           { free_process_state(ps, f); }
+       break;
+       case REP_port:
+         p = v->v.p;
+         p->wprobe.refcnt--;
+         if (!p->wprobe.refcnt)
+           { free_port_value(p, f); }
+       break;
+       case REP_type:
+         tp = v->v.tp;
+         tp->refcnt--;
+         if (!tp->refcnt)
+           { ps = tp->meta_ps;
+             ps->refcnt--;
+             if (!ps->refcnt)
+               { free_process_state(ps, f); }
+             free(tp);
+           }
+       break;
+       case REP_wwire: case REP_rwire:
+         w = v->v.w;
+         w->refcnt--;
+         while (!w->refcnt)
+           { if (!IS_SET(w->flags, WIRE_forward))
+               { free(w); break; }
+             ww = w->u.w;
+             free(w);
+             w = ww;
+             w->refcnt--;
+           }
+       break;
+       case REP_cnt:
+         c = v->v.c;
+         c->refcnt--;
+         if (!c->refcnt)
+           { free(c); }
+       break;
+       default:
+       break;
      }
    v->rep = REP_none;
  }
@@ -770,69 +776,51 @@ extern void copy_value_tp(value_tp *w, value_tp *v, exec_info *f)
  { int i;
    value_list *vl, *wl;
    value_union *vu, *wu;
-   if (v->rep == REP_z)
-     { w->rep = REP_z;
-       w->v.z = new_z_value(f);
-       mpz_set(w->v.z->z, v->v.z->z);
+   switch (v->rep)
+     { case REP_z:
+         w->rep = REP_z;
+         w->v.z = new_z_value(f);
+         mpz_set(w->v.z->z, v->v.z->z);
+       return;
+       case REP_array: case REP_record:
+         w->rep = v->rep;
+         vl = v->v.l;
+         w->v.l = wl = new_value_list(vl->size, f);
+         for (i = 0; i < vl->size; i++)
+           { copy_value_tp(&wl->vl[i], &vl->vl[i], f); }
+       return;
+       case REP_union:
+         w->rep = REP_union;
+         vu = v->v.u;
+         w->v.u = wu = new_value_union(f);
+         wu->d = vu->d;
+         wu->f = vu->f;
+         copy_value_tp(&wu->v, &vu->v, f);
+       return;
+       /* No new memory for the remaining cases */
+       case REP_process:               *w = *v; w->v.ps->refcnt++;       return;
+       case REP_port:                  *w = *v; w->v.p->wprobe.refcnt++; return;
+       case REP_wwire: case REP_rwire: *w = *v; w->v.w->refcnt++;        return;
+       case REP_type:                  *w = *v; w->v.tp->refcnt++;       return;
+       case REP_cnt:                   *w = *v; w->v.c->refcnt++;        return;
+       default:                        *w = *v;                          return;
      }
-   else if (v->rep == REP_array || v->rep == REP_record)
-     { w->rep = v->rep;
-       vl = v->v.l;
-       w->v.l = wl = new_value_list(vl->size, f);
-       for (i = 0; i < vl->size; i++)
-         { copy_value_tp(&wl->vl[i], &vl->vl[i], f); }
-     }
-   else if (v->rep == REP_union)
-     { w->rep = REP_union;
-       vu = v->v.u;
-       w->v.u = wu = new_value_union(f);
-       wu->d = vu->d;
-       wu->f = vu->f;
-       copy_value_tp(&wu->v, &vu->v, f);
-     }
-   else if (v->rep == REP_process) /* no new memory */
-     { *w = *v;
-       w->v.ps->refcnt++;
-     }
-   else if (v->rep == REP_port) /* no new memory */
-     { *w = *v;
-       w->v.p->wprobe.refcnt++;
-     }
-   else if (v->rep == REP_type) /* no new memory */
-     { *w = *v;
-       w->v.tp->refcnt++;
-     }
-   else if (v->rep == REP_wire) /* no new memory */
-     { *w = *v;
-       w->v.w->refcnt++;
-     }
-   else if (v->rep == REP_cnt) /* no new memory */
-     { *w = *v;
-       w->v.c->refcnt++;
-     }
-   else
-     { *w = *v; }
  }
 
 extern void alias_value_tp(value_tp *w, value_tp *v, exec_info *f)
  /* Copy v to w, sharing the memory */
  { *w = *v;
-   if (w->rep == REP_z)
-     { w->v.z->refcnt++; }
-   else if (w->rep == REP_array || w->rep == REP_record)
-     { w->v.l->refcnt++; }
-   else if (w->rep == REP_union)
-     { w->v.u->refcnt++; }
-   else if (w->rep == REP_process)
-     { w->v.ps->refcnt++; }
-   else if (v->rep == REP_port)
-     { w->v.p->wprobe.refcnt++; }
-   else if (v->rep == REP_type)
-     { w->v.tp->refcnt++; }
-   else if (v->rep == REP_wire)
-     { w->v.w->refcnt++; }
-   else if (v->rep == REP_cnt)
-     { w->v.c->refcnt++; }
+   switch (v->rep)
+     { case REP_z:                       w->v.z->refcnt++;         return;
+       case REP_array: case REP_record:  w->v.l->refcnt++;         return;
+       case REP_union:                   w->v.u->refcnt++;         return;
+       case REP_process:                 w->v.ps->refcnt++;        return;
+       case REP_port:                    w->v.p->wprobe.refcnt++;  return;
+       case REP_wwire: case REP_rwire:   w->v.w->refcnt++;         return;
+       case REP_type:                    w->v.tp->refcnt++;        return;
+       case REP_cnt:                     w->v.c->refcnt++;         return;
+       default:                                                    return;
+     }
  }
 
 extern void copy_and_clear(value_tp *w, value_tp *v, exec_info *f)
@@ -917,48 +905,62 @@ extern void range_check(type_spec *tps, value_tp *val, exec_info *f, void *obj)
 
 /********** assignment *******************************************************/
 
-static void update_rule(wire_expr_flags val, action *a, exec_info *f)
+static void update_rule(wire_expr_flags val, wire_expr_action u, exec_info *f)
  { action_flags af;
-   wire_value *hold = (wire_value*)a;
    switch(val & WIRE_action)
      { case WIRE_pu: case WIRE_pd:
          /* Just mark the changes for now, and add the action to the queue */
          af = IS_SET(val, WIRE_pu)? ACTION_up_nxt : ACTION_dn_nxt;
-         if (IS_SET(val, WIRE_value)) SET_FLAG(a->flags, af);
-         else RESET_FLAG(a->flags, af);
-         if (!IS_SET(a->flags, ACTION_check))
-           { llist_prepend(&f->check, a);
-             SET_FLAG(a->flags, ACTION_check);
+         if (IS_SET(val, WIRE_value)) SET_FLAG(u.act->flags, af);
+         else RESET_FLAG(u.act->flags, af);
+         if (!IS_SET(u.act->flags, ACTION_check))
+           { llist_prepend(&f->check, u.act);
+             SET_FLAG(u.act->flags, ACTION_check);
            }
        return;
        case WIRE_susp: /* suspended thread, schedule immediately */
          if (!IS_SET(val, WIRE_value))
            { assert(!"Action has become unscheduled"); }
-         if (!IS_SET(a->flags, ACTION_sched))
-           { SET_FLAG(a->flags, ACTION_atomic);
-             action_sched(a, f);
-             RESET_FLAG(a->flags, ACTION_atomic);
+         if (!IS_SET(u.act->flags, ACTION_sched))
+           { SET_FLAG(u.act->flags, ACTION_atomic);
+             action_sched(u.act, f);
+             RESET_FLAG(u.act->flags, ACTION_atomic);
            }
        return;
        case WIRE_hu:
          if (IS_SET(val, WIRE_value))
-           { RESET_FLAG(hold->flags, WIRE_held_up);
-             if (IS_SET(hold->flags, WIRE_wait))
-               { write_wire(1, hold, f); }
-             RESET_FLAG(hold->flags, WIRE_wait);
+           { RESET_FLAG(u.hold->flags, WIRE_held_up);
+             if (IS_SET(u.hold->flags, WIRE_wait))
+               { write_wire(1, u.hold, f); }
+             RESET_FLAG(u.hold->flags, WIRE_wait);
            }
          else
-           { SET_FLAG(hold->flags, WIRE_held_up); }
+           { SET_FLAG(u.hold->flags, WIRE_held_up); }
        return;
        case WIRE_hd:
          if (IS_SET(val, WIRE_value))
-           { RESET_FLAG(hold->flags, WIRE_held_dn);
-             if (IS_SET(hold->flags, WIRE_wait))
-               { write_wire(0, hold, f); }
-             RESET_FLAG(hold->flags, WIRE_wait);
+           { RESET_FLAG(u.hold->flags, WIRE_held_dn);
+             if (IS_SET(u.hold->flags, WIRE_wait))
+               { write_wire(0, u.hold, f); }
+             RESET_FLAG(u.hold->flags, WIRE_wait);
            }
          else
-           { SET_FLAG(hold->flags, WIRE_held_dn); }
+           { SET_FLAG(u.hold->flags, WIRE_held_dn); }
+       return;
+       case WIRE_xu:
+         if (IS_SET(val, WIRE_value))
+           { write_wire(1, u.hold, f); }
+       return;
+       case WIRE_xd:
+         if (IS_SET(val, WIRE_value))
+           { write_wire(0, u.hold, f); }
+       return;
+       case WIRE_x:
+         write_wire(IS_SET(val, WIRE_value)? 1 : 0, u.hold, f);
+       return;
+       case WIRE_vc:
+         if (IS_SET(val, WIRE_value))
+           { clear_value_tp(u.val, f); }
        return;
        default:
        return;
@@ -970,8 +972,17 @@ static void update_wire_expr(wire_flags val, wire_expr *e, exec_info *f)
   * of val tells us whether the wire was previously undefined.
   */
  { int old;
+   llist m;
    if (!e->undefcnt) /* Nothing undefined, make this fast */
-     { if (IS_SET(e->flags, WIRE_xor))
+     { if (IS_SET(e->flags, WIRE_trigger))
+         { e->valcnt -= (~val ^ (e->flags >> WIRE_vd_shft)) & WIRE_value;
+           /* Here we have made use of the fact that WIRE_value == 1 */
+           if (e->valcnt > 0) return;
+           e->valcnt = e->refcnt;
+           if (IS_SET(e->flags, WIRE_xor))
+             { e->flags ^= WIRE_value | WIRE_val_dir; }
+         }
+       else if (IS_SET(e->flags, WIRE_xor))
          { e->flags = e->flags ^ WIRE_value; }
        else
          { old = e->valcnt;
@@ -983,7 +994,14 @@ static void update_wire_expr(wire_flags val, wire_expr *e, exec_info *f)
            e->flags = e->flags ^ WIRE_value;
          }
        if (IS_SET(e->flags, WIRE_action))
-         { update_rule(e->flags, e->u.act, f); }
+         { update_rule(e->flags, e->u, f); }
+       else if (IS_SET(e->flags, WIRE_llist))
+         { m = e->u.ldep;
+           while (!llist_is_empty(&m))
+             { update_wire_expr(e->flags, llist_head(&m), f);
+               m = llist_alias_tail(&m);
+             }
+         }
        else
          { update_wire_expr(e->flags, e->u.dep, f); }
        return;
@@ -1015,7 +1033,14 @@ static void update_wire_expr(wire_flags val, wire_expr *e, exec_info *f)
        e->flags = e->flags ^ WIRE_value;
      }
    if (IS_SET(e->flags, WIRE_action))
-     { update_rule(e->flags, e->u.act, f); }
+     { update_rule(e->flags, e->u, f); }
+   else if (IS_SET(e->flags, WIRE_llist))
+     { m = e->u.ldep;
+       while (!llist_is_empty(&m))
+         { update_wire_expr(e->flags, llist_head(&m), f);
+           m = llist_alias_tail(&m);
+         }
+     }
    else
      { update_wire_expr(e->flags, e->u.dep, f); }
    RESET_FLAG(e->flags, WIRE_undef);
@@ -1240,8 +1265,8 @@ extern void we_add_dep(wire_expr *p, wire_expr *e, exec_info *f)
 /*extern*/ wire_expr temp_wire_expr;
 
 static wire_expr *_make_wire_expr(expr *x, wire_expr *p, exec_info *f)
- /* If p, created wire_expr has p as parent and returns zero. Otherwise
-  * returns created expression.
+ /* If p, the created wire_expr has p as a parent and returns zero.
+  * Otherwise returns the created expression.
   */
  { binary_expr *be = (binary_expr*)x;
    prefix_expr *pe = (prefix_expr*)x;
@@ -1263,7 +1288,7 @@ static wire_expr *_make_wire_expr(expr *x, wire_expr *p, exec_info *f)
    else if (IS_SET(x->flags, EXPR_wire))
      { eval_expr(x, f);
        pop_value(&v, f);
-       assert(v.rep == REP_wire);
+       assert(v.rep == REP_wwire || v.rep == REP_rwire);
        if (!IS_SET(v.v.w->flags, WIRE_has_dep))
          { llist_init(&v.v.w->u.dep);
            SET_FLAG(v.v.w->flags, WIRE_has_dep);

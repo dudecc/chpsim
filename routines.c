@@ -55,6 +55,7 @@
 #include "sem_analysis.h"
 #include "exec.h"
 #include "expr.h"
+#include "statement.h"
 #include "interact.h"
 #include "types.h"
 
@@ -363,7 +364,7 @@ static void check_new_ports(value_tp *v, type *tp, exec_info *f)
            }
          clear_value_tp(&idxv, f);
        return;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
          wire_fix(&v->v.w, f);
          w = v->v.w;
          if (!IS_SET(w->flags, WIRE_has_writer))
@@ -397,7 +398,7 @@ static void check_old_wires(value_tp *v, type *tp, exec_info *f)
        clear_value_tp(&idxv, f);
      }
    else
-     { assert(v->rep == REP_wire);
+     { assert(v->rep == REP_wwire || v->rep == REP_rwire);
        wire_fix(&v->v.w, f);
        w = v->v.w;
        if (w->wframe->cs->ps == f->curr->ps)
@@ -476,21 +477,22 @@ static void check_old_ports(value_tp *v, type *tp, exec_info *f)
            { var_str_printf(&f->scratch, pos, " is not connected");
              exec_error(f, f->curr->obj, f->scratch.s, "port");
            }
-         else if (p->dec)
-           { var_str_printf(&f->scratch, pos, ".%s", p->dec->id);
-             // p->dec means that p was connected through wired decomposition to
-             // one or more subprocesses.  If p->nv is set then a new wired
-             // decomposition process was created.  Otherwise, the port was
-             // already connected externally through the same decompositon, so
-             // the external wired decomposition process was removed.  The value
-             // from the other side had its ownership transfered to the current
-             // process, and was placed in p->v
-             if (p->nv && !IS_SET(f->user->flags, USER_nohide))
-               // If wired decompositions are hidden, we get a better error
-               // message by running this check now...
-               { check_new_ports(p->nv, &p->dec->tp, f); }
-             else if (p->v.rep)
-               { check_old_ports(&p->v, &p->dec->tp, f); }
+         else if (p->nv->rep == REP_port && p->nv->v.p->dec)
+           { var_str_printf(&f->scratch, pos, ".%s", p->nv->v.p->dec->id);
+             /* p->dec means that p was connected through wired decomposition to
+              * one or more subprocesses, and a new wired decomposition process
+              * was created.  Normally we just need to check this new port, but
+              * if this port was also forwarded to a matching decomposition
+              * process, then we need to remove the decomposition processes
+              * and directly connect the decomposed ports.
+              */
+             check_new_ports(p->nv->v.p->nv, &p->nv->v.p->dec->tp, f);
+             if (!IS_SET(p->nv->v.p->wprobe.flags, PORT_deadwu) &&
+                 p->nv->v.p->p->dec)
+               { assert(p->nv->v.p->p->dec == p->nv->v.p->dec);
+                 wu_procs_remove(p->nv->v.p, f);
+                 /* TODO: Errors in the above need better messages */
+               }
            }
        return;
        case REP_array:

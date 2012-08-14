@@ -3,8 +3,8 @@
 (cmnd?) r
 --- CHP execution ----------------------
 (cmnd?) p
-  /a/a: 1 active threads
   /b/b: 1 active threads
+  /a/a: 1 active threads
 (cmnd?) p /a/a/O/wire
   No such process instance: /a/a/O/wire
 (cmnd?) v /a/a/O/wire

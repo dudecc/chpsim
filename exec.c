@@ -169,6 +169,7 @@ extern ctrl_state *new_ctrl_state(exec_info *f)
    else
      { s->ps = 0;
        s->rep_vals = 0;
+       s->cxt = 0;
      }
    s->stack = 0;
    s->crit = 0;
@@ -203,6 +204,31 @@ extern action *new_action(exec_info *f)
    return a;
  }
 
+static int collect_ps_child(process_state *x, process_state *ps)
+/* If ps is a parent of x, add x as a child and return 1.
+ * Otherwise return 0.
+ */
+ { int len;
+   len = strlen(ps->nm);
+   if (strncmp(ps->nm, x->nm, len) || x->nm[len] != '/') return 0;
+   llist_prepend(&ps->children, x);
+   return 1;
+ }
+
+static int add_ps_child(process_state *prnt, process_state *ps)
+/* If prnt is a parent of ps, add ps as a child and return 1.
+ * Otherwise return 0.
+ */
+ { int len;
+   len = strlen(prnt->nm);
+   if (len == 1) len = 0;
+   if (strncmp(prnt->nm, ps->nm, len) || ps->nm[len] != '/') return 0;
+   llist_all_extract(&prnt->children, (llist_func*)collect_ps_child, ps);
+   if (!llist_apply(&prnt->children, (llist_func*)add_ps_child, ps))
+     { llist_prepend(&prnt->children, ps); }
+   return 1;
+ }
+
 extern process_state *new_process_state(exec_info *f, const str *nm)
  /* Allocate new process state, all fields 0 except cs is a new ctrl_state
     and the specified nm is used.
@@ -210,7 +236,7 @@ extern process_state *new_process_state(exec_info *f, const str *nm)
     not invisible, that state is returned instead.
  */
  { process_state *ps;
-   ps = llist_find(&f->user->procs, (llist_func*)instance_eq, nm);
+   ps = find_instance(f->user, nm, 0);
    if (!ps)
      { NEW(ps);
        ps->refcnt = 1;
@@ -220,15 +246,28 @@ extern process_state *new_process_state(exec_info *f, const str *nm)
        ps->nr_meta = 0;
        ps->cs = new_ctrl_state(f);
        ps->cs->ps = ps;
+       ps->cs->cxt = 0; /* f->curr->cxt is never right */
        ps->nr_thread = 0;
        ps->nr_susp = 0;
+       ps->children = 0;
        if (IS_SET(f->user->flags, USER_traceall))
          { ps->flags = DBG_trace; }
        else
          { ps->flags = 0; }
-       llist_prepend(&f->user->procs, ps);
        strict_check_init(ps, f); /* TODO: Only when EXPR_ifrchk is set */
+       if (!is_visible(ps))
+         { llist_prepend(&f->user->hprocs, ps); }
+       else if (f->user->main)
+         { add_ps_child(f->user->main, ps); }
+       else if (strcmp(nm, "/"))
+         { new_process_state(f, "/");
+           add_ps_child(f->user->main, ps);
+         }
+       else
+         { f->user->main = ps; }
      }
+   else if (ps->nr_thread != 0)
+     { assert(!"Duplicated instance name"); }
    ps->refcnt++;
    return ps;
  }
@@ -680,7 +719,7 @@ static void _remove_forwards(value_tp *v, exec_info *f)
      }
    else if (v->rep == REP_union)
      { _remove_forwards(&v->v.u->v, f); }
-   else if (v->rep == REP_wire)
+   else if (v->rep == REP_wwire || v->rep == REP_rwire)
      { wire_fix(&v->v.w, f); }
  }
 
@@ -714,6 +753,7 @@ extern void prepare_chp(exec_info *f)
    llist_apply(&f->chp, (llist_func*)run_properties, f);
    while (!llist_is_empty(&f->chp))
      { s = llist_idx_extract(&f->chp, 0);
+       if (IS_SET(s->ps->flags, PROC_noexec)) continue;
        f->curr = s;
        f->meta_ps = s->ps;
        assert(s->obj->class == CLASS_process_def);

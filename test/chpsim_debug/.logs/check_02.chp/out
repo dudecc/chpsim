@@ -1,0 +1,14 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) run
+--- CHP execution ----------------------
+(cmnd?) check /b
+(cmnd?) 
+/b> done
+--- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/b/a at check_02.chp[7:26]
+	O!0
+(cmnd) quit

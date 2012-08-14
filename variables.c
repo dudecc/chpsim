@@ -334,17 +334,17 @@ static void *sem_property_decl(property_decl *x, sem_info *f)
    This is done atomically, without delay.
 */
 
-static void wire_var_fix(value_tp *v, exec_info *f)
+static void wire_var_fix(value_tp *v, int write, exec_info *f)
  /* Pre: v is filled with boolean values to be replaced by wires */
  { int i;
    switch (v->rep)
      { case REP_array:
          for (i = 0; i < v->v.l->size; i++)
-           { wire_var_fix(&v->v.l->vl[i], f); }
+           { wire_var_fix(&v->v.l->vl[i], write, f); }
        return;
        case REP_bool:
          v->v.w = new_wire_value(v->v.i? '+' : '-', f);
-         v->rep = REP_wire;
+         v->rep = write? REP_wwire : REP_rwire;
        return;
        default:
          assert(!"Illegal initial value");
@@ -407,7 +407,7 @@ static void wire_init
                  range_check(w->tps, &zval, f, w->z);
                  copy_and_clear(&v->v.l->vl[i], &zval, f);
                  f->err_obj = w;
-                 wire_var_fix(&v->v.l->vl[i], f);
+                 wire_var_fix(&v->v.l->vl[i], wfl, f);
                }
              else
                { wire_init(&v->v.l->vl[i], &w->tps->tp, w->init_sym, wfl, f); }
@@ -420,9 +420,12 @@ static void wire_init
        return;
        case TP_bool:
          v->v.w = new_wire_value(sym, f);
-         v->rep = REP_wire;
          if (IS_SET(flags, EXPR_writable))
-           { SET_FLAG(v->v.w->flags, WIRE_has_writer); }
+           { SET_FLAG(v->v.w->flags, WIRE_has_writer);
+             v->rep = REP_wwire;
+           }
+         else
+           { v->rep = REP_rwire; }
        return;
        default:
          assert(!"Illegal wired type");
@@ -440,7 +443,7 @@ static int exec_var_decl(var_decl *x, exec_info *f)
        copy_and_clear(val, &zval, f);
        f->err_obj = x;
        if (IS_SET(x->flags, EXPR_wire))
-         { wire_var_fix(val, f); }
+         { wire_var_fix(val, IS_SET(x->flags, EXPR_writable), f); }
        else if (IS_SET(x->flags, EXPR_counter))
          { counter_var_fix(val, f); }
      }

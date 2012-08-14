@@ -62,7 +62,8 @@
 typedef enum valrep_tp
    { REP_none = 0, /* no value assigned */
      REP_bool, REP_int, REP_z, REP_symbol, REP_array, REP_record,
-     REP_process, REP_port, REP_union, REP_wire, REP_cnt, REP_type
+     REP_process, REP_port, REP_union, REP_cnt, REP_type,
+     REP_rwire, REP_wwire /* wwire can be written to, rwire can't */
    } valrep_tp; /* representation */
 
 /* Limits for use of REP_int instead of REP_z */
@@ -98,7 +99,7 @@ struct value_tp
 	     value_list *l; // REP_array, REP_record
 	     port_value *p; // REP_port
 	     value_union *u; // REP_union
-	     wire_value *w; // REP_wire
+	     wire_value *w; // REP_wwire, REP_rwire
 	     counter_value *c; // REP_cnt
 	     process_state *ps; // REP_process
 	     type_value *tp; // REP_type
@@ -142,13 +143,18 @@ FLAGS(wire_flags)
      NEXT_FLAG(WIRE_wait), /* a transition is pending on hold removal */
      NEXT_FLAG(WIRE_watch), /* print all transitions of this wire */
      NEXT_FLAG(WIRE_reset), /* set if wire is held at its initial value */
+     NEXT_FLAG(WIRE_virtual), /* no reference in wframe, use u.dep for debug */
+     NEXT_FLAG(PORT_deadwu), /* set if port is a cancelled wired union */
+     NEXT_FLAG(PORT_multiprobe), /* a multiply referenced port value */
      WIRE_val_mask = WIRE_undef | WIRE_value
    };
 
 struct wire_value
    { int refcnt;
      wire_flags flags;
-     struct action *wframe;
+     union { struct action *wframe; /* Used for normal wires */
+             process_state *wps; /* Used for port value probes */
+           };
      union { wire_value *w; /* Used during instantiation */
              llist dep; /* Used during execution */
            } u;
@@ -160,12 +166,18 @@ FLAGS(wire_expr_flags)
      _WIRE_EXPR_dummy = 3, /* hack to start from the right place */
      NEXT_FLAG(WIRE_xor), /* if set, ignore valcnt (always change) */
      NEXT_FLAG(WIRE_val_dir), /* if set, value high decreases valcnt */
+     NEXT_FLAG(WIRE_trigger), /* only decrease valcnt, on zero set to refcnt */
+     NEXT_FLAG(WIRE_llist), /* multiple dependencies, use u.ldep */
      NEXT_FLAG(WIRE_pd), /* expression is a pull-down action */
      NEXT_FLAG(WIRE_pu), /* expression is a pull-up action */
      NEXT_FLAG(WIRE_susp), /* expression is a suspended action */
      NEXT_FLAG(WIRE_hold), /* expression is a hold */
      WIRE_hd = WIRE_pd | WIRE_hold, /* hold on an upward transition */
-     WIRE_hu = WIRE_pu | WIRE_hold, /* hold on an upward transition */
+     WIRE_hu = WIRE_pu | WIRE_hold, /* hold on an downward transition */
+     WIRE_xd = WIRE_hd | WIRE_susp, /* force upward transition */
+     WIRE_xu = WIRE_hu | WIRE_susp, /* force downward transition */
+     WIRE_x = WIRE_xu | WIRE_xd, /* force transition to wire_expr value */
+     WIRE_vc = WIRE_susp | WIRE_hold, /* clear the referenced value */
      WIRE_action = WIRE_pu | WIRE_pd | WIRE_susp | WIRE_hold /* is an action */
    };
 
@@ -174,31 +186,50 @@ FLAGS(wire_expr_flags)
 typedef struct action action; /* defined in exec.h */
 
 typedef struct wire_expr wire_expr;
+
+typedef union wire_expr_action wire_expr_action;
+union wire_expr_action
+   { wire_expr *dep;
+     llist ldep;
+     action *act;
+     wire_value *hold;
+     value_tp *val;
+   };
+
 struct wire_expr
    { int refcnt;
      wire_expr_flags flags;
      int valcnt, undefcnt;
-     union { wire_expr *dep;
-             action *act;
-             wire_value *hold;
-           } u;
+     wire_expr_action u;
    };
 /* A wire_expr can emulate xor, xnor, and, nand, or & nor gates of any size.
  * wire_expr make no reference to the expressions that they are a depend on,
  * or even the number of such expressions.  Instead the expressions they
  * depend on must refer to them.  A wire_expr may also refer to another
  * wire_expr that depends on it, and wire_values may refer to any number of
- * dependents.  Every time a wire_value changes, every dependent wire_expr
- * is updated.  If WIRE_xor is set, updating a wire_expr always changes its
- * value.  Otherwise, valcnt is altered according to WIRE_val_dir, and the
- * value is changed according to whether (valcnt >= 0) changes.
+ * dependents.  A wire_expr may also have multiple dependent wire_exprs if
+ * WIRE_llist is set.  Every time a wire_value changes, every dependent
+ * wire_expr is updated.  If WIRE_xor is set, updating a wire_expr always
+ * changes its value.  Otherwise, valcnt is altered according to
+ * WIRE_val_dir, and the value is changed according to whether
+ * (valcnt >= 0) changes.
  *
  * xor/xnor: WIRE_xor set
  * and/nand: WIRE_xor reset, WIRE_val_dir set
  * or/nor:   WIRE_xor reset, WIRE_val_dir reset
  *
- * A wire_expr is also used for counters, which is when valcnt is allowed
- * to go negative.
+ * Wire_exprs are used for production rules, but also for a lot of internal
+ * purposes. Therefore there are a lot of different actions that a wire_expr
+ * can trigger by changing its value, according to which of the WIRE_action
+ * flags are set.  There is also the WIRE_trigger flag, which changes the
+ * wire_expr from emulating an expression to acting as an event counter. Each
+ * time any input transitions to the value of WIRE_val_dir, we decrease valcnt,
+ * and when valcnt reaches zero, we reset valcnt to refcnt and report a
+ * transition to whatever value WIRE_value is set to.  Note that this will only
+ * ever report transitions in one direction, so dependent wire_exprs should
+ * also have WIRE_trigger set.
+ *
+ * A wire_expr change can also be triggered by a counter_value change.
  */
 
 struct counter_value
@@ -209,12 +240,15 @@ struct counter_value
 
 struct port_value
    { wire_value wprobe;
+     wire_value *wpp; /* wire_value of other port */
      port_value *p; /* other port */
      value_tp v; /* value, only used for REP_inport */
-     process_state *ps; /* process that communicates on this port */
+     //process_state *ps; /* process that communicates on this port */
      union_field *dec; /* is this part of a decomposition process? */
      value_tp *nv; /* used for disconnected ports of meta processes */
    };
+
+#define PORT_FROM_WPROBE(W) ((port_value*)(W))
 
 /********** printing *********************************************************/
 typedef struct ctrl_state ctrl_state; /* defined in exec.h */

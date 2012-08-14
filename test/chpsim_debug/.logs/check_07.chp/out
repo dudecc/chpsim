@@ -1,0 +1,12 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) run
+--- CHP execution ----------------------
+(cmnd?) check /b
+(cmnd?) 
+/a[1]> done
+/b/a[1]> done
+/a[0]> done
+/b/a[0]> done
+/b> done
+--- done -------------------------------

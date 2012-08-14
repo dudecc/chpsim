@@ -285,7 +285,7 @@ extern token_tp lex_prompt_cmnd(lex_tp *L, const char *prompt)
        if (*line) add_history(line);
        var_str_copy(&L->line, line);
        var_str_cat(&L->line, "\n");
-       free(line);
+       no_dbg_free(line);
        L->lnr++;
        L->c = L->line.s;
      }

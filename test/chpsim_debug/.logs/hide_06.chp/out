@@ -1,0 +1,26 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) v /a/a
+(view) /a/a at hide_06.chp[13:2]
+	[O.e]
+(cmnd?) fanin O.e
+  Wire is driven by output I.e of process /b
+(cmnd?) v /b
+(view) /b at hide_06.chp[22:0]
+	process B()(I?: e1of3)
+(cmnd?) fanin I.d[0]
+  Wire is driven by output O.d[0] of process /a/a
+(cmnd?) fanin I.d[1]
+  Wire is driven by output O.d[1] of process /a/a
+(cmnd?) fanin I.d[2]
+  Wire is driven by output O.d[2] of process /a/a
+(cmnd?) 
+--- error ------------------------------
+Error: deadlock
+(cmnd?) --- continuing in batch mode -----------
+(cmnd) where
+/b at hide_06.chp[23:13]
+	[I.d[0] | I.d[1] | I.d[2]]
+(cmnd) quit

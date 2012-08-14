@@ -1,0 +1,14 @@
+//run
+//check /b
+
+const N = 10;
+
+process A()(I?, O! : int)
+chp { <<; i : 1..N+1 : I, O!0 >>; print("done") }
+
+process B()(I?, O! : int)
+chp { <<; i : 1..N : I, O!0 >>; print("done") }
+meta { instance a : A; connect a.I, I; connect a.O, O; }
+
+process main()()
+meta { instance b : B; connect b.I, b.O; }

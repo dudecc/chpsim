@@ -8,9 +8,9 @@
   O.b --> /b/b:Ib
   Process instance /a has terminated
 (cmnd?) p /b
-  /b is an instance of pterm1.chp[35:0] BB
-  I.a --> /b/b:Ia
-  I.b --> /b/b:Ib
+  /b is an instance of pterm1.chp[34:0] BB
+  I.a --> /a/a:Oa
+  I.b --> /a/a:Ob
   Process instance /b has terminated
 (cmnd?) 
 /b/b> done

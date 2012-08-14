@@ -3,9 +3,9 @@
 (cmnd?) r
 --- CHP execution ----------------------
 (cmnd?) p
-  /a/O/wire: 1 active threads
   /b: 1 active threads
   /a: 1 active threads
+  /a/O/wire: 1 active threads
 (cmnd?) p /a/O/wire
   /a/O/wire is an instance of /usr/local/share/chpsim/channel.chp[19:7] toe1of
   N = 3
@@ -15,6 +15,13 @@
   O (wired) {(0), [(0), (0), (0)]}
 (active) /a/O/wire at /usr/local/share/chpsim/channel.chp[19:7]
 (active) /a/O/wire at /usr/local/share/chpsim/channel.chp[23:2]
+(cmnd?) v /a/O/wire
+(view) /a/O/wire at /usr/local/share/chpsim/channel.chp[19:7]
+	process toe1of(N: int; ...)(I?: T; ...)
+(cmnd?) p O
+  O = {(0), [(0), (0), (0)]}
+(cmnd?) p I
+  I = port --> /a:O, # = false
 (cmnd?) 
 --- error ------------------------------
 Error: deadlock

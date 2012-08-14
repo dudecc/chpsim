@@ -2,6 +2,9 @@
 //r
 //p
 //p /a/O/wire
+//v /a/O/wire
+//p O
+//p I
 
 requires "channel.chp";
 

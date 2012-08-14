@@ -959,10 +959,12 @@ static int exec_select_stmt(select_stmt *x, exec_info *f)
    return EXEC_suspend;
  }
 
-/* Return true if all probes in pval are one.  If EVAL_probe_zero is set,
-   we instead check if all probes on the other side of the channel are zero.
- */
+/********** communication ****************************************************/
+
 extern int get_probe(value_tp *pval, exec_info *f)
+ /* Return true if all probes in pval are one.  If EVAL_probe_zero is set,
+  * we instead check if all probes on the other side of the channel are zero.
+  */
  { value_list *vl;
    port_value *p;
    wire_value *wp;
@@ -980,13 +982,8 @@ extern int get_probe(value_tp *pval, exec_info *f)
        break;
        case REP_port:
          p = pval->v.p;
-         if (!p->p)
-           { exec_error(f, f->curr->obj,
-                        "Communication on disconnected port %v",
-                        vstr_obj, ((communication*)f->curr->obj)->p);
-           }
          if (IS_SET(f->flags, EVAL_probe_zero))
-           { wp = &p->p->wprobe;
+           { wp = p->wpp;
              x = IS_SET(~wp->flags, WIRE_value);
            }
          else
@@ -1022,8 +1019,8 @@ static void set_probe(value_tp *pval, exec_info *f)
        if (IS_SET(f->flags, EVAL_probe_zero))
          { write_wire(0, &pval->v.p->wprobe, f); }
        else
-         { assert(pval->v.p->p);
-           write_wire(1, &pval->v.p->p->wprobe, f);
+         { assert(pval->v.p->wpp);
+           write_wire(1, pval->v.p->wpp, f);
          }
      }
  }
@@ -1062,13 +1059,53 @@ static value_tp eval_fn(value_tp *v, function_def *x, exec_info *f)
    return xval;
  }
 
-/* Pre: dval->rep != 0
-   Do not use value dval after this
- */
+static void send_error(value_tp *dval, port_value *p, exec_info *f)
+ { port_value *pp;
+   llist m, ma;
+   wire_expr *e, *ea;
+   wire_expr_flags afl;
+   wire_value *w, *wsent;
+   int count = 0;
+   assert(IS_SET(p->wprobe.flags, PORT_multiprobe));
+   pp = (p->p)? p->p : p->nv->v.p->p;
+   m = pp->wprobe.u.dep;
+   while (!llist_is_empty(&m))
+     { e = llist_head(&m);
+       m = llist_alias_tail(&m);
+       if (!IS_SET(e->flags, WIRE_llist)) continue;
+       ma = e->u.ldep;
+       while (!llist_is_empty(&ma))
+         { ea = llist_head(&ma);
+           ma = llist_alias_tail(&ma);
+           afl = ea->flags & WIRE_action;
+           if (afl != WIRE_xu && afl != WIRE_xd) continue;
+           w = ea->u.hold; /* Should be a wpp for a send port */
+           if (!IS_SET(w->flags, WIRE_value) || w == p->wpp) continue;
+           if (!count++) wsent = w;
+         }
+     }
+   assert(count);
+   if (count == 1)
+     { exec_error(f, f->curr->obj, "Process %s sent %v on port %v,\n\t"
+                  "but process %s sent %v on port %V", p->wprobe.wps->nm,
+                  vstr_val, dval, vstr_port, p, wsent->wps->nm,
+                  vstr_val, &pp->v, vstr_wire, wsent, wsent->wps);
+     }
+   else
+     { exec_error(f, f->curr->obj, "Process %s sent %v on port %v,\n\t"
+                  "but port %V and %d others sent %v", p->wprobe.wps->nm,
+                  vstr_val, dval, vstr_port, p, vstr_wire_context, wsent,
+                  wsent->wps, count, vstr_val, &pp->v);
+     }
+ }
+
 static void send_value(value_tp *dval, value_tp *pval, exec_info *f)
+/* Pre: dval->rep != 0
+   Send dval on pval, clear dval
+ */
  { value_list *dl, *pl;
    value_union *vu;
-   value_tp v;
+   value_tp v, *pv;
    long i, j;
    assert(pval->rep);
    if (pval->rep == REP_union)
@@ -1108,16 +1145,25 @@ static void send_value(value_tp *dval, value_tp *pval, exec_info *f)
      }
    else
      { assert(pval->rep == REP_port);
-       assert(pval->v.p->p);
-       pval->v.p->p->v = *dval;
+       if (pval->v.p->p)
+         { pv = &pval->v.p->p->v; }
+       else
+         { assert(pval->v.p->nv->rep == REP_port);
+           assert(pval->v.p->nv->v.p->p);
+           pv = &pval->v.p->nv->v.p->p->v;
+         }
+       if (pv->rep && !equal_value(pv, dval, f, 0))
+         { send_error(dval, pval->v.p, f); }
+       *pv = *dval;
+       /* TODO: Why does dval->rep = REP_none; fail? */
      }
   }
 
-/* f->curr->i should be false if this is a peek */
+/* EVAL_probe should be set if this is a value probe/peek */
 extern value_tp receive_value(value_tp *pval, type *tp, exec_info *f)
  { value_list *dl, *pl;
    value_union *vu;
-   value_tp dv, v, *tpv, lv, hv;
+   value_tp dv, v, *tpv, lv, hv, *pv;
    process_state *meta_ps = f->meta_ps;
    meta_parameter *mp;
    integer_type *itps;
@@ -1192,12 +1238,20 @@ extern value_tp receive_value(value_tp *pval, type *tp, exec_info *f)
            }
        break;
        case REP_port:
-         if (!pval->v.p->v.rep)
-           { exec_error(f, f->curr->obj, "Receiving an unknown value"); }
-         if (IS_SET(f->flags, EVAL_probe))
-           { copy_value_tp(&dv, &pval->v.p->v, f); }
+         if (pval->v.p->p)
+           { pv = &pval->v.p->v; }
          else
-           { copy_and_clear(&dv, &pval->v.p->v, f); }
+           { assert(pval->v.p->nv->rep == REP_port);
+             assert(pval->v.p->nv->v.p->p);
+             pv = &pval->v.p->nv->v.p->v;
+           }
+         if (!pv->rep)
+           { exec_error(f, f->curr->obj, "Receiving an unknown value"); }
+         if (IS_SET(f->flags, EVAL_probe) ||
+             IS_SET(pval->v.p->wprobe.flags, PORT_multiprobe))
+           { copy_value_tp(&dv, pv, f); }
+         else
+           { copy_and_clear(&dv, pv, f); }
        break;
        default:
          alias_value_tp(&dv, pval, f); /* can happen in value probe */
@@ -1205,6 +1259,28 @@ extern value_tp receive_value(value_tp *pval, type *tp, exec_info *f)
      }
    f->meta_ps = meta_ps;
    return dv;
+ }
+
+static void clear_port_value(value_tp *pval, exec_info *f)
+ /* Remove the value on port pval */
+ { value_list *pl;
+   int i;
+   switch (pval->rep)
+     { case REP_union:
+         clear_port_value(&pval->v.u->v, f);
+       return;
+       case REP_array: case REP_record:
+         pl = pval->v.l;
+         for (i = 0 ; i < pl->size ; i++)
+           { clear_port_value(&pl->vl[i], f); }
+       return;
+       case REP_port:
+         if (!IS_SET(pval->v.p->wprobe.flags, PORT_multiprobe))
+           { clear_value_tp(&pval->v.p->v, f); }
+       return;
+       default:
+       return;
+     }
  }
 
 static int exec_comm_pass(communication *x, exec_info *f)
@@ -1338,6 +1414,8 @@ static int exec_communication(communication *x, exec_info *f)
        range_check(x->e->tp.tps, &dval, f, x->e);
        assign(x->e, &dval, f);
      }
+   else if (!x->op_sym && IS_SET(x->p->flags, EXPR_inport))
+     { clear_port_value(&pval, f); }
    if (x->op_sym != SYM_peek)
      { SET_FLAG(f->flags, EVAL_probe_zero);
        set_probe(&pval, f);
@@ -1347,6 +1425,511 @@ static int exec_communication(communication *x, exec_info *f)
    f->curr->i = 0;
    return EXEC_next;
  }
+
+/********** connection *******************************************************/
+
+extern void connect_error(value_tp *v, exec_info *f)
+ { parse_obj *x = f->curr->obj;
+   int i;
+   assert(v);
+   switch (v->rep)
+     { case REP_port:
+         if (v->v.p->p)
+           { exec_error(f, x, "Port %v is already connected to %s",
+                        vstr_port, v->v.p, v->v.p->p->wprobe.wps->nm);
+           }
+         else if (v->v.p->nv->rep == REP_port)
+           { exec_error(f, x, "Port %v is already connected to %s",
+                        vstr_port, v->v.p, v->v.p->nv->v.p->wprobe.wps->nm);
+           }
+         else
+           { exec_error(f, x,"Port %v is already connected",
+                        vstr_port, v->v.p);
+           }
+       case REP_array: case REP_record:
+         for (i = 0; i < v->v.l->size; i++)
+           { connect_error(&v->v.l->vl[i], f); }
+         assert(!"No error found in array");
+       case REP_union:
+         connect_error(&v->v.u->v, f);
+         assert(!"No error found in union");
+       default:
+       return;
+     }
+ }
+
+static void ouroboros_check(port_value *p, value_tp *v, exec_info *f)
+ /* if p is referenced by any element of v, report an ouroboros error */
+ { int i;
+   value_list *vl;
+   switch (v->rep)
+     { case REP_port:
+         if (v->v.p == p)
+           { exec_error(f, f->curr->obj,
+                        "Connection would create a channel loop");
+           }
+       break;
+       case REP_array: case REP_record:
+         vl = v->v.l;
+         for (i = 0; i < vl->size; i++)
+           { ouroboros_check(p, &vl->vl[i], f); }
+       break;
+       case REP_union:
+         ouroboros_check(p, &v->v.u->v, f);
+       break;
+       default:
+         assert(!"Unhandled port type");
+       break;
+     }
+ }
+
+static process_state *get_port_connect(expr *x, value_tp **v, exec_info *f)
+ /* Set v to the value of x, which is initialized with a port value
+    Return the process state which contains the port.
+ */
+ { value_tp *xv;
+   process_state *ps;
+   *v = xv = connect_expr(x, f);
+   if (!xv->rep) /* not connected yet (empty), should be from a new process */
+     { if (f->meta_ps == f->curr->ps)
+         { assert(!"Empty port parameter slipped by check_new_ports"); }
+       xv->rep = REP_port;
+       xv->v.p = new_port_value(f->curr->ps, f);
+       xv->v.p->wprobe.wps = f->meta_ps;
+     }
+   else if (f->meta_ps != f->curr->ps)
+     { connect_error(xv, f); }
+   ps = f->meta_ps;
+   f->meta_ps = f->curr->ps;
+   return ps;
+ }
+
+static void set_ps(value_tp *v, process_state *ps, exec_info *f)
+ /* Set owning process_state of v to ps.
+  * Throw an error if any part of v has already been forwarded.
+  */
+ { int i;
+   value_list *vl;
+   switch (v->rep)
+     { case REP_port:
+         if (!v->v.p->p)
+           { connect_error(v, f); }
+         v->v.p->wprobe.wps = ps;
+       break;
+       case REP_array: case REP_record:
+         vl = v->v.l;
+         for (i = 0; i < vl->size; i++)
+           { set_ps(&vl->vl[i], ps, f); }
+       break;
+       case REP_union:
+         set_ps(&v->v.u->v, ps, f);
+       break;
+       default:
+         assert(!"Unhandled port type");
+       break;
+     }
+ }
+
+static void set_ps_no_error(value_tp *v, process_state *ps, exec_info *f)
+ /* Just set owning process_state of v to ps. */
+ { int i;
+   value_list *vl;
+   switch (v->rep)
+     { case REP_port:
+         v->v.p->wprobe.wps = ps;
+       break;
+       case REP_array: case REP_record:
+         vl = v->v.l;
+         for (i = 0; i < vl->size; i++)
+           { set_ps_no_error(&vl->vl[i], ps, f); }
+       break;
+       case REP_union:
+         set_ps_no_error(&v->v.u->v, ps, f);
+       break;
+       case REP_wwire: case REP_rwire:
+         /* Happens only after bridging decomposition processes, in which case
+          * nothing needs to be done here.
+          */
+       break;
+       default:
+         assert(!"Unhandled port type");
+       break;
+     }
+ }
+
+static void nv_fix(value_tp *v, exec_info *f)
+ /* Pre: v->rep == REP_port, !v->v.p->p, v->v.p->nv is set
+  * Switch nv to refer to the other side of the channel
+  */
+ { int i, size;
+   value_union *vu;
+   value_list *vl;
+   value_tp *vvl, *nv;
+   nv = v->v.p->nv;
+   switch (nv->rep)
+     { case REP_union:
+         vu = new_value_union(f);
+         vu->d = nv->v.u->d;
+         vu->f = nv->v.u->f;
+         vu->v = *v;
+         v->v.p->nv = &nv->v.u->v;
+         v->rep = REP_union;
+         v->v.u = vu;
+         nv_fix(&vu->v, f);
+       return;
+       case REP_array: case REP_record:
+         size = nv->v.l->size;
+         vl = new_value_list(size, f);
+         for (i = 0; i < size; i++)
+           { vvl = &v->v.l->vl[i];
+             *vvl = *v;
+             if (i > 0)
+               { vvl->v.p = new_port_value(v->v.p->wprobe.wps, f); }
+             vvl->v.p->nv = &nv->v.l->vl[i];
+             nv_fix(vvl, f);
+           }
+         v->rep = nv->rep;
+         v->v.l = vl;
+       return;
+       case REP_port:
+         assert(nv->v.p->p);
+         v->v.p->nv = find_reference(nv->v.p->p, f);
+       return;
+       default:
+         assert(!"Unhandled port type");
+       return;
+     }
+ }
+
+static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
+/* Pre: we are connecting two ports of the current process */
+ { int i, dir, do_remove = 0;
+   value_tp *swap, *nv;
+   value_list *al, *bl;
+   parse_obj *x = f->curr->obj;
+   union_field *da, *db;
+   if (vala->rep != REP_port && valb->rep == REP_port)
+     { swap = vala; vala = valb; valb = swap; }
+   /* now vala!=port => valb!=port */
+   switch (vala->rep)
+     { case REP_port:
+         if (!vala->v.p->p)
+           { connect_error(vala, f); }
+         ouroboros_check(vala->v.p->p, valb, f);
+         set_ps(valb, vala->v.p->p->wprobe.wps, f);
+         if (vala->v.p->p->dec)
+           { if (valb->rep != REP_port)
+               { exec_error(f, x, "Connecting incompatible decompositions"); }
+             assert(valb->v.p->p);
+             da = vala->v.p->p->dec;
+             db = valb->v.p->p->dec;
+             if (db && da != db)
+               { exec_error(f, x, "Connecting incompatible decompositions:\n\t"
+                            "field %s (%s[%d:%d]) and field %s (%s[%d:%d])",
+                            da->id, da->src, da->lnr, da->lpos,
+                            db->id, db->src, db->lnr, db->lpos);
+               }
+             valb->v.p->dec = vala->v.p->p->dec;
+             vala->v.p->p->dec = 0;
+             valb->v.p->nv = vala->v.p->p->nv;
+             if (db) do_remove = 1; /* Remove union procs after connection */
+           }
+         nv = find_reference(vala->v.p->p, f);
+         *nv = *valb;
+         valb->rep = REP_port;
+         valb->v.p = vala->v.p->p;
+         valb->v.p->wprobe.wps = f->meta_ps;
+         vala->v.p->p = 0; vala->v.p->wprobe.refcnt--;
+         valb->v.p->p = 0; valb->v.p->wprobe.refcnt--;
+         vala->v.p->nv = valb->v.p->nv = nv;
+         nv_fix(vala, f); /* a's nv should refer to the other side of port b */
+         if (do_remove)
+           { wu_procs_remove(nv->v.p, f); }
+       return;
+       case REP_array: case REP_record:
+         if (vala->rep != valb->rep)
+           { exec_error(f, x, "Connecting incompatible decompositions"); }
+         al = vala->v.l; bl = valb->v.l;
+         if (al->size != bl->size)
+           { exec_error(f, x, "Connecting incompatible decompositions"); }
+         for (i = 0; i < al->size; i++)
+           { connect_aux(&al->vl[i], &bl->vl[i], f); }
+       return;
+       case REP_union:
+         if (valb->rep != REP_union ||
+             vala->v.u->f != valb->v.u->f)
+           { exec_error(f, x, "Connecting incompatible decompositions"); }
+         connect_aux(&vala->v.u->v, &valb->v.u->v, f);
+       return;
+       case REP_wwire: case REP_rwire: /* Must be bridging decomposition processes */
+         assert(valb->rep == REP_wwire || valb->rep == REP_rwire);
+         wire_fix(&vala->v.w, f);
+         wire_fix(&valb->v.w, f);
+         SET_FLAG(valb->v.w->flags, WIRE_forward);
+         valb->v.w->u.w = vala->v.w;
+         vala->v.w->refcnt++;
+         assert(IS_SET(vala->v.w->flags & valb->v.w->flags, WIRE_has_writer));
+         assert(IS_SET(vala->v.w->wframe->cs->ps->flags ^
+                       valb->v.w->wframe->cs->ps->flags, PROC_noexec));
+         if (IS_SET(vala->v.w->wframe->cs->ps->flags, PROC_noexec))
+           { vala->v.w->wframe = valb->v.w->wframe; }
+         wire_fix(&valb->v.w, f); // For good measure
+       return;
+       default:
+       return;
+     }
+ }
+
+extern void wu_procs_remove(port_value *p, exec_info *f)
+ /* Pre: p->dec and p->p->dec are non-zero and equal
+  * Change the union processes of p and p->p from being scheduled with
+  * connected ports to being terminated with forwarded ports. 
+  */
+ { port_value *pp;
+   process_state *ps, *pps;
+   value_tp *pnv, *ppnv;
+   pp = p->p;
+   ps = p->wprobe.wps;
+   pps = pp->wprobe.wps;
+   SET_FLAG(ps->flags, PROC_noexec);
+   SET_FLAG(pps->flags, PROC_noexec);
+   pnv = p->nv; ppnv = pp->nv;
+   p->nv = ppnv; pp->nv = pnv;
+   connect_aux(pnv, ppnv, f);
+   set_ps_no_error(pnv, ps, f);
+   set_ps_no_error(ppnv, pps, f);
+   SET_FLAG(p->wprobe.flags, PORT_deadwu);
+   SET_FLAG(pp->wprobe.flags, PORT_deadwu);
+ }
+
+static int exec_connection(connection *x, exec_info *f)
+ { expr *a, *b;
+   process_state *psa, *psb;
+   value_tp *vala, *valb, tmp;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_connection(x, f->pf);
+       print_string(";\n", f->pf);
+     }
+   psa = get_port_connect(x->a, &vala, f);
+   if (psa == f->meta_ps)
+     { psb = get_port_connect(x->b, &valb, f);
+       a = x->a; b = x->b;
+     }
+   else
+     { valb = vala; psb = psa;
+       psa = get_port_connect(x->b, &vala, f);
+       a = x->b; b = x->a;
+     }
+   if (!type_compatible_exec(&a->tp, psa, &b->tp, psb, f))
+     { exec_error(f, x, "Connected ports must have identical specific types"); }
+   /* psa == f->curr->ps implies that a is a new, unconnected port,
+      and that vala->rep == REP_port.  Otherwise, a must be connected,
+      and it may be an array, record, or union type as well.  The same
+      is true for b.  Also (psb == f->curr->ps) => (psa == f->curr->ps).
+    */
+   if (psa != f->meta_ps) /* connection between two new ports */
+     { vala->v.p->p = valb->v.p;
+       vala->v.p->wpp = &valb->v.p->wprobe;
+       valb->v.p->wprobe.refcnt++;
+       valb->v.p->p = vala->v.p;
+       valb->v.p->wpp = &vala->v.p->wprobe;
+       vala->v.p->wprobe.refcnt++;
+     }
+   else if (psb != f->meta_ps) /* pass from local vala to new valb */
+     { set_ps(vala, valb->v.p->wprobe.wps, f);
+       valb->v.p->nv = valb;
+       valb->v.p->wprobe.wps = f->meta_ps;
+       tmp = *vala; *vala = *valb; *valb = tmp;
+     }
+   else /* connecting two local ports */
+     { connect_aux(vala, valb, f); }
+   return EXEC_next;
+ }
+
+static int get_write(expr *x, exec_info *f)
+ /* Pre: x is a subelement of a wired type expression, a wired type expression,
+  *      or an array of wired type expression.
+  * For subelements, return whether the subelement is writable.  For full wired
+  * types or arrays thereof, return whether the "li" list in the wired type
+  * is writable.
+  */
+ { type *tp = &x->tp;
+   parse_obj_flags fl;
+   while (tp->kind == TP_array) tp = tp->elem.tp;
+   if (tp->kind != TP_wire)
+     { return IS_SET(x->flags, EXPR_writable); }
+   else if (x->class == CLASS_field_of_union)
+     /* Here we must deduce the decomposed wired port's "direction" */
+     { fl = ((field_of_union*)x)->x->flags;
+       if (!IS_SET(fl, EXPR_port_ext))
+         { fl = fl ^ EXPR_port; }
+       return LI_IS_WRITE(fl, ((wired_type*)tp->tps)->type);
+     }
+   else
+     { return LI_IS_WRITE(x->flags, ((wired_type*)tp->tps)->type); }
+ }
+
+static process_state *get_wire_connect(expr *x, value_tp **v, exec_info *f)
+ /* Set v to the value of x, which is initialized with a wire value
+  * Return the process state which contains the port.
+ */
+ { process_state *ps;
+   value_tp *xv;
+   *v = xv = connect_expr(x, f);
+   if (!xv->rep) /* not connected yet (empty), should be from a new process */
+     { force_value(xv, x, f); }
+   ps = f->meta_ps;
+   f->meta_ps = f->curr->ps;
+   return ps;
+ }
+
+struct wc_info
+   { token_tp init_sym;
+     int a_write, b_write;
+     process_state *psa, *psb;
+   };
+
+static void wire_connect
+(value_tp *va, value_tp *vb, type *tp, struct wc_info *g, exec_info *f)
+/* Pre: run type_compatible_exec on a and b
+ * TODO: A LOT of this code has been made redundant by the wire_init routine...
+ * TODO: Seriously, simplify this code
+ */
+ { int i, a_flag, b_flag;
+   wire_value *wa, *wb;
+   action *wra, *wrb; /* write frames */
+   wired_type *wtps;
+   llist m;
+   wire_decl *w;
+   token_tp tok;
+   if (tp->kind == TP_array)
+     { if (va->rep == REP_none) force_value_array(va, tp, f);
+       if (vb->rep == REP_none) force_value_array(vb, tp, f);
+       for (i = 0; i < va->v.l->size; i++)
+         { wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], tp->elem.tp, g, f); }
+     }
+   else if (tp->kind == TP_record)
+     { if (va->rep == REP_none) force_value(va, EXPR_FROM_TYPE(tp), f);
+       if (vb->rep == REP_none) force_value(vb, EXPR_FROM_TYPE(tp), f);
+       m = tp->elem.l;
+       for (i = 0; i < va->v.l->size; i++)
+         { wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], llist_head(&m), g, f);
+           m = llist_alias_tail(&m);
+         }
+     }
+   else if (tp->kind == TP_wire)
+     { if (va->rep == REP_none) force_value(va, EXPR_FROM_TYPE(tp), f);
+       if (vb->rep == REP_none) force_value(vb, EXPR_FROM_TYPE(tp), f);
+       wtps = (wired_type*)tp->tps;
+       m = wtps->li;
+       for (i = 0; i < va->v.l->size; i++)
+         { w = llist_head(&m);
+           g->init_sym = w->init_sym;
+           wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], &w->tps->tp, g, f);
+           m = llist_alias_tail(&m);
+           if (llist_is_empty(&m))
+             { m = wtps->lo;
+               g->a_write = !g->a_write;
+               g->b_write = !g->b_write;
+             }
+         }
+     }
+   else /* TP_bool */
+     { if (va->rep) { wire_fix(&va->v.w, f); wa = va->v.w; }
+       if (vb->rep == REP_wwire || vb->rep == REP_rwire) { wire_fix(&vb->v.w, f); wb = vb->v.w; }
+       if (va->rep && vb->rep && wa == wb) return; /* already connected, done */
+       if (va->rep) wra = IS_SET(wa->flags, WIRE_has_writer)? wa->wframe : 0;
+       if (!va->rep || !wra) wra = g->a_write? &g->psa->cs->act : 0;
+       if (vb->rep == REP_wwire || vb->rep == REP_rwire)
+         { wrb = IS_SET(wb->flags, WIRE_has_writer)? wb->wframe : 0; }
+       if ((vb->rep != REP_wwire && vb->rep != REP_rwire) || !wrb) wrb = g->b_write? &g->psb->cs->act : 0;
+       if (wra && wrb && wra->cs->ps!=f->curr->ps && wrb->cs->ps!=f->curr->ps)
+         /* Two writers on the same wire   TODO: much better error message */
+         { exec_error(f, f->curr->obj, "Connection bridged two output wires"); }
+       /* Now actually do the connection */
+       if (vb->rep == REP_bool) /* No connection, just set initial value */
+         { if (!va->rep)
+             { va->v.w = wa = new_wire_value(g->init_sym, f); }
+           if (!IS_SET(wa->flags ^ (vb->v.i? 0 : WIRE_value), WIRE_val_mask))
+             { exec_error(f, f->curr->obj, "Connecting initially %s wire "
+                          "to rail '%s'", vb->v.i? "false" : "true",
+                          vb->v.i? "true" : "false");
+             }
+           ASSIGN_FLAG(wa->flags, vb->v.i? WIRE_value : 0, WIRE_val_mask);
+         }
+       else if (!va->rep)
+         { if (!vb->rep)
+             { va->v.w = vb->v.w = wa = new_wire_value(g->init_sym, f); }
+           else
+             { va->v.w = wa = wb; }
+         }
+       else if (!vb->rep)
+         { vb->v.w = wa; }
+       else /* va and vb are both prexisting wires */
+         { if (IS_SET(wa->flags, WIRE_undef))
+             { ASSIGN_FLAG(wa->flags, wb->flags, WIRE_val_mask); }
+           else if (((wa->flags ^ wb->flags) & WIRE_val_mask) == WIRE_value)
+             { exec_error(f, f->curr->obj, "Incompatible initial values"
+                          "in connect");
+             }
+           SET_FLAG(wb->flags, WIRE_forward);
+           wb->u.w = wa;
+           wb->refcnt--;
+           if (!wb->refcnt) free(wb);
+           else wa->refcnt++;
+           vb->v.w = wa;
+         }
+       /* now va->w == vb->w = wa */
+       wa->refcnt++;
+       va->rep = g->a_write? REP_wwire : REP_rwire;
+       if (!vb->rep) vb->rep = g->b_write? REP_wwire : REP_rwire;
+       if (wra || wrb)
+         { SET_FLAG(wa->flags, WIRE_has_writer);
+           wa->wframe = (!wra || (wrb && wrb->cs->ps != f->curr->ps))? wrb:wra;
+           /* make wframe one of wra or wrb, giving preference to new frames */
+         }
+     }
+ }
+
+static int exec_wired_connection(wired_connection *x, exec_info *f)
+ { struct wc_info g;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_connection((wired_connection*)x, f->pf);
+       print_string(";\n", f->pf);
+     }
+   value_tp *vala, *valb;
+   g.psa = get_wire_connect(x->a, &vala, f);
+   g.psb = get_wire_connect(x->b, &valb, f);
+   g.a_write = get_write(x->a, f);
+   g.b_write = get_write(x->b, f);
+   if (!type_compatible_exec(&x->a->tp, g.psa, &x->b->tp, g.psb, f))
+     { exec_error(f, x, "Connected ports must have identical specific types"); }
+   /* g.psa == f->curr->ps implies that a is a new port (same for b) */
+   wire_connect(vala, valb, &x->a->tp, &g, f);
+   return EXEC_next;
+ }
+
+static int exec_const_wired_connection(const_wired_connection *x, exec_info *f)
+ { struct wc_info g;
+   if (IS_SET(f->flags, EXEC_print))
+     { print_connection((wired_connection*)x, f->pf);
+       print_string(";\n", f->pf);
+     }
+   value_tp *vala, valb;
+   g.psa = get_wire_connect(x->a, &vala, f);
+   eval_expr(x->b, f);
+   pop_value(&valb, f);
+   g.psb = &const_frame_ps;
+   g.a_write = get_write(x->a, f);
+   g.b_write = 1;
+   if (!type_compatible_exec(&x->a->tp, g.psa, &x->b->tp, f->meta_ps, f))
+     { exec_error(f, x, "Connected ports must have identical specific types"); }
+   /* g.psa == f->curr->ps implies that a is a new port */
+   wire_connect(vala, &valb, &x->a->tp, &g, f);
+   return EXEC_next;
+ }
+
+/********** other instantiation **********************************************/
 
 extern void meta_init(process_state *ps, exec_info *f)
 /* Everything that should be executed as soon as all meta parameters are set */
@@ -1405,354 +1988,6 @@ static int exec_meta_binding(meta_binding *x, exec_info *f)
    pop_value(&xval, f);
    exec_meta_binding_aux(x, &xval, f);
    clear_value_tp(&xval, f);
-   return EXEC_next;
- }
-
-static void connect_error(expr *x, process_state *ps, exec_info *f)
- { if (!ps) exec_error(f, x,"Port %v is already connected", vstr_obj, x);
-   exec_error(f, x, "Port %v is already connected to %s", vstr_obj, x, ps->nm);
- }
-
-static process_state *get_port_connect(expr *x, value_tp **v, exec_info *f)
- /* Set v to the value of x, which is initialized with a port value
-    Return the process state which contains the port.
- */
- { value_tp *xv;
-   process_state *ps;
-   *v = xv = connect_expr(x, f);
-   if (!xv->rep) /* not connected yet (empty), should be from a new process */
-     { if (f->meta_ps == f->curr->ps)
-         { assert(!"Empty port parameter slipped by check_new_ports"); }
-       xv->rep = REP_port;
-       xv->v.p = new_port_value(f->curr->ps, f);
-       xv->v.p->ps = f->meta_ps;
-     }
-   else if (f->meta_ps != f->curr->ps)
-     { connect_error(x, (xv->rep == REP_port)? xv->v.p->ps : 0, f); }
-   ps = f->meta_ps;
-   f->meta_ps = f->curr->ps;
-   return ps;
- }
-
-static void set_ps(value_tp *v, process_state *ps, exec_info *f)
- { int i;
-   value_list *vl;
-   switch (v->rep)
-     { case REP_port:
-         v->v.p->ps = ps;
-       break;
-       case REP_array: case REP_record:
-         vl = v->v.l;
-         for (i = 0; i < vl->size; i++)
-           { set_ps(&vl->vl[i], ps, f); }
-       break;
-       case REP_union:
-         set_ps(&v->v.u->v, ps, f);
-       break;
-       default:
-       break;
-     }
- }
-
-static void connect_aux(value_tp *vala, value_tp *valb, exec_info *f)
-/* Pre: we are connecting two ports of the current process */
- { int i, dir;
-   value_tp *swap = 0, *nv;
-   value_list *al, *bl;
-   connection *x = (connection*)f->curr->obj;
-   if (vala->rep != REP_port && valb->rep == REP_port)
-     { swap = vala; vala = valb; valb = swap; }
-   /* now vala!=port => valb!=port */
-   switch (vala->rep)
-     { case REP_port:
-         if (!vala->v.p->p)
-           { connect_error(swap? x->b : x->a, vala->v.p->ps, f); }
-         /* TODO: what if valb was already connected? */
-         if (vala->v.p->p->dec)
-           { if (valb->rep != REP_port)
-               { exec_error(f, x, "Connecting incompatible decompositions"); }
-             if (!valb->v.p->p)
-               { connect_error(x->b, valb->v.p->ps, f); }
-             if (valb->v.p->p->dec)
-               { if (valb->v.p->p->dec != vala->v.p->p->dec)
-                   { exec_error(f, x, "Connecting incompatible "
-                                      "decompositions");
-                   }
-                 dir = IS_SET(x->a->flags, EXPR_inport);
-                 wu_proc_remove(vala, dir, f);
-                 wu_proc_remove(valb, !dir, f);
-                 connect_aux(&vala->v.p->v, &valb->v.p->v, f);
-                 return;
-               }
-             valb->v.p->dec = vala->v.p->p->dec;
-             vala->v.p->p->dec = 0;
-           }
-         set_ps(valb, vala->v.p->p->ps, f);
-         vala->v.p->ps = (valb->rep == REP_port)? valb->v.p->p->ps : 0;
-         nv = find_reference(vala->v.p->p, f);
-         *nv = *valb;
-         valb->rep = REP_port;
-         valb->v.p = vala->v.p->p;
-         vala->v.p->p = 0; vala->v.p->wprobe.refcnt--;
-         valb->v.p->p = 0; valb->v.p->wprobe.refcnt--;
-         vala->v.p->nv = valb->v.p->nv = nv;
-       return;
-       case REP_array: case REP_record:
-         if (vala->rep != valb->rep)
-           { exec_error(f, x, "Connecting incompatible decompositions"); }
-         al = vala->v.l; bl = valb->v.l;
-         if (al->size != bl->size)
-           { exec_error(f, x, "Connecting incompatible decompositions"); }
-         for (i = 0; i < al->size; i++)
-           { connect_aux(&al->vl[i], &bl->vl[i], f); }
-       return;
-       case REP_union:
-         if (valb->rep != REP_union ||
-             vala->v.u->f != valb->v.u->f)
-           { exec_error(f, x, "Connecting incompatible decompositions"); }
-         connect_aux(&vala->v.u->v, &valb->v.u->v, f);
-       return;
-       case REP_wire: // Can happen when bridging decomposition processes
-         assert(valb->rep == REP_wire);
-         wire_fix(&vala->v.w, f);
-         wire_fix(&valb->v.w, f);
-         SET_FLAG(valb->v.w->flags, WIRE_forward);
-         valb->v.w->u.w = vala->v.w;
-         if (vala->v.w->wframe->cs->ps == f->meta_ps)
-           { vala->v.w->wframe = valb->v.w->wframe; }
-         wire_fix(&valb->v.w, f); // For good measure
-       return;
-       default:
-       return;
-     }
- }
-
-static int exec_connection(connection *x, exec_info *f)
- { expr *a, *b;
-   process_state *psa, *psb;
-   value_tp *vala, *valb, tmp;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection(x, f->pf);
-       print_string(";\n", f->pf);
-     }
-   psa = get_port_connect(x->a, &vala, f);
-   if (psa == f->curr->ps)
-     { psb = get_port_connect(x->b, &valb, f);
-       a = x->a; b = x->b;
-     }
-   else
-     { valb = vala; psb = psa;
-       psa = get_port_connect(x->b, &vala, f);
-       a = x->b; b = x->a;
-     }
-   if (!type_compatible_exec(&a->tp, psa, &b->tp, psb, f))
-     { exec_error(f, x, "Connected ports must have identical specific types"); }
-   /* psa == f->curr->ps implies that a is a new, unconnected port,
-      and that vala->rep == REP_port.  Otherwise, a must be connected,
-      and it may be an array, record, or union type as well.  The same
-      is true for b.  Also (psb == f->curr->ps) => (psa == f->curr->ps).
-    */
-   if (psa != f->curr->ps) /* connection between two new ports */
-     { vala->v.p->p = valb->v.p;
-       valb->v.p->wprobe.refcnt++;
-       valb->v.p->p = vala->v.p;
-       vala->v.p->wprobe.refcnt++;
-     }
-   else if (psb != f->curr->ps) /* pass from local vala to new valb */
-     { set_ps(vala, valb->v.p->ps, f);
-       valb->v.p->nv = valb;
-       tmp = *vala; *vala = *valb; *valb = tmp;
-     }
-   else /* connecting two local ports */
-     { connect_aux(vala, valb, f); }
-   return EXEC_next;
- }
-
-static int get_write(expr *x, exec_info *f)
- /* Pre: x is a subelement of a wired type expression, a wired type expression,
-  *      or an array of wired type expression.
-  * For subelements, return whether the subelement is writable.  For full wired
-  * types or arrays thereof, return whether the "li" list in the wired type
-  * is writable.
-  */
- { type *tp = &x->tp;
-   parse_obj_flags fl;
-   while (tp->kind == TP_array) tp = tp->elem.tp;
-   if (tp->kind != TP_wire)
-     { return IS_SET(x->flags, EXPR_writable); }
-   else if (x->class == CLASS_field_of_union)
-     /* Here we must deduce the decomposed wired port's "direction" */
-     { fl = ((field_of_union*)x)->x->flags;
-       if (!IS_SET(fl, EXPR_port_ext))
-         { fl = fl ^ EXPR_port; }
-       return LI_IS_WRITE(fl, ((wired_type*)tp->tps)->type);
-     }
-   else
-     { return LI_IS_WRITE(x->flags, ((wired_type*)tp->tps)->type); }
- }
-
-static process_state *get_wire_connect(expr *x, value_tp **v, exec_info *f)
- /* Set v to the value of x, which is initialized with a wire value
-  * Return the process state which contains the port.
- */
- { process_state *ps;
-   value_tp *xv;
-   *v = xv = connect_expr(x, f);
-   if (!xv->rep) /* not connected yet (empty), should be from a new process */
-     { force_value(xv, x, f); }
-   ps = f->meta_ps;
-   f->meta_ps = f->curr->ps;
-   return ps;
- }
-
-struct wc_info
-   { token_tp init_sym;
-     int a_write, b_write;
-     process_state *psa, *psb;
-   };
-
-static void wire_connect
-(value_tp *va, value_tp *vb, type *tp, struct wc_info *g, exec_info *f)
-/* Pre: run type_compatible_exec on a and b
- * TODO: A LOT of this code has been made redundant by the wire_init routine...
- */
- { int i, a_flag, b_flag;
-   wire_value *wa, *wb;
-   action *wra, *wrb; /* write frames */
-   wired_type *wtps;
-   llist m;
-   wire_decl *w;
-   token_tp tok;
-   if (tp->kind == TP_array)
-     { if (va->rep == REP_none) force_value_array(va, tp, f);
-       if (vb->rep == REP_none) force_value_array(vb, tp, f);
-       for (i = 0; i < va->v.l->size; i++)
-         { wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], tp->elem.tp, g, f); }
-     }
-   else if (tp->kind == TP_record)
-     { if (va->rep == REP_none) force_value(va, EXPR_FROM_TYPE(tp), f);
-       if (vb->rep == REP_none) force_value(vb, EXPR_FROM_TYPE(tp), f);
-       m = tp->elem.l;
-       for (i = 0; i < va->v.l->size; i++)
-         { wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], llist_head(&m), g, f);
-           m = llist_alias_tail(&m);
-         }
-     }
-   else if (tp->kind == TP_wire)
-     { if (va->rep == REP_none) force_value(va, EXPR_FROM_TYPE(tp), f);
-       if (vb->rep == REP_none) force_value(vb, EXPR_FROM_TYPE(tp), f);
-       wtps = (wired_type*)tp->tps;
-       m = wtps->li;
-       for (i = 0; i < va->v.l->size; i++)
-         { w = llist_head(&m);
-           g->init_sym = w->init_sym;
-           wire_connect(&va->v.l->vl[i], &vb->v.l->vl[i], &w->tps->tp, g, f);
-           m = llist_alias_tail(&m);
-           if (llist_is_empty(&m))
-             { m = wtps->lo;
-               g->a_write = !g->a_write;
-               g->b_write = !g->b_write;
-             }
-         }
-     }
-   else /* TP_bool */
-     { if (va->rep) { wire_fix(&va->v.w, f); wa = va->v.w; }
-       if (vb->rep == REP_wire) { wire_fix(&vb->v.w, f); wb = vb->v.w; }
-       if (va->rep && vb->rep && wa == wb) return; /* already connected, ignore */
-       if (va->rep) wra = IS_SET(wa->flags, WIRE_has_writer)? wa->wframe : 0;
-       if (!va->rep || !wra) wra = g->a_write? &g->psa->cs->act : 0;
-       if (vb->rep == REP_wire)
-         { wrb = IS_SET(wb->flags, WIRE_has_writer)? wb->wframe : 0; }
-       if (vb->rep != REP_wire || !wrb) wrb = g->b_write? &g->psb->cs->act : 0;
-       if (wra && wrb && wra->cs->ps!=f->curr->ps && wrb->cs->ps!=f->curr->ps)
-         /* Two writers on the same wire   TODO: better error message */
-         { if (g->b_write)
-             { connect_error(((connection*)f->curr->obj)->a, 0, f); }
-           if (g->a_write)
-             { connect_error(((connection*)f->curr->obj)->b, 0, f); }
-           exec_error(f, f->curr->obj, "Connection bridged two output wires");
-         }
-       /* Now actually do the connection */
-       if (vb->rep == REP_bool) /* No connection, just set initial value */
-         { if (!va->rep)
-             { va->v.w = wa = new_wire_value(g->init_sym, f); }
-           if (!IS_SET(wa->flags ^ (vb->v.i? 0 : WIRE_value), WIRE_val_mask))
-             { exec_error(f, f->curr->obj, "Connecting initially %s wire "
-                          "to rail '%s'", vb->v.i? "false" : "true",
-                          vb->v.i? "true" : "false");
-             }
-           ASSIGN_FLAG(wa->flags, vb->v.i? WIRE_value : 0, WIRE_val_mask);
-         }
-       else if (!va->rep)
-         { if (!vb->rep)
-             { va->v.w = vb->v.w = wa = new_wire_value(g->init_sym, f); }
-           else
-             { va->v.w = wa = wb; }
-         }
-       else if (!vb->rep)
-         { vb->v.w = wa; }
-       else /* va and vb are both prexisting wires */
-         { if (IS_SET(wa->flags, WIRE_undef))
-             { ASSIGN_FLAG(wa->flags, wb->flags, WIRE_val_mask); }
-           else if (((wa->flags ^ wb->flags) & WIRE_val_mask) == WIRE_value)
-             { exec_error(f, f->curr->obj, "Incompatible initial values"
-                          "in connect");
-             }
-           SET_FLAG(wb->flags, WIRE_forward);
-           wb->u.w = wa;
-           wb->refcnt--;
-           if (!wb->refcnt) free(wb);
-           else wa->refcnt++;
-           vb->v.w = wa;
-         }
-       /* now va->w == vb->w = wa */
-       wa->refcnt++;
-       va->rep = REP_wire;
-       if (!vb->rep) vb->rep = REP_wire;
-       if (wra || wrb)
-         { SET_FLAG(wa->flags, WIRE_has_writer);
-           wa->wframe = (!wra || (wrb && wrb->cs->ps != f->curr->ps))? wrb:wra;
-           /* make wframe one of wra or wrb, giving preference to new frames */
-         }
-     }
- }
-
-static int exec_wired_connection(wired_connection *x, exec_info *f)
- { struct wc_info g;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection((wired_connection*)x, f->pf);
-       print_string(";\n", f->pf);
-     }
-   value_tp *vala, *valb;
-   g.psa = get_wire_connect(x->a, &vala, f);
-   g.psb = get_wire_connect(x->b, &valb, f);
-   g.a_write = get_write(x->a, f);
-   g.b_write = get_write(x->b, f);
-   if (!type_compatible_exec(&x->a->tp, g.psa, &x->b->tp, g.psb, f))
-     { exec_error(f, x, "Connected ports must have identical specific types"); }
-   /* g.psa == f->curr->ps implies that a is a new port (same for b) */
-   wire_connect(vala, valb, &x->a->tp, &g, f);
-   return EXEC_next;
- }
-
-
-static int exec_const_wired_connection(const_wired_connection *x, exec_info *f)
- { struct wc_info g;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection((wired_connection*)x, f->pf);
-       print_string(";\n", f->pf);
-     }
-   value_tp *vala, valb;
-   g.psa = get_wire_connect(x->a, &vala, f);
-   eval_expr(x->b, f);
-   pop_value(&valb, f);
-   g.psb = &const_frame_ps;
-   g.a_write = get_write(x->a, f);
-   g.b_write = 1;
-   if (!type_compatible_exec(&x->a->tp, g.psa, &x->b->tp, f->meta_ps, f))
-     { exec_error(f, x, "Connected ports must have identical specific types"); }
-   /* g.psa == f->curr->ps implies that a is a new port */
-   wire_connect(vala, &valb, &x->a->tp, &g, f);
    return EXEC_next;
  }
 
@@ -1825,7 +2060,7 @@ static int exec_instance_stmt(instance_stmt *x, exec_info *f)
    return EXEC_next;
  }
 
-/********** exec_production_rule *********************************************/
+/********** production rules *************************************************/
 
 static void _lookup_pr
 (value_tp *v, wire_expr **pu, wire_expr **pd, wire_value *w, exec_info *f)
@@ -1838,7 +2073,7 @@ static void _lookup_pr
          for (i = 0; i < v->v.l->size; i++)
            { _lookup_pr(&v->v.l->vl[i], pu, pd, w, f); }
        return;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
          if (f->curr->obj->class == CLASS_delay_hold) return;
          if (!IS_SET(v->v.w->flags, WIRE_has_dep)) return;
          l = v->v.w->u.dep;
@@ -1897,7 +2132,7 @@ static int exec_production_rule(production_rule *x, exec_info *f)
    eval_expr(x->v, f);
    pop_value(&val, f);
    e = make_wire_expr(x->g, f);
-   if (val.rep == REP_wire)
+   if (val.rep == REP_wwire)
      { a = val.v.w->wframe;
        if (!IS_SET(a->flags, ACTION_is_pr))
          { a = new_action(f);
@@ -1935,7 +2170,7 @@ static int exec_production_rule(production_rule *x, exec_info *f)
                                 ACTION_pr_dn | ACTION_dn_nxt);
        if (IS_ALLSET(a->flags, ACTION_pr_up | ACTION_pr_dn))
          { exec_error(f, x, "Production rule creates initial interference"); }
-       if (val.rep == REP_wire &&
+       if (val.rep == REP_wwire &&
            ((val.v.w->flags & WIRE_value) == (ispu? 0 : WIRE_value)))
          { action_sched(a, f); }
        else
@@ -1997,7 +2232,7 @@ static int exec_property_stmt(property_stmt *x, exec_info *f)
  { value_tp node, v;
    eval_expr(x->node, f);
    pop_value(&node, f);
-   assert(node.rep == REP_wire);
+   assert(node.rep == REP_wwire || node.rep == REP_rwire);
    eval_expr(x->v, f);
    pop_value(&v, f);
    if (v.rep == REP_z)

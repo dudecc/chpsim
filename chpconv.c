@@ -424,12 +424,12 @@ static wire_value *find_gate_output(process_state *p)
      { d = llist_head(&l);
        v = &p->var[d->var_idx];
        if (IS_SET(d->flags, EXPR_writable)) /* Possible output */
-         { if (v->rep != REP_wire || out) return 0;
+         { if (v->rep != REP_wwire || out) return 0;
            out = v->v.w;
          }
        else /* Verify that this is not a wired channel */
          { while (v->rep == REP_array) v = &v->v.l->vl[0];
-           if (v->rep != REP_wire) return 0;
+           if (v->rep != REP_rwire) return 0;
          }
      }
    return out;
@@ -442,7 +442,7 @@ static int _check_internal_reset(value_tp *v)
      { for (i = 0; i < v->v.l->size; i++)
          { if (_check_internal_reset(&v->v.l->vl[i])) return 1; }
      }
-   else if (v->rep == REP_wire)
+   else if (v->rep == REP_wwire || v->rep == REP_rwire)
      { return !IS_SET(v->v.w->flags, WIRE_reset); }
    return 0;
  }
@@ -639,7 +639,7 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
        case REP_port:
          p = v->v.p->dec? v->v.p : v->v.p->p;
          if (v->v.p->p && p->dec)
-           { ps = p->ps;
+           { ps = p->wprobe.wps;
              assert(!is_visible(ps));
              d = llist_idx(&ps->p->pl, 0);
              if (ps->var[d->var_idx].v.p == p)
@@ -668,7 +668,7 @@ static void _named_wire_exec(value_tp *v, type *tp, name_info *f)
          else
            { assert(!"Wait, what?"); }
        return;
-       case REP_wire:
+       case REP_wwire: case REP_rwire:
            w = v->v.w;
            while (IS_SET(w->flags, WIRE_forward)) w = w->u.w;
            (*f->wfn)(w, f);

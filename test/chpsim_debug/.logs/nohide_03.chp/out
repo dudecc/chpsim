@@ -3,13 +3,13 @@
 (cmnd?) r
 --- CHP execution ----------------------
 (cmnd?) p
+  /s/d/oe: 1 active threads
+  /s/d/od: 1 active threads
   /k/d/id[3]: 1 active threads
   /k/d/id[2]: 1 active threads
   /k/d/id[1]: 1 active threads
   /k/d/id[0]: 1 active threads
   /k/d/ie: 1 active threads
-  /s/d/oe: 1 active threads
-  /s/d/od: 1 active threads
 (cmnd?) v /s/d/od
 (view) /s/d/od at nohide_03.chp[10:0]
 	process inv_lo()(i; ...)

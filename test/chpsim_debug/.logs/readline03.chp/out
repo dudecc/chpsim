@@ -1,0 +1,10 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) print /a3oiuhcvbe 
+  /a3oiuhcvbe is an instance of readline03.chp[4:0] a
+(active) /a3oiuhcvbe at readline03.chp[4:0]
+(active) /a3oiuhcvbe at readline03.chp[4:20]
+(cmnd?) 
+--- done -------------------------------

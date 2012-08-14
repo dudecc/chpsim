@@ -61,8 +61,17 @@ extern void init_statement(void);
  */
 extern int get_probe(value_tp *pval, exec_info *f);
  
-/* f->curr->i should be false if this is a peek */
 extern value_tp receive_value(value_tp *pval, type *tp, exec_info *f);
+ /* EVAL_probe should be set if this is a value probe/peek */
+
+extern void connect_error(value_tp *v, exec_info *f);
+ /* Display an error message for duplicate connection of ports */
+
+extern void wu_procs_remove(port_value *p, exec_info *f);
+ /* Pre: p->dec and p->p->dec are non-zero and equal
+  * Change the union processes of p and p->p from being scheduled with
+  * connected ports to being terminated with forwarded ports. 
+  */
 
 extern void sem_meta_binding_aux(process_def *d, meta_binding *x, sem_info *f);
 /* If x->x is not valid and the process for binding (d) can be found

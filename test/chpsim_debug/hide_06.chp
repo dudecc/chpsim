@@ -1,0 +1,26 @@
+//r
+//v /a/a
+//fanin O.e
+//v /b
+//fanin I.d[0]
+//fanin I.d[1]
+//fanin I.d[2]
+
+requires "channel.chp";
+
+process A()(O!:e1of3)
+hse {
+  [O.e]; O.d[0]+; [~O.e]; O.d[0]-;
+  [O.e]; O.d[1]+; [~O.e]; O.d[1]-;
+  [O.e]; O.d[2]+; [~O.e]; O.d[2]-;
+}
+
+process AA()(O!:std1of3)
+chp { O!0; O!1; O!2 }
+meta { instance a:A; connect O.wire, a.O; }
+
+process B()(I?:e1of3)
+hse { *[I.e+;[I.d[0]|I.d[1]|I.d[2]];I.e-;[~(I.d[0]|I.d[1]|I.d[2])]] }
+
+process main()()
+meta { instance a:AA; instance b:B; connect a.O.wire, b.I; }

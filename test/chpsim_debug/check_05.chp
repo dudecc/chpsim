@@ -1,0 +1,14 @@
+//run
+//check /b
+
+const N = 100;
+
+process A()(I?, O! : int)
+chp { var x : int; <<; i : 1..N : I?x, O!i; [x=i] >>; print("done") }
+
+process B()(I?, O! : int)
+chp { var x : int; <<; i : 1..N : I?x, O!i; [x=i] >>; print("done") }
+meta { instance a : A; connect a.I, I; connect a.O, O; }
+
+process main()()
+meta { instance b : B; instance a : A; connect b.I, a.O; connect a.I, b.O; }

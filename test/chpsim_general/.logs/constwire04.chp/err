@@ -3,8 +3,8 @@ Command line: ../../chpsim -batch constwire04.chp
 --- global constants -------------------
 --- instantiation ----------------------
 --- error ------------------------------
-Error: / at constwire04.chp[13:15]
-	Port a.I.d[2] is already connected
+Error: / at constwire04.chp[13:7]
+	Connection bridged two output wires
 Error occurred: cannot continue
 (cmnd) where
 / at constwire04.chp[13:7]

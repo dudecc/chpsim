@@ -20,7 +20,6 @@ along with this file.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "standard.h"
-#include <string.h> /* for memcpy() */
 #include "obj.h"
 
 /*extern*/ int app_nr = 0; /* default */

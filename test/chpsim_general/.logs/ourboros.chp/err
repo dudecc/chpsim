@@ -2,6 +2,11 @@ Command line: ../../chpsim -batch ourboros.chp
 
 --- global constants -------------------
 --- instantiation ----------------------
---- CHP execution ----------------------
-  (nothing to execute)
---- done -------------------------------
+--- error ------------------------------
+Error: /a at ourboros.chp[5:7]
+	Connection would create a channel loop
+Error occurred: cannot continue
+(cmnd) where
+/a at ourboros.chp[5:7]
+	connect I, O
+(cmnd) quit

@@ -1,0 +1,20 @@
+//run
+//check /b
+
+const N = 100;
+
+process A()(I?, O! : bool)
+chp { <<; i : 1..N : I, O!false >>; print("done") }
+
+process B()(I?, O! : {0..3})
+chp { <<; i : 1..N : I, O!0 >>; print("done") }
+meta { instance a[0..1] : A;
+       connect all i : 0..1 : a[i].I, I[i];
+       connect all i : 0..1 : a[i].O, O[i];
+ }
+
+process main()()
+meta { instance a[0..1] : A; instance b : B;
+       connect all i : 0..1 : a[i].I, b.O[i];
+       connect all i : 0..1 : a[i].O, b.I[i];
+ }

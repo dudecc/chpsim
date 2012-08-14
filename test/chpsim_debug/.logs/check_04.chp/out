@@ -1,0 +1,16 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) run
+--- CHP execution ----------------------
+(cmnd?) check /b
+(cmnd?) 
+--- error ------------------------------
+Error: /b/a at check_04.chp[7:24]
+	Process /b/a sent 1 on port I,
+	but process /b sent 0 on port O
+(cmnd?) --- continuing in batch mode -----------
+Error occurred: cannot continue
+(cmnd) where
+/b/a at check_04.chp[7:24]
+	O!1
+(cmnd) quit

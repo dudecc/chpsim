@@ -61,6 +61,7 @@ struct brk_cond
 
 FLAGS(user_flags)
    { FIRST_FLAG(USER_batch), /* non-interactive operation */
+     NEXT_FLAG(USER_started), /* has execution proper started? */
      NEXT_FLAG(USER_quit), /* quit after command line commands */
      NEXT_FLAG(USER_verbose), /* be more verbose */
      NEXT_FLAG(USER_traceall), /* trace all processes */
@@ -69,7 +70,7 @@ FLAGS(user_flags)
      NEXT_FLAG(USER_random), /* use random timing */
      NEXT_FLAG(USER_nohide), /* do not hide wired decomposition processes */
      NEXT_FLAG(USER_critical), /* track critical cycles */
-     NEXT_FLAG(USER_clear) /* brkp() clears breakpoints instead of setting them */
+     NEXT_FLAG(USER_clear) /* make brkp() clear, not set, breakpoints */
    };
 
 typedef struct user_info user_info;
@@ -80,7 +81,8 @@ struct user_info
      lex_tp *L; /* for reading user commands */
      llist old_L; /* llist(lex_tp*) stack of command files */
      llist cmds; /* commands to pre-execute */
-     llist procs; /* llist(process_state*); current, past, future processes */
+     process_state *main; /* The root instance */
+     llist hprocs; /* llist(process_state*); hidden processes */
      int brk_lnr, brk_lpos; /* requested breakpoint */
      const char *brk_src; /* requested breakpoint module name */
      hash_table brk_condition; /* conditions on breakpoints */
@@ -92,7 +94,6 @@ struct user_info
      ctrl_state *curr; /* currently viewed stmt */
      sem_context *cxt; /* context for parsed expressions */
      llist wait; /* processes waiting to be added */
-     process_state *main; /* The root instance */
      process_state *ps; /* State we are seaching for */
      int view_pos; /* position of view on stack */
      var_string scratch, rep;
@@ -173,10 +174,6 @@ extern process_state *find_instance(user_info *f, const str *nm, int must);
 
 extern int is_visible(process_state *ps);
  /* false if ps should be invisible (cannot be looked up by name) */
-
-/* llist_func */
-extern int instance_eq(process_state *ps, const str *nm);
- /* true if ps has name nm */
 
 extern process_def *find_routine
  (module_def *md, const str *id, user_info *f, int only);

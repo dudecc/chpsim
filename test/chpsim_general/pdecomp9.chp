@@ -16,7 +16,6 @@ chp { <<; i : 1..9 : Oa!true, Ob!false; Oa!true, Ob!true; Oa!false >> }
 process AA()(O! : cond)
 meta { instance a : A;
        connect O.d.a, a.Oa;
-       <<; i : 1..99 : skip >>;
        connect O.d.b, a.Ob;
 }
 
@@ -31,7 +30,6 @@ chp { <<; i : 1..9 : [#{Ia,Ib:Ia&~Ib}]; Ia, Ib;
 process BB()(I? : cond)
 meta { instance b : B;
        connect I.d.a, b.Ia;
-       <<; i : 1..99 : skip >>;
        connect I.d.b, b.Ib;
 }
 

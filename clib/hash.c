@@ -20,7 +20,6 @@ along with this file.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "standard.h"
-#include <string.h>
 #include "hash.h"
 
 /********** table data structure *********************************************/

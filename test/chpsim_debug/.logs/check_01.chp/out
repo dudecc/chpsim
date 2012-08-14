@@ -1,0 +1,20 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) run
+--- CHP execution ----------------------
+(cmnd?) check /b
+(cmnd?) p /b
+  /b is an instance of check_01.chp[11:0] B
+  I --> /b/a:I
+  O --> /b/a:I
+(active) /b at check_01.chp[12:32]
+(cmnd?) p /b/a
+  /b/a is an instance of check_01.chp[8:0] A
+  I --> /b/a:I
+  O --> /b/a:I
+(active) /b/a at check_01.chp[8:0]
+(active) /b/a at check_01.chp[9:32]
+(cmnd?) 
+/b> done
+/b/a> done
+--- done -------------------------------

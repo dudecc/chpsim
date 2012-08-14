@@ -45,14 +45,13 @@ along with this file.  If not, see <http://www.gnu.org/licenses/>.
 #include <limits.h> /* INT_MAX etc. */
 #include <stdio.h>  /* almost always used */
 #include <stdlib.h> /* almost always used */
-#include <string.h> /* must appear before mallocdbg.h for strduo */
+#include <string.h> /* must appear before mallocdbg.h for strdup */
 #if defined(__unix__) && !defined(__FreeBSD__)
 #include <alloca.h> /* for alloca; not an ansi header */
 #endif
 #include <assert.h>
 #include "c_exception.h"
 #include "errormsg.h"
-extern char *strdup(const char *s); /* must be declared before mallocdbg.h */
 #include "mallocdbg.h"
 
 /* The other standard include files are not as often used, so they

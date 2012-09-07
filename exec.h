@@ -193,8 +193,7 @@ FLAGS(exec_flags)
      NEXT_FLAG(EXEC_single), /* just run one process */
      NEXT_FLAG(EXEC_error), /* error occurred */
      NEXT_FLAG(EXEC_warning), /* warning occurred */
-     NEXT_FLAG(EXEC_deadlock), /* f->curr is deadlocked */
-     NEXT_FLAG(EXEC_print) /* print while executing */
+     NEXT_FLAG(EXEC_deadlock) /* f->curr is deadlocked */
    };
 
 typedef struct exec_info exec_info;
@@ -212,7 +211,6 @@ struct exec_info
      eval_stack *fl; /* free-list for stack */
      value_tp *val; /* target of range check */
      void *err_obj; /* obj for errors, in range check or strict checks */
-     print_info *pf; /* used for printing when EXEC_print is set */
      wire_expr *e;
      guarded_cmnd *gc; /* for find_true_guard */
      eval_stack *gcrv; /* also for find_true_guard */
@@ -226,6 +224,7 @@ struct exec_info
      hash_table *crit_map; /* used for tracking critical cycles */
      struct crit_node *crit; /* also used for tracking critical cycles */
      long ecount; /* Used for energy estimates */
+     void *custom; /* Reserved for use by chpsim add-ons */
    };
      
 typedef enum exec_return

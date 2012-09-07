@@ -349,7 +349,6 @@ extern void exec_warning(exec_info *f, void *obj, const char *fmt, ...)
    int pos;
    va_list a;
    if (IS_SET(f->user->flags, USER_debug)) return;
-   if (IS_SET(f->flags, EXEC_print)) return;
    va_start(a, fmt);
    pos = var_str_printf(&f->err, 0, "Warning: %s at %s[%d:%d]\n\t%v\n\t",
                         f->curr->ps->nm, x->src, x->lnr, x->lpos,

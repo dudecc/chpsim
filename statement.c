@@ -1706,10 +1706,6 @@ static int exec_connection(connection *x, exec_info *f)
  { expr *a, *b;
    process_state *psa, *psb;
    value_tp *vala, *valb, tmp;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection(x, f->pf);
-       print_string(";\n", f->pf);
-     }
    psa = get_port_connect(x->a, &vala, f);
    if (psa == f->meta_ps)
      { psb = get_port_connect(x->b, &valb, f);
@@ -1893,10 +1889,6 @@ static void wire_connect
 
 static int exec_wired_connection(wired_connection *x, exec_info *f)
  { struct wc_info g;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection((wired_connection*)x, f->pf);
-       print_string(";\n", f->pf);
-     }
    value_tp *vala, *valb;
    g.psa = get_wire_connect(x->a, &vala, f);
    g.psb = get_wire_connect(x->b, &valb, f);
@@ -1911,10 +1903,6 @@ static int exec_wired_connection(wired_connection *x, exec_info *f)
 
 static int exec_const_wired_connection(const_wired_connection *x, exec_info *f)
  { struct wc_info g;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_connection((wired_connection*)x, f->pf);
-       print_string(";\n", f->pf);
-     }
    value_tp *vala, valb;
    g.psa = get_wire_connect(x->a, &vala, f);
    eval_expr(x->b, f);
@@ -2045,10 +2033,6 @@ static void mk_instance(value_tp *xval, type *tp, exec_info *f)
 
 static int exec_instance_stmt(instance_stmt *x, exec_info *f)
  { value_tp *v;
-   if (IS_SET(f->flags, EXEC_print))
-     { print_instance_stmt(x, f->pf);
-       print_string(";\n", f->pf);
-     }
    v = &f->curr->var[x->d->var_idx];
    if (f->curr->ps->nm == make_str("/"))
      { var_str_printf(&f->scratch, 0, "/%s", x->d->id); }
@@ -2124,11 +2108,6 @@ static int exec_production_rule(production_rule *x, exec_info *f)
    value_tp val, dval;
    long i, n;
    int ispu = (x->op_sym == '+');
-   if (IS_SET(f->flags, EXEC_print))
-     { print_production_rule(x, f->pf);
-       print_char('\n', f->pf);
-       return EXEC_next;
-     }
    eval_expr(x->v, f);
    pop_value(&val, f);
    e = make_wire_expr(x->g, f);

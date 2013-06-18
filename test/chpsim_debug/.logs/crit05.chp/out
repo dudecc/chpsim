@@ -1,0 +1,24 @@
+--- global constants -------------------
+--- instantiation ----------------------
+(cmnd?) r
+--- CHP execution ----------------------
+(cmnd?) r
+--- error ------------------------------
+Error: deadlock
+(cmnd?) critical /b[0]:O.wire.e
+/b[1]:I.wire.e up   at time 1150
+/a[0]:o down at time 1150
+/b[0]:O.wire.d[0] down at time 900
+/b[1]:I.wire.e down at time 900
+/a[0]:o up   at time 900
+/b[0]:O.wire.d[0] up   at time 600
+/b[0]:O      at time 600
+/b[0]:I      at time 600
+/a[1]:o up   at time 600
+/b[1]:O.wire.d[0] up   at time 300
+/b[1]:O      at time 300
+/b[1]:I      at time 300
+/a[0]:o up   at time 300
+/b[0]:O.wire.d[0] up   at time 0
+/b[1]:I.wire.e up   at time 0
+(cmnd?) 

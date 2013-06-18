@@ -442,7 +442,7 @@ extern void action_sched(action *a, exec_info *f)
      { f->nr_susp--;
        a->cs->ps->nr_susp--;
      }
-   if (f->crit)
+   if (f->crit) // Implies USER_critical is set
      { if (IS_SET(a->flags, ACTION_is_pr | ACTION_is_cr))
          { *((crit_node**)(a+1)) = f->crit; }
        else
@@ -470,7 +470,7 @@ extern void run_checks(wire_value *w, exec_info *f)
                  }
                SET_FLAG(b->flags, ACTION_resched | ACTION_sched);
                pqueue_insert(&f->sched, b);
-               if (f->crit)
+               if (f->crit) // Implies USER_critical is set
                  { *((crit_node**)(b+1)) = f->crit;
                    f->crit->refcnt++;
                  }
@@ -684,7 +684,7 @@ extern void exec_run(exec_info *f)
                a->cs->ps->nr_susp++;
              }
          }
-       if (f->crit)
+       if (f->crit) // Implies USER_critical is set
          { crit_node_clear(f->crit, f);
            f->crit = 0;
          }

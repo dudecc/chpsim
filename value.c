@@ -450,22 +450,28 @@ extern int vstr_wire_context(var_string *s, int pos, void *w, void *ps)
  { exec_info g;
    var_decl *d;
    port_value *pv;
-   char *ext;
+   const char *ext;
    exec_info_init_eval(&g, ps);
    print_wire_exec(w, &g);
    if (is_visible(ps))
      { var_str_printf(s, pos, "%s of process %s", g.scratch.s, g.meta_ps->nm); }
    else
      { ext = strchr(g.scratch.s, '.'); /* "Remove" local port name */
-       assert(ext);
+       if (!ext) ext = ""; /* Sometimes the local port name is all there is */
        d = llist_idx(&g.meta_ps->p->pl, 0);
        if (g.meta_ps->var[d->var_idx].rep != REP_port)
          { d = llist_idx(&g.meta_ps->p->pl, 1); }
        assert(g.meta_ps->var[d->var_idx].rep == REP_port);
        pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
        assert(pv->dec);
-       var_str_printf(s, pos, "%v.%s%s of process %s", vstr_port, pv->p,
-                      pv->dec->id, ext, pv->p->wprobe.wps->nm);
+       if (w == &pv->wprobe)
+         { var_str_printf(s, pos, "%v%s of process %s", vstr_port, pv->p,
+                          ext, pv->p->wprobe.wps->nm);
+         }
+       else
+         { var_str_printf(s, pos, "%v.%s%s of process %s", vstr_port, pv->p,
+                          pv->dec->id, ext, pv->p->wprobe.wps->nm);
+         }
      }
    exec_info_term(&g);
    return 0;
@@ -484,15 +490,21 @@ extern int vstr_wire_context_short(var_string *s, int pos, void *w, void *ps)
      { var_str_printf(s, pos, "%s:%s", g.meta_ps->nm, g.scratch.s); }
    else
      { ext = strchr(g.scratch.s, '.'); /* "Remove" local port name */
-       assert(ext);
+       if (!ext) ext = ""; /* Sometimes the local port name is all there is */
        d = llist_idx(&g.meta_ps->p->pl, 0);
        if (g.meta_ps->var[d->var_idx].rep != REP_port)
          { d = llist_idx(&g.meta_ps->p->pl, 1); }
        assert(g.meta_ps->var[d->var_idx].rep == REP_port);
        pv = g.meta_ps->var[d->var_idx].v.p; /* The "real" port */
        assert(pv->dec);
-       var_str_printf(s, pos, "%s:%v.%s%s", pv->p->wprobe.wps->nm, vstr_port,
-                      pv->p, pv->dec->id, ext);
+       if (w == &pv->wprobe)
+         { var_str_printf(s, pos, "%s:%v%s", pv->p->wprobe.wps->nm,
+                          vstr_port, pv->p, ext);
+         }
+       else
+         { var_str_printf(s, pos, "%s:%v.%s%s", pv->p->wprobe.wps->nm,
+                          vstr_port, pv->p, pv->dec->id, ext);
+         }
      }
    exec_info_term(&g);
    return 0;

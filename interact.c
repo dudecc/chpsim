@@ -1601,9 +1601,16 @@ static void wire_critical(wire_value *w, user_info *f)
        while (c)
          { w = (wire_value*)ACTION_NO_DIR(c->w);
            mpz_fdiv_q_2exp(time, c->time, 1);
-           report(f, "%V %s at time %v",
-                  vstr_wire_context_short, w, w->wframe->cs->ps,
-                  ACTION_DIR(c->w)? "up  " : "down", vstr_mpz, time);
+           if (IS_SET(w->flags, WIRE_is_probe))
+             /* TODO: "sent", "rcvd" or "received" for non sync ports */
+             { report(f, "%V      at time %v",
+                      vstr_wire_context_short, w, w->wps, vstr_mpz, time);
+             }
+           else
+             { report(f, "%V %s at time %v",
+                      vstr_wire_context_short, w, w->wframe->cs->ps,
+                      ACTION_DIR(c->w)? "up  " : "down", vstr_mpz, time);
+             }
            c = c->parent;
          }
        mpz_clear(time);
@@ -1611,9 +1618,12 @@ static void wire_critical(wire_value *w, user_info *f)
    else
      { while (c)
          { w = (wire_value*)ACTION_NO_DIR(c->w);
-           report(f, "%V %s",
-                  vstr_wire_context_short, w, w->wframe->cs->ps,
-                  ACTION_DIR(c->w)? "up  " : "down");
+           if (IS_SET(w->flags, WIRE_is_probe))
+             { report(f, "%V", vstr_wire_context_short, w, w->wps); }
+           else
+             { report(f, "%V %s", vstr_wire_context_short, w, w->wframe->cs->ps,
+                      ACTION_DIR(c->w)? "up" : "down");
+             }
            c = c->parent;
          }
      }

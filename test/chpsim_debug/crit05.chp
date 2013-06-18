@@ -1,0 +1,21 @@
+//-timed -critical
+//r
+//r
+//critical /b[0]:O.wire.e
+
+requires "channel.chp";
+
+process A()((i; o-))
+prs { after (250) ~i -> o-
+      after (300)  i -> o+
+}
+
+process B(b : bool)(I?, O! : std1of1)
+chp { [ b -> I [] ~b -> skip]; O!0; I; O!0; I }
+
+process main()()
+meta { instance a[0..1] : A; instance b[0..1] : B; b[0](false); b[1](true);
+       connect all j : 0..1 : b[j].O.wire.d[0], a[j].i;
+       connect all j : 0..1 :                   a[j].o, b[1-j].I.wire.d[0];
+       connect all j : 0..1 : b[j].O.wire.e,            b[1-j].I.wire.e;
+}

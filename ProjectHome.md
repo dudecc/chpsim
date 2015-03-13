@@ -1,0 +1,1 @@
+CHP and PRS are hardware description languages optimized for QDI asynchronous design.  CHP is roughly equivalent to behavioral verilog, and PRS is roughly equivalent to structural verilog.  Chpsim allows simulation of either/both of these languages, and provides a GDB-like debugger
